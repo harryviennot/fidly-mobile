@@ -1,15 +1,19 @@
 {
   "expo": {
-    "name": "scanner-app2",
-    "slug": "scanner-app2",
+    "name": "Loyalty Scanner",
+    "slug": "loyalty-scanner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "scannerapp2",
+    "scheme": "loyalty-scanner",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.loyalty.scanner",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs camera access to scan customer loyalty card QR codes"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,6 +22,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "package": "com.loyalty.scanner",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -37,6 +45,12 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes."
         }
       ]
     ],
