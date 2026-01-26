@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { getCustomer, addStamp, Customer, StampResponse } from '@/lib/api';
+import { getCustomer, addStamp } from '@/api/customers';
+import type { Customer, StampResponse } from '@/types/api';
 
 export default function StampScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
