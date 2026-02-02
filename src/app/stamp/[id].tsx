@@ -11,7 +11,6 @@ import { useLocalSearchParams, router } from "expo-router";
 import { WarningCircle, Confetti, Check, Gift } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
-import { useAuth } from "@/contexts/auth-context";
 import { useBusiness } from "@/contexts/business-context";
 import type { Customer, StampResponse } from "@/types/api";
 
@@ -19,7 +18,6 @@ const MAX_STAMPS = 10; // TODO: Get from card design
 
 export default function StampScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { appUser } = useAuth();
   const { currentBusiness } = useBusiness();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,12 +52,12 @@ export default function StampScreen() {
   }, [loadCustomer]);
 
   async function handleAddStamp() {
-    if (!customer || stamping) return;
+    if (!customer || !currentBusiness?.id || stamping) return;
 
     try {
       setStamping(true);
       setError(null);
-      const result = await addStamp(customer.id, appUser?.id);
+      const result = await addStamp(currentBusiness.id, customer.id);
       setSuccess(result);
       setCustomer((prev) => (prev ? { ...prev, stamps: result.stamps } : null));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -72,12 +70,12 @@ export default function StampScreen() {
   }
 
   async function handleRedeemReward() {
-    if (!customer || redeeming) return;
+    if (!customer || !currentBusiness?.id || redeeming) return;
 
     try {
       setRedeeming(true);
       setError(null);
-      const result = await redeemReward(customer.id, appUser?.id);
+      const result = await redeemReward(currentBusiness.id, customer.id);
       setCustomer((prev) => (prev ? { ...prev, stamps: 0 } : null));
       setRedeemSuccess(true);
       setSuccess(result);

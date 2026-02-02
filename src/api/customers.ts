@@ -6,20 +6,23 @@ export async function getCustomer(businessId: string, customerId: string): Promi
 }
 
 export async function addStamp(
-  customerId: string,
-  scannerId?: string
+  businessId: string,
+  customerId: string
 ): Promise<StampResponse> {
   const headers = await getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${customerId}`, {
+  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${customerId}`, {
     method: "POST",
-    headers: {
-      ...headers,
-      ...(scannerId && { "X-Scanner-User-Id": scannerId }),
-    },
+    headers,
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Not authorized to add stamps");
+    }
+    if (response.status === 403) {
+      throw new Error("You don't have access to this business");
+    }
     if (response.status === 404) {
       throw new Error("Customer not found");
     }
@@ -30,20 +33,23 @@ export async function addStamp(
 }
 
 export async function redeemReward(
-  customerId: string,
-  scannerId?: string
+  businessId: string,
+  customerId: string
 ): Promise<StampResponse> {
   const headers = await getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${customerId}/redeem`, {
+  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${customerId}/redeem`, {
     method: "POST",
-    headers: {
-      ...headers,
-      ...(scannerId && { "X-Scanner-User-Id": scannerId }),
-    },
+    headers,
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Not authorized to redeem rewards");
+    }
+    if (response.status === 403) {
+      throw new Error("You don't have access to this business");
+    }
     if (response.status === 404) {
       throw new Error("Customer not found");
     }
