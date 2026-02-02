@@ -1,8 +1,8 @@
 import { apiFetch, getAuthHeaders, API_BASE_URL } from "./client";
 import type { Customer, StampResponse } from "../types/api";
 
-export async function getCustomer(customerId: string): Promise<Customer> {
-  return apiFetch<Customer>(`/customers/${customerId}`);
+export async function getCustomer(businessId: string, customerId: string): Promise<Customer> {
+  return apiFetch<Customer>(`/customers/${businessId}/${customerId}`);
 }
 
 export async function addStamp(

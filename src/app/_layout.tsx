@@ -38,9 +38,10 @@ function NavigationGuard() {
         // Wait for business loading
         if (bizLoading) return;
 
-        if (memberships.length === 1 || currentBusiness) {
+        if (currentBusiness) {
           router.replace("/lobby");
-        } else {
+        } else if (memberships.length > 0) {
+          // Multiple businesses or single business still loading auto-select
           router.replace("/businesses");
         }
       }
@@ -60,7 +61,7 @@ function NavigationGuard() {
   if (authLoading || !isNavigationReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8B5A2B" />
+        <ActivityIndicator size="large" color="#f97316" />
       </View>
     );
   }
@@ -90,6 +91,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f0efe9",
   },
 });

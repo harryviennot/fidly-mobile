@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   View,
   Text,
@@ -9,12 +10,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useBusiness } from "@/contexts/business-context";
 import { useAuth } from "@/contexts/auth-context";
-import { MaterialIcons } from "@expo/vector-icons";
+import { ArrowsLeftRight, QrCode, Camera, Buildings, SignOut } from "phosphor-react-native";
+import { StampeoLogo } from "@/components/ui/StampeoLogo";
+import { SignupQRModal } from "@/components/signup-qr-modal";
 
 export default function LobbyScreen() {
   const router = useRouter();
   const { currentBusiness, currentMembership, memberships } = useBusiness();
   const { signOut } = useAuth();
+  const [showQRModal, setShowQRModal] = useState(false);
 
   const hasMultipleBusinesses = memberships.length > 1;
 
@@ -33,6 +37,12 @@ export default function LobbyScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header with Logo */}
+      <View style={styles.headerBar}>
+        <StampeoLogo size={28} />
+        <Text style={styles.headerTitle}>Stampeo Scanner</Text>
+      </View>
+
       {/* Business Banner */}
       <TouchableOpacity
         style={styles.banner}
@@ -63,14 +73,14 @@ export default function LobbyScreen() {
         </View>
 
         {hasMultipleBusinesses && (
-          <MaterialIcons name="swap-horiz" size={24} color="#8B5A2B" />
+          <ArrowsLeftRight size={24} color="#f97316" weight="bold" />
         )}
       </TouchableOpacity>
 
       {/* Main Content */}
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <MaterialIcons name="qr-code-scanner" size={80} color="#8B5A2B" />
+          <QrCode size={80} color="#f97316" weight="duotone" />
         </View>
 
         <Text style={styles.title}>Ready to Scan</Text>
@@ -83,8 +93,17 @@ export default function LobbyScreen() {
           onPress={handleStartScanning}
           activeOpacity={0.8}
         >
-          <MaterialIcons name="camera-alt" size={24} color="#fff" />
+          <Camera size={24} color="#fff" weight="bold" />
           <Text style={styles.scanButtonText}>Start Scanning</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.qrButton}
+          onPress={() => setShowQRModal(true)}
+          activeOpacity={0.8}
+        >
+          <QrCode size={24} color="#f97316" weight="bold" />
+          <Text style={styles.qrButtonText}>Show Signup QR</Text>
         </TouchableOpacity>
       </View>
 
@@ -95,16 +114,25 @@ export default function LobbyScreen() {
             style={styles.switchButton}
             onPress={handleSwitchBusiness}
           >
-            <MaterialIcons name="business" size={20} color="#666" />
+            <Buildings size={20} color="#6b7280" />
             <Text style={styles.switchButtonText}>Switch Business</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-          <MaterialIcons name="logout" size={20} color="#666" />
+        <TouchableOpacity style={styles.signOutFooterButton} onPress={signOut}>
+          <SignOut size={20} color="#6b7280" />
           <Text style={styles.signOutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
+
+      {currentBusiness && (
+        <SignupQRModal
+          visible={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          businessId={currentBusiness.id}
+          businessName={currentBusiness.name}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -112,16 +140,31 @@ export default function LobbyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f0efe9",
+  },
+  headerBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 12,
+    backgroundColor: "#faf9f6",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd9d0",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#f97316",
   },
   banner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#faf9f6",
     padding: 16,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#ddd9d0",
   },
   logo: {
     width: 48,
@@ -132,7 +175,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#8B5A2B",
+    backgroundColor: "#f97316",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -147,11 +190,11 @@ const styles = StyleSheet.create({
   businessName: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#333",
+    color: "#2d3436",
   },
   roleText: {
     fontSize: 14,
-    color: "#666",
+    color: "#6b7280",
   },
   content: {
     flex: 1,
@@ -163,7 +206,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: "rgba(139, 90, 43, 0.1)",
+    backgroundColor: "rgba(249, 115, 22, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
@@ -171,12 +214,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#333",
+    color: "#2d3436",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 32,
@@ -184,15 +227,32 @@ const styles = StyleSheet.create({
   scanButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#8B5A2B",
+    backgroundColor: "#f97316",
     paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: 9999,
+    gap: 10,
   },
   scanButtonText: {
     color: "#fff",
     fontSize: 18,
+    fontWeight: "600",
+  },
+  qrButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#faf9f6",
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 9999,
+    gap: 10,
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: "#f97316",
+  },
+  qrButtonText: {
+    color: "#f97316",
+    fontSize: 16,
     fontWeight: "600",
   },
   footer: {
@@ -201,8 +261,8 @@ const styles = StyleSheet.create({
     gap: 24,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    backgroundColor: "#fff",
+    borderTopColor: "#ddd9d0",
+    backgroundColor: "#faf9f6",
   },
   switchButton: {
     flexDirection: "row",
@@ -211,15 +271,15 @@ const styles = StyleSheet.create({
   },
   switchButtonText: {
     fontSize: 14,
-    color: "#666",
+    color: "#6b7280",
   },
-  signOutButton: {
+  signOutFooterButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
   signOutButtonText: {
     fontSize: 14,
-    color: "#666",
+    color: "#6b7280",
   },
 });

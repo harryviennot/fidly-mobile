@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/auth-context";
+import { StampeoLogo } from "@/components/ui/StampeoLogo";
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -48,7 +49,8 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Loyalty Scanner</Text>
+            <StampeoLogo size={56} />
+            <Text style={styles.title}>Stampeo Scanner</Text>
             <Text style={styles.subtitle}>Sign in to start scanning</Text>
           </View>
 
@@ -58,7 +60,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="your@email.com"
-                placeholderTextColor="#999"
+                placeholderTextColor="#9ca3af"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -73,7 +75,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor="#999"
+                placeholderTextColor="#9ca3af"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -105,7 +107,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f0efe9",
   },
   keyboardView: {
     flex: 1,
@@ -118,16 +120,17 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     marginBottom: 48,
+    gap: 12,
   },
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#8B5A2B",
-    marginBottom: 8,
+    color: "#f97316",
+    marginTop: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
   },
   form: {
     gap: 16,
@@ -138,16 +141,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#333",
+    color: "#2d3436",
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: "#faf9f6",
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
+    borderColor: "#ddd9d0",
+    borderRadius: 10,
     padding: 16,
     fontSize: 16,
-    color: "#333",
+    color: "#2d3436",
   },
   error: {
     color: "#dc2626",
@@ -155,8 +158,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#8B5A2B",
-    borderRadius: 12,
+    backgroundColor: "#f97316",
+    borderRadius: 9999,
     padding: 16,
     alignItems: "center",
     marginTop: 8,

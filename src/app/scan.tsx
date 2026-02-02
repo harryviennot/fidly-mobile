@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
-import { MaterialIcons } from "@expo/vector-icons";
+import { ArrowLeft, ArrowsLeftRight } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
 
 export default function ScanScreen() {
@@ -114,7 +114,7 @@ export default function ScanScreen() {
           </View>
 
           {hasMultipleBusinesses && (
-            <MaterialIcons name="swap-horiz" size={20} color="#fff" />
+            <ArrowsLeftRight size={20} color="#fff" weight="bold" />
           )}
         </TouchableOpacity>
       )}
@@ -166,7 +166,7 @@ export default function ScanScreen() {
         style={[styles.backButton, { top: insets.top + 12 }]}
         onPress={handleGoBack}
       >
-        <MaterialIcons name="arrow-back" size={24} color="#fff" />
+        <ArrowLeft size={24} color="#fff" weight="bold" />
       </TouchableOpacity>
     </View>
   );
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(139, 90, 43, 0.95)",
+    backgroundColor: "rgba(249, 115, 22, 0.95)",
     padding: 12,
     gap: 10,
   },
@@ -301,10 +301,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   button: {
-    backgroundColor: "#8B5A2B",
+    backgroundColor: "#f97316",
     paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 9999,
   },
   buttonText: {
     color: "#fff",
@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
     bottom: 40,
     left: 20,
     right: 20,
-    backgroundColor: "#8B5A2B",
+    backgroundColor: "#f97316",
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 9999,
     alignItems: "center",
   },
   rescanText: {

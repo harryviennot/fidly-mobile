@@ -11,12 +11,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useBusiness } from "@/contexts/business-context";
 import { useAuth } from "@/contexts/auth-context";
+import { CaretRight } from "phosphor-react-native";
 import type { Membership } from "@/types/api";
 
 function getRoleBadgeColor(role: string): string {
   switch (role) {
     case "owner":
-      return "#8B5A2B";
+      return "#f97316";
     case "admin":
       return "#2563eb";
     default:
@@ -62,7 +63,7 @@ function BusinessCard({
           </View>
         </View>
 
-        <Text style={styles.arrow}>›</Text>
+        <CaretRight size={24} color="#ddd9d0" weight="bold" />
       </View>
     </TouchableOpacity>
   );
@@ -82,7 +83,7 @@ export default function BusinessesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#8B5A2B" />
+        <ActivityIndicator size="large" color="#f97316" />
         <Text style={styles.loadingText}>Loading businesses...</Text>
       </SafeAreaView>
     );
@@ -141,18 +142,18 @@ export default function BusinessesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f0efe9",
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f0efe9",
   },
   header: {
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
@@ -161,8 +162,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: "#faf9f6",
+    borderRadius: 10,
     overflow: "hidden",
   },
   cardContent: {
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#8B5A2B",
+    backgroundColor: "#f97316",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
   businessName: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#333",
+    color: "#2d3436",
   },
   roleBadge: {
     alignSelf: "flex-start",
@@ -209,17 +210,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#fff",
   },
-  arrow: {
-    fontSize: 24,
-    color: "#ccc",
-  },
   separator: {
     height: 12,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
   },
   errorText: {
     fontSize: 16,
@@ -228,10 +225,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: "#8B5A2B",
+    backgroundColor: "#f97316",
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 9999,
   },
   retryButtonText: {
     color: "#fff",
@@ -240,12 +237,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    color: "#2d3436",
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 24,
@@ -254,7 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#dc2626",
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 9999,
   },
   signOutButtonText: {
     color: "#fff",
@@ -265,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   signOutLinkText: {
-    color: "#666",
+    color: "#6b7280",
     fontSize: 14,
   },
 });
