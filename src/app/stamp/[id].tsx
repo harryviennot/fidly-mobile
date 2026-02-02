@@ -11,15 +11,15 @@ import { useLocalSearchParams, router } from "expo-router";
 import { WarningCircle, Confetti, Check, Gift } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
+import { getActiveDesign } from "@/api/designs";
 import { useBusiness } from "@/contexts/business-context";
 import type { Customer, StampResponse } from "@/types/api";
-
-const MAX_STAMPS = 10; // TODO: Get from card design
 
 export default function StampScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { currentBusiness } = useBusiness();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [totalStamps, setTotalStamps] = useState(10);
   const [loading, setLoading] = useState(true);
   const [stamping, setStamping] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
@@ -27,7 +27,7 @@ export default function StampScreen() {
   const [success, setSuccess] = useState<StampResponse | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
 
-  const isReadyForReward = (customer?.stamps ?? 0) >= MAX_STAMPS;
+  const isReadyForReward = (customer?.stamps ?? 0) >= totalStamps;
 
   const loadCustomer = useCallback(async () => {
     if (!currentBusiness?.id) {
@@ -38,8 +38,14 @@ export default function StampScreen() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getCustomer(currentBusiness.id, id);
+      const [data, design] = await Promise.all([
+        getCustomer(currentBusiness.id, id),
+        getActiveDesign(currentBusiness.id),
+      ]);
       setCustomer(data);
+      if (design?.total_stamps) {
+        setTotalStamps(design.total_stamps);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load customer");
     } finally {
@@ -143,11 +149,11 @@ export default function StampScreen() {
         <View style={styles.stampsDisplay}>
           <Text style={styles.stampsLabel}>Stamps Reset</Text>
           <View style={styles.stampsRow}>
-            {[...Array(MAX_STAMPS)].map((_, i) => (
+            {[...Array(totalStamps)].map((_, i) => (
               <View key={i} style={styles.stampDot} />
             ))}
           </View>
-          <Text style={styles.stampsCount}>0 / {MAX_STAMPS}</Text>
+          <Text style={styles.stampsCount}>0 / {totalStamps}</Text>
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleDone}>
@@ -170,7 +176,7 @@ export default function StampScreen() {
         <View style={styles.stampsDisplay}>
           <Text style={styles.stampsLabel}>Current Stamps</Text>
           <View style={styles.stampsRow}>
-            {[...Array(MAX_STAMPS)].map((_, i) => (
+            {[...Array(totalStamps)].map((_, i) => (
               <View
                 key={i}
                 style={[
@@ -181,7 +187,7 @@ export default function StampScreen() {
             ))}
           </View>
           <Text style={styles.stampsCount}>
-            {success.stamps} / {MAX_STAMPS}
+            {success.stamps} / {totalStamps}
           </Text>
         </View>
 
@@ -213,7 +219,7 @@ export default function StampScreen() {
 
           <View style={styles.stampsDisplay}>
             <View style={styles.stampsRow}>
-              {[...Array(MAX_STAMPS)].map((_, i) => (
+              {[...Array(totalStamps)].map((_, i) => (
                 <View
                   key={i}
                   style={[styles.stampDot, styles.stampDotFilled]}
@@ -221,7 +227,7 @@ export default function StampScreen() {
               ))}
             </View>
             <Text style={styles.stampsCount}>
-              {customer?.stamps} / {MAX_STAMPS} - Card Full!
+              {customer?.stamps} / {totalStamps} - Card Full!
             </Text>
           </View>
 
@@ -278,7 +284,7 @@ export default function StampScreen() {
         <View style={styles.stampsDisplay}>
           <Text style={styles.stampsLabel}>Current Stamps</Text>
           <View style={styles.stampsRow}>
-            {[...Array(MAX_STAMPS)].map((_, i) => (
+            {[...Array(totalStamps)].map((_, i) => (
               <View
                 key={i}
                 style={[
@@ -289,7 +295,7 @@ export default function StampScreen() {
             ))}
           </View>
           <Text style={styles.stampsCount}>
-            {customer?.stamps || 0} / {MAX_STAMPS}
+            {customer?.stamps || 0} / {totalStamps}
           </Text>
         </View>
 
