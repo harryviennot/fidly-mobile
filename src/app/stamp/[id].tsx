@@ -163,7 +163,70 @@ export default function StampScreen() {
     );
   }
 
-  // Regular success state (stamp added)
+  // Success state: stamp added AND card is now complete - show redeem option
+  if (success && !redeemSuccess && success.stamps >= totalStamps) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.completedIcon}>
+          <Confetti size={56} color="#fff" weight="fill" />
+        </View>
+        <Text style={styles.completedTitle}>Card Complete!</Text>
+        <Text style={styles.completedMessage}>
+          Stamp added for {customer?.name}.{"\n"}
+          Their card is now full!
+        </Text>
+
+        <View style={styles.stampsDisplay}>
+          <View style={styles.stampsRow}>
+            {[...Array(totalStamps)].map((_, i) => (
+              <View
+                key={i}
+                style={[styles.stampDot, styles.stampDotFilled]}
+              />
+            ))}
+          </View>
+          <Text style={styles.stampsCount}>
+            {success.stamps} / {totalStamps} - Card Full!
+          </Text>
+        </View>
+
+        {error && (
+          <View style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{error}</Text>
+          </View>
+        )}
+
+        <Text style={styles.rewardPrompt}>
+          Would you like to redeem their reward now?
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
+          onPress={handleRedeemReward}
+          disabled={redeeming}
+        >
+          {redeeming ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Gift size={24} color="#fff" weight="bold" />
+              <Text style={styles.redeemButtonText}>Redeem Reward</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handleDone}
+          disabled={redeeming}
+        >
+          <Text style={styles.skipButtonText}>Skip for Now</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Regular success state (stamp added, card not complete)
   if (success && !redeemSuccess) {
     return (
       <SafeAreaView style={styles.container}>
@@ -542,6 +605,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
+  },
+  completedIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#8b5cf6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  completedTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#2d3436",
+    marginBottom: 8,
+  },
+  completedMessage: {
+    fontSize: 16,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 24,
   },
   successTitle: {
     fontSize: 28,
