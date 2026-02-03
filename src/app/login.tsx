@@ -49,8 +49,7 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <StampeoLogo size={56} />
-            <Text style={styles.title}>Stampeo Scanner</Text>
+            <StampeoLogo size={56} color="#000000" />
             <Text style={styles.subtitle}>Sign in to start scanning</Text>
           </View>
 
@@ -125,7 +124,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#f97316",
+    color: "#000000",
     marginTop: 4,
   },
   subtitle: {

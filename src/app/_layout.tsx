@@ -68,7 +68,7 @@ function NavigationGuard() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Slot />
     </>
   );

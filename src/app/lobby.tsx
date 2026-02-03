@@ -37,12 +37,6 @@ export default function LobbyScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header with Logo */}
-      <View style={styles.headerBar}>
-        <StampeoLogo size={28} />
-        <Text style={styles.headerTitle}>Stampeo Scanner</Text>
-      </View>
-
       {/* Business Banner */}
       <TouchableOpacity
         style={styles.banner}
@@ -67,14 +61,18 @@ export default function LobbyScreen() {
           <Text style={styles.roleText}>
             {currentMembership?.role
               ? currentMembership.role.charAt(0).toUpperCase() +
-                currentMembership.role.slice(1)
+              currentMembership.role.slice(1)
               : "Scanner"}
           </Text>
+
+
+
+
         </View>
 
-        {hasMultipleBusinesses && (
-          <ArrowsLeftRight size={24} color="#f97316" weight="bold" />
-        )}
+        <TouchableOpacity style={styles.signOutFooterButton} hitSlop={12} onPress={signOut}>
+          <SignOut size={20} color="#6b7280" />
+        </TouchableOpacity>
       </TouchableOpacity>
 
       {/* Main Content */}
@@ -107,24 +105,6 @@ export default function LobbyScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        {hasMultipleBusinesses && (
-          <TouchableOpacity
-            style={styles.switchButton}
-            onPress={handleSwitchBusiness}
-          >
-            <Buildings size={20} color="#6b7280" />
-            <Text style={styles.switchButtonText}>Switch Business</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity style={styles.signOutFooterButton} onPress={signOut}>
-          <SignOut size={20} color="#6b7280" />
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
-
       {currentBusiness && (
         <SignupQRModal
           visible={showQRModal}
@@ -140,7 +120,7 @@ export default function LobbyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0efe9",
+    backgroundColor: "#faf9f6",
   },
   headerBar: {
     flexDirection: "row",
@@ -169,7 +149,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    // borderRadius: 8,
   },
   logoPlaceholder: {
     width: 48,
@@ -201,6 +181,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    backgroundColor: "#f0efe9",
   },
   iconContainer: {
     width: 140,

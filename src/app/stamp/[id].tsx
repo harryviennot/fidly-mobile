@@ -314,10 +314,8 @@ export default function StampScreen() {
         {stamping ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <>
-            <Text style={styles.stampButtonIcon}>☕</Text>
-            <Text style={styles.stampButtonText}>Add Stamp</Text>
-          </>
+
+          <Text style={styles.stampButtonText}>Add Stamp</Text>
         )}
       </TouchableOpacity>
 
@@ -440,7 +438,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stampButton: {
-    backgroundColor: "#22c55e",
+    backgroundColor: "#000000",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
