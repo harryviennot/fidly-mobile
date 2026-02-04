@@ -1,29 +1,44 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Stampeo Scanner Theme
+ * Colors aligned with the Stampeo design language
  */
 
 import { Platform } from 'react-native';
+import { StampeoColors } from './colors';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
+// Re-export StampeoColors as Colors for backwards compatibility
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: StampeoColors.light.text,
+    background: StampeoColors.light.background,
+    tint: StampeoColors.light.tint,
+    icon: StampeoColors.light.icon,
+    tabIconDefault: StampeoColors.light.tabIconDefault,
+    tabIconSelected: StampeoColors.light.tabIconSelected,
+    // Extended Stampeo colors
+    paper: StampeoColors.light.paper,
+    accent: StampeoColors.light.accent,
+    accentHover: StampeoColors.light.accentHover,
+    border: StampeoColors.light.border,
+    textMuted: StampeoColors.light.textMuted,
+    success: StampeoColors.light.success,
+    error: StampeoColors.light.error,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: StampeoColors.dark.text,
+    background: StampeoColors.dark.background,
+    tint: StampeoColors.dark.tint,
+    icon: StampeoColors.dark.icon,
+    tabIconDefault: StampeoColors.dark.tabIconDefault,
+    tabIconSelected: StampeoColors.dark.tabIconSelected,
+    // Extended Stampeo colors
+    paper: StampeoColors.dark.paper,
+    accent: StampeoColors.dark.accent,
+    accentHover: StampeoColors.dark.accentHover,
+    border: StampeoColors.dark.border,
+    textMuted: StampeoColors.dark.textMuted,
+    success: StampeoColors.dark.success,
+    error: StampeoColors.dark.error,
   },
 };
 
