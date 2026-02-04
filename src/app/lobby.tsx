@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -30,9 +31,19 @@ export default function LobbyScreen() {
     router.replace("/businesses");
   };
 
+  // Redirect to businesses screen if no business selected (must be in useEffect)
+  useEffect(() => {
+    if (!currentBusiness) {
+      router.replace("/businesses");
+    }
+  }, [currentBusiness, router]);
+
   if (!currentBusiness) {
-    router.replace("/businesses");
-    return null;
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -121,6 +132,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#faf9f6",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0efe9",
   },
   headerBar: {
     flexDirection: "row",

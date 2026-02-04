@@ -43,6 +43,9 @@ function NavigationGuard() {
         } else if (memberships.length > 0) {
           // Multiple businesses or single business still loading auto-select
           router.replace("/businesses");
+        } else {
+          // User has no business memberships - go to businesses screen to show empty state
+          router.replace("/businesses");
         }
       }
     }

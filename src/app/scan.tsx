@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
-import { ArrowLeft, ArrowsLeftRight } from "phosphor-react-native";
+import { ArrowLeft } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
 
 export default function ScanScreen() {
@@ -17,9 +17,7 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const isProcessingRef = useRef(false);
-  const { currentBusiness, currentMembership, memberships } = useBusiness();
-
-  const hasMultipleBusinesses = memberships.length > 1;
+  const { currentBusiness, currentMembership } = useBusiness();
 
   // Reset scanned state when screen comes into focus
   useFocusEffect(
@@ -47,10 +45,6 @@ export default function ScanScreen() {
       setScanned(false);
       isProcessingRef.current = false;
     }
-  };
-
-  const handleSwitchBusiness = () => {
-    router.replace("/businesses");
   };
 
   const handleGoBack = () => {
@@ -83,11 +77,11 @@ export default function ScanScreen() {
     <View style={styles.container}>
       {/* Business Banner */}
       {currentBusiness && (
-        <TouchableOpacity
-          style={[styles.banner, { paddingTop: insets.top + 12 }]}
-          onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
-          activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
-        >
+        <View style={[styles.banner, { paddingTop: insets.top + 12 }]}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+            <ArrowLeft size={24} color="#fff" weight="bold" />
+          </TouchableOpacity>
+
           {currentBusiness.logo_url ? (
             <Image
               source={{ uri: currentBusiness.logo_url }}
@@ -108,15 +102,11 @@ export default function ScanScreen() {
             <Text style={styles.roleText}>
               {currentMembership?.role
                 ? currentMembership.role.charAt(0).toUpperCase() +
-                  currentMembership.role.slice(1)
+                currentMembership.role.slice(1)
                 : "Scanner"}
             </Text>
           </View>
-
-          {hasMultipleBusinesses && (
-            <ArrowsLeftRight size={20} color="#fff" weight="bold" />
-          )}
-        </TouchableOpacity>
+        </View>
       )}
 
       <CameraView
@@ -161,13 +151,6 @@ export default function ScanScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Back button */}
-      <TouchableOpacity
-        style={[styles.backButton, { top: insets.top + 12 }]}
-        onPress={handleGoBack}
-      >
-        <ArrowLeft size={24} color="#fff" weight="bold" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -327,13 +310,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   backButton: {
-    position: "absolute",
-    top: 60,
-    left: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
