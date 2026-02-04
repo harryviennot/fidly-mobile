@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,15 +11,15 @@ import { useLocalSearchParams, router } from "expo-router";
 import { WarningCircle, Confetti, Check, Gift } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
-import { getActiveDesign } from "@/api/designs";
 import { useBusiness } from "@/contexts/business-context";
+import { useTheme } from "@/contexts/theme-context";
 import type { Customer, StampResponse } from "@/types/api";
 
 export default function StampScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { currentBusiness } = useBusiness();
+  const { theme, design } = useTheme();
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [totalStamps, setTotalStamps] = useState(10);
   const [loading, setLoading] = useState(true);
   const [stamping, setStamping] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
@@ -27,6 +27,7 @@ export default function StampScreen() {
   const [success, setSuccess] = useState<StampResponse | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
 
+  const totalStamps = design?.total_stamps ?? 10;
   const isReadyForReward = (customer?.stamps ?? 0) >= totalStamps;
 
   const loadCustomer = useCallback(async () => {
@@ -38,14 +39,8 @@ export default function StampScreen() {
     try {
       setLoading(true);
       setError(null);
-      const [data, design] = await Promise.all([
-        getCustomer(currentBusiness.id, id),
-        getActiveDesign(currentBusiness.id),
-      ]);
+      const data = await getCustomer(currentBusiness.id, id);
       setCustomer(data);
-      if (design?.total_stamps) {
-        setTotalStamps(design.total_stamps);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load customer");
     } finally {
@@ -106,28 +101,165 @@ export default function StampScreen() {
     router.replace("/lobby");
   }
 
+  // Dynamic styles based on theme
+  const dynamicStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: theme.background,
+          padding: 20,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        card: {
+          backgroundColor: theme.surface,
+          borderRadius: 16,
+          padding: 24,
+          width: "100%",
+          alignItems: "center",
+          shadowColor: theme.text,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 4,
+          overflow: "hidden",
+        },
+        avatar: {
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: theme.primary,
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 16,
+          marginTop: 48,
+        },
+        customerName: {
+          fontSize: 24,
+          fontWeight: "bold",
+          color: theme.text,
+          marginBottom: 4,
+        },
+        customerEmail: {
+          fontSize: 14,
+          color: theme.textSecondary,
+          marginBottom: 24,
+        },
+        stampsLabel: {
+          fontSize: 12,
+          color: theme.textSecondary,
+          marginBottom: 12,
+          textTransform: "uppercase",
+          letterSpacing: 1,
+        },
+        stampDot: {
+          width: 24,
+          height: 24,
+          borderRadius: 12,
+          backgroundColor: theme.stampEmpty,
+          borderWidth: 2,
+          borderColor: theme.stampBorder,
+        },
+        stampDotFilled: {
+          backgroundColor: theme.stampFilled,
+          borderColor: theme.accent,
+        },
+        stampsCount: {
+          fontSize: 18,
+          fontWeight: "600",
+          color: theme.text,
+        },
+        rewardPrompt: {
+          fontSize: 16,
+          color: theme.textSecondary,
+          textAlign: "center",
+          marginTop: 16,
+          marginBottom: 8,
+        },
+        button: {
+          backgroundColor: theme.primary,
+          paddingVertical: 16,
+          paddingHorizontal: 32,
+          borderRadius: 9999,
+          marginTop: 24,
+        },
+        buttonText: {
+          color: theme.primaryText,
+          fontSize: 16,
+          fontWeight: "600",
+        },
+        stampButton: {
+          backgroundColor: "#000000",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 18,
+          paddingHorizontal: 40,
+          borderRadius: 9999,
+          marginTop: 24,
+          width: "100%",
+          gap: 12,
+        },
+        cancelButtonText: {
+          color: theme.textSecondary,
+          fontSize: 16,
+        },
+        errorTitle: {
+          fontSize: 24,
+          fontWeight: "bold",
+          color: theme.text,
+          marginBottom: 8,
+        },
+        errorText: {
+          fontSize: 16,
+          color: theme.textSecondary,
+          textAlign: "center",
+          marginBottom: 24,
+        },
+        successTitle: {
+          fontSize: 28,
+          fontWeight: "bold",
+          color: theme.text,
+          marginBottom: 8,
+        },
+        successMessage: {
+          fontSize: 16,
+          color: theme.textSecondary,
+          textAlign: "center",
+          marginBottom: 32,
+        },
+        loadingText: {
+          marginTop: 16,
+          color: theme.textSecondary,
+          fontSize: 16,
+        },
+      }),
+    [theme]
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#f97316" />
-        <Text style={styles.loadingText}>Loading customer...</Text>
+      <SafeAreaView style={dynamicStyles.container}>
+        <ActivityIndicator size="large" color={theme.loadingColor} />
+        <Text style={dynamicStyles.loadingText}>Loading customer...</Text>
       </SafeAreaView>
     );
   }
 
   if (error && !customer) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={dynamicStyles.container}>
         <View style={styles.errorIcon}>
           <WarningCircle size={48} color="#fff" weight="bold" />
         </View>
-        <Text style={styles.errorTitle}>Error</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.button} onPress={handleGoHome}>
-          <Text style={styles.buttonText}>Go Home</Text>
+        <Text style={dynamicStyles.errorTitle}>Error</Text>
+        <Text style={dynamicStyles.errorText}>{error}</Text>
+        <TouchableOpacity style={dynamicStyles.button} onPress={handleGoHome}>
+          <Text style={dynamicStyles.buttonText}>Go Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-          <Text style={styles.cancelButtonText}>Go Back</Text>
+          <Text style={dynamicStyles.cancelButtonText}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -136,28 +268,28 @@ export default function StampScreen() {
   // Reward redemption success state
   if (redeemSuccess && success) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={dynamicStyles.container}>
         <View style={styles.rewardIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
         </View>
-        <Text style={styles.rewardTitle}>Reward Redeemed!</Text>
-        <Text style={styles.rewardMessage}>
+        <Text style={dynamicStyles.successTitle}>Reward Redeemed!</Text>
+        <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
           {customer?.name}&apos;s card has been reset.{"\n"}
           They can start collecting stamps again!
         </Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={styles.stampsLabel}>Stamps Reset</Text>
+          <Text style={dynamicStyles.stampsLabel}>Stamps Reset</Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
-              <View key={i} style={styles.stampDot} />
+              <View key={i} style={dynamicStyles.stampDot} />
             ))}
           </View>
-          <Text style={styles.stampsCount}>0 / {totalStamps}</Text>
+          <Text style={dynamicStyles.stampsCount}>0 / {totalStamps}</Text>
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleDone}>
-          <Text style={styles.buttonText}>Scan Next Customer</Text>
+        <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
+          <Text style={dynamicStyles.buttonText}>Scan Next Customer</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -166,12 +298,12 @@ export default function StampScreen() {
   // Success state: stamp added AND card is now complete - show redeem option
   if (success && !redeemSuccess && success.stamps >= totalStamps) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={dynamicStyles.container}>
         <View style={styles.completedIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
         </View>
-        <Text style={styles.completedTitle}>Card Complete!</Text>
-        <Text style={styles.completedMessage}>
+        <Text style={dynamicStyles.successTitle}>Card Complete!</Text>
+        <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
           Stamp added for {customer?.name}.{"\n"}
           Their card is now full!
         </Text>
@@ -181,11 +313,11 @@ export default function StampScreen() {
             {[...Array(totalStamps)].map((_, i) => (
               <View
                 key={i}
-                style={[styles.stampDot, styles.stampDotFilled]}
+                style={[dynamicStyles.stampDot, dynamicStyles.stampDotFilled]}
               />
             ))}
           </View>
-          <Text style={styles.stampsCount}>
+          <Text style={dynamicStyles.stampsCount}>
             {success.stamps} / {totalStamps} - Card Full!
           </Text>
         </View>
@@ -196,7 +328,7 @@ export default function StampScreen() {
           </View>
         )}
 
-        <Text style={styles.rewardPrompt}>
+        <Text style={dynamicStyles.rewardPrompt}>
           Would you like to redeem their reward now?
         </Text>
 
@@ -220,7 +352,7 @@ export default function StampScreen() {
           onPress={handleDone}
           disabled={redeeming}
         >
-          <Text style={styles.skipButtonText}>Skip for Now</Text>
+          <Text style={dynamicStyles.cancelButtonText}>Skip for Now</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -229,33 +361,33 @@ export default function StampScreen() {
   // Regular success state (stamp added, card not complete)
   if (success && !redeemSuccess) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={dynamicStyles.container}>
         <View style={styles.successIcon}>
           <Check size={56} color="#fff" weight="bold" />
         </View>
-        <Text style={styles.successTitle}>Stamp Added!</Text>
-        <Text style={styles.successMessage}>{success.message}</Text>
+        <Text style={dynamicStyles.successTitle}>Stamp Added!</Text>
+        <Text style={dynamicStyles.successMessage}>{success.message}</Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={styles.stampsLabel}>Current Stamps</Text>
+          <Text style={dynamicStyles.stampsLabel}>Current Stamps</Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
               <View
                 key={i}
                 style={[
-                  styles.stampDot,
-                  i < success.stamps && styles.stampDotFilled,
+                  dynamicStyles.stampDot,
+                  i < success.stamps && dynamicStyles.stampDotFilled,
                 ]}
               />
             ))}
           </View>
-          <Text style={styles.stampsCount}>
+          <Text style={dynamicStyles.stampsCount}>
             {success.stamps} / {totalStamps}
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleDone}>
-          <Text style={styles.buttonText}>Scan Next Customer</Text>
+        <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
+          <Text style={dynamicStyles.buttonText}>Scan Next Customer</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -264,32 +396,32 @@ export default function StampScreen() {
   // Show reward entitlement UI when at max stamps
   if (isReadyForReward) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.card}>
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.card}>
           <View style={styles.rewardBanner}>
             <Gift size={32} color="#fff" weight="fill" />
             <Text style={styles.rewardBannerText}>Ready for Reward!</Text>
           </View>
 
-          <View style={styles.avatar}>
+          <View style={dynamicStyles.avatar}>
             <Text style={styles.avatarText}>
               {customer?.name.charAt(0).toUpperCase()}
             </Text>
           </View>
 
-          <Text style={styles.customerName}>{customer?.name}</Text>
-          <Text style={styles.customerEmail}>{customer?.email}</Text>
+          <Text style={dynamicStyles.customerName}>{customer?.name}</Text>
+          <Text style={dynamicStyles.customerEmail}>{customer?.email}</Text>
 
           <View style={styles.stampsDisplay}>
             <View style={styles.stampsRow}>
               {[...Array(totalStamps)].map((_, i) => (
                 <View
                   key={i}
-                  style={[styles.stampDot, styles.stampDotFilled]}
+                  style={[dynamicStyles.stampDot, dynamicStyles.stampDotFilled]}
                 />
               ))}
             </View>
-            <Text style={styles.stampsCount}>
+            <Text style={dynamicStyles.stampsCount}>
               {customer?.stamps} / {totalStamps} - Card Full!
             </Text>
           </View>
@@ -301,7 +433,7 @@ export default function StampScreen() {
           )}
         </View>
 
-        <Text style={styles.rewardPrompt}>
+        <Text style={dynamicStyles.rewardPrompt}>
           This customer is entitled to their reward!
         </Text>
 
@@ -325,7 +457,7 @@ export default function StampScreen() {
           onPress={handleSkipReward}
           disabled={redeeming}
         >
-          <Text style={styles.skipButtonText}>Skip for Now</Text>
+          <Text style={dynamicStyles.cancelButtonText}>Skip for Now</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -333,31 +465,31 @@ export default function StampScreen() {
 
   // Normal stamp state
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.avatar}>
+    <SafeAreaView style={dynamicStyles.container}>
+      <View style={dynamicStyles.card}>
+        <View style={dynamicStyles.avatar}>
           <Text style={styles.avatarText}>
             {customer?.name.charAt(0).toUpperCase()}
           </Text>
         </View>
 
-        <Text style={styles.customerName}>{customer?.name}</Text>
-        <Text style={styles.customerEmail}>{customer?.email}</Text>
+        <Text style={dynamicStyles.customerName}>{customer?.name}</Text>
+        <Text style={dynamicStyles.customerEmail}>{customer?.email}</Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={styles.stampsLabel}>Current Stamps</Text>
+          <Text style={dynamicStyles.stampsLabel}>Current Stamps</Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
               <View
                 key={i}
                 style={[
-                  styles.stampDot,
-                  i < (customer?.stamps || 0) && styles.stampDotFilled,
+                  dynamicStyles.stampDot,
+                  i < (customer?.stamps || 0) && dynamicStyles.stampDotFilled,
                 ]}
               />
             ))}
           </View>
-          <Text style={styles.stampsCount}>
+          <Text style={dynamicStyles.stampsCount}>
             {customer?.stamps || 0} / {totalStamps}
           </Text>
         </View>
@@ -370,51 +502,26 @@ export default function StampScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.stampButton, stamping && styles.buttonDisabled]}
+        style={[dynamicStyles.stampButton, stamping && styles.buttonDisabled]}
         onPress={handleAddStamp}
         disabled={stamping}
       >
         {stamping ? (
           <ActivityIndicator color="#fff" />
         ) : (
-
           <Text style={styles.stampButtonText}>Add Stamp</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-        <Text style={styles.cancelButtonText}>Cancel</Text>
+        <Text style={dynamicStyles.cancelButtonText}>Cancel</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
+// Static styles that don't depend on theme
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0efe9",
-    padding: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 16,
-    color: "#6b7280",
-    fontSize: 16,
-  },
-  card: {
-    backgroundColor: "#faf9f6",
-    borderRadius: 16,
-    padding: 24,
-    width: "100%",
-    alignItems: "center",
-    shadowColor: "#2d3436",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: "hidden",
-  },
   rewardBanner: {
     position: "absolute",
     top: 0,
@@ -432,42 +539,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#f97316",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    marginTop: 48,
-  },
   avatarText: {
     color: "#fff",
     fontSize: 36,
     fontWeight: "bold",
   },
-  customerName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 4,
-  },
-  customerEmail: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 24,
-  },
   stampsDisplay: {
     alignItems: "center",
     width: "100%",
-  },
-  stampsLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginBottom: 12,
-    textTransform: "uppercase",
-    letterSpacing: 1,
   },
   stampsRow: {
     flexDirection: "row",
@@ -476,52 +555,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
   },
-  stampDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#e8e6e1",
-    borderWidth: 2,
-    borderColor: "#ddd9d0",
-  },
-  stampDotFilled: {
-    backgroundColor: "#f97316",
-    borderColor: "#ea580c",
-  },
-  stampsCount: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2d3436",
-  },
-  rewardPrompt: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  stampButton: {
-    backgroundColor: "#000000",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 40,
-    borderRadius: 9999,
-    marginTop: 24,
-    width: "100%",
-    gap: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  stampButtonIcon: {
-    fontSize: 24,
-  },
   stampButtonText: {
     color: "#fff",
     fontSize: 20,
     fontWeight: "bold",
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   redeemButton: {
     backgroundColor: "#22c55e",
@@ -544,17 +584,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 16,
   },
-  skipButtonText: {
-    color: "#6b7280",
-    fontSize: 16,
-  },
   cancelButton: {
     marginTop: 16,
     padding: 12,
-  },
-  cancelButtonText: {
-    color: "#6b7280",
-    fontSize: 16,
   },
   errorIcon: {
     width: 80,
@@ -564,18 +596,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    marginBottom: 24,
   },
   inlineError: {
     backgroundColor: "#fef2f2",
@@ -614,55 +634,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
-  },
-  completedTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  completedMessage: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 24,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  rewardTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  successMessage: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  rewardMessage: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  button: {
-    backgroundColor: "#f97316",
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 9999,
-    marginTop: 24,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

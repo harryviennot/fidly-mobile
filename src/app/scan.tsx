@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,6 +11,8 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
 import { ArrowLeft } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
+import { useTheme } from "@/contexts/theme-context";
+import { withOpacity } from "@/utils/colors";
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
@@ -18,6 +20,7 @@ export default function ScanScreen() {
   const [scanned, setScanned] = useState(false);
   const isProcessingRef = useRef(false);
   const { currentBusiness, currentMembership } = useBusiness();
+  const { theme } = useTheme();
 
   // Reset scanned state when screen comes into focus
   useFocusEffect(
@@ -51,6 +54,45 @@ export default function ScanScreen() {
     router.back();
   };
 
+  // Memoize dynamic styles based on theme
+  const dynamicStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        banner: {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: withOpacity(theme.primary, 0.95),
+          padding: 12,
+          gap: 10,
+        },
+        logoPlaceholder: {
+          width: 36,
+          height: 36,
+          borderRadius: 6,
+          backgroundColor: "rgba(255, 255, 255, 0.2)",
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        button: {
+          backgroundColor: theme.primary,
+          paddingHorizontal: 32,
+          paddingVertical: 16,
+          borderRadius: 9999,
+        },
+        rescanButton: {
+          position: "absolute",
+          bottom: 40,
+          left: 20,
+          right: 20,
+          backgroundColor: theme.primary,
+          paddingVertical: 16,
+          borderRadius: 9999,
+          alignItems: "center",
+        },
+      }),
+    [theme]
+  );
+
   if (!permission) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
@@ -66,7 +108,7 @@ export default function ScanScreen() {
         <Text style={styles.text}>
           We need camera access to scan customer loyalty cards.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
+        <TouchableOpacity style={dynamicStyles.button} onPress={requestPermission}>
           <Text style={styles.buttonText}>Grant Permission</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={handleGoBack}>
@@ -80,7 +122,7 @@ export default function ScanScreen() {
     <View style={styles.container}>
       {/* Business Banner */}
       {currentBusiness && (
-        <View style={[styles.banner, { paddingTop: insets.top + 12 }]}>
+        <View style={[dynamicStyles.banner, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <ArrowLeft size={24} color="#fff" weight="bold" />
           </TouchableOpacity>
@@ -91,7 +133,7 @@ export default function ScanScreen() {
               style={styles.logo}
             />
           ) : (
-            <View style={styles.logoPlaceholder}>
+            <View style={dynamicStyles.logoPlaceholder}>
               <Text style={styles.logoPlaceholderText}>
                 {currentBusiness.name.charAt(0).toUpperCase()}
               </Text>
@@ -144,7 +186,7 @@ export default function ScanScreen() {
 
       {scanned && (
         <TouchableOpacity
-          style={[styles.rescanButton, { bottom: insets.bottom + 20 }]}
+          style={[dynamicStyles.rescanButton, { bottom: insets.bottom + 20 }]}
           onPress={() => {
             setScanned(false);
             isProcessingRef.current = false;
@@ -153,7 +195,6 @@ export default function ScanScreen() {
           <Text style={styles.rescanText}>Tap to Scan Again</Text>
         </TouchableOpacity>
       )}
-
     </View>
   );
 }
@@ -170,25 +211,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
   },
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(249, 115, 22, 0.95)",
-    padding: 12,
-    gap: 10,
-  },
   logo: {
     width: 36,
     height: 36,
     borderRadius: 6,
-  },
-  logoPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   logoPlaceholderText: {
     fontSize: 16,
@@ -259,8 +285,8 @@ const styles = StyleSheet.create({
   instructionContainer: {
     position: "absolute",
     bottom: 100,
-    left: 0,
-    right: 0,
+    left: 24,
+    right: 24,
     alignItems: "center",
   },
   instruction: {
@@ -286,13 +312,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 40,
   },
-  button: {
-    backgroundColor: "#f97316",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 9999,
-
-  },
   buttonText: {
     color: "#fff",
     fontSize: 16,
@@ -309,16 +328,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  rescanButton: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: "#f97316",
-    paddingVertical: 16,
-    borderRadius: 9999,
-    alignItems: "center",
   },
   rescanText: {
     color: "#fff",

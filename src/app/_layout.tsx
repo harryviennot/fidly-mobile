@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import "@/global.css";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { BusinessProvider, useBusiness } from "@/contexts/business-context";
+import { ThemeProvider } from "@/contexts/theme-context";
 
 function NavigationGuard() {
   const { user, loading: authLoading } = useAuth();
@@ -84,7 +85,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <BusinessProvider>
-          <NavigationGuard />
+          <ThemeProvider>
+            <NavigationGuard />
+          </ThemeProvider>
         </BusinessProvider>
       </AuthProvider>
     </SafeAreaProvider>

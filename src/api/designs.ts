@@ -1,12 +1,5 @@
 import { API_BASE_URL } from "./client";
-
-export interface CardDesign {
-  id: string;
-  business_id: string;
-  name: string;
-  total_stamps: number;
-  is_active: boolean;
-}
+import type { CardDesign } from "@/types/api";
 
 export async function getActiveDesign(businessId: string): Promise<CardDesign | null> {
   // Active design endpoint is public for pass generation

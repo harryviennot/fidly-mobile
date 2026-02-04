@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,16 +10,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useBusiness } from "@/contexts/business-context";
+import { useTheme } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
-import { ArrowsLeftRight, QrCode, Camera, Buildings, SignOut } from "phosphor-react-native";
-import { StampeoLogo } from "@/components/ui/StampeoLogo";
-import { SignupQRModal } from "@/components/signup-qr-modal";
+import { Camera, SignOut } from "phosphor-react-native";
+import { withOpacity } from "@/utils/colors";
 
 export default function LobbyScreen() {
   const router = useRouter();
   const { currentBusiness, currentMembership, memberships } = useBusiness();
+  const { theme, signupQR, qrLoading } = useTheme();
   const { signOut } = useAuth();
-  const [showQRModal, setShowQRModal] = useState(false);
 
   const hasMultipleBusinesses = memberships.length > 1;
 
@@ -31,26 +31,134 @@ export default function LobbyScreen() {
     router.replace("/businesses");
   };
 
-  // Redirect to businesses screen if no business selected (must be in useEffect)
+  // Redirect to businesses screen if no business selected
   useEffect(() => {
     if (!currentBusiness) {
       router.replace("/businesses");
     }
   }, [currentBusiness, router]);
 
+  // Memoize dynamic styles based on theme
+  const dynamicStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: "#faf9f6",
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.background,
+        },
+        banner: {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: theme.surface,
+          padding: 16,
+          gap: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: "#ddd9d0",
+        },
+        logoPlaceholder: {
+          width: 48,
+          height: 48,
+          borderRadius: 8,
+          backgroundColor: theme.primary,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        businessName: {
+          fontSize: 17,
+          fontWeight: "600",
+          color: theme.text,
+        },
+        roleText: {
+          fontSize: 14,
+          color: theme.textSecondary,
+        },
+        content: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 24,
+          backgroundColor: "#f0efe9",
+        },
+        qrSection: {
+          alignItems: "center",
+          marginBottom: 32,
+        },
+        qrContainer: {
+          backgroundColor: "#fff",
+          padding: 16,
+          borderRadius: 16,
+          shadowColor: theme.text,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 4,
+        },
+        qrPlaceholder: {
+          width: 200,
+          height: 200,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        },
+        qrCode: {
+          width: 200,
+          height: 200,
+        },
+        qrLabel: {
+          marginTop: 16,
+          fontSize: 14,
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
+        divider: {
+          width: 60,
+          height: 2,
+          backgroundColor: withOpacity(theme.primary, 0.3),
+          borderRadius: 1,
+          marginVertical: 24,
+        },
+        scanButton: {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: theme.primary,
+          paddingHorizontal: 32,
+          paddingVertical: 16,
+          borderRadius: 9999,
+          gap: 10,
+          shadowColor: theme.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 4,
+        },
+        scanButtonText: {
+          color: theme.primaryText,
+          fontSize: 18,
+          fontWeight: "600",
+        },
+      }),
+    [theme]
+  );
+
   if (!currentBusiness) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
+      <SafeAreaView style={dynamicStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.loadingColor} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={dynamicStyles.container} edges={["top"]}>
       {/* Business Banner */}
       <TouchableOpacity
-        style={styles.banner}
+        style={dynamicStyles.banner}
         onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
         activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
       >
@@ -60,7 +168,7 @@ export default function LobbyScreen() {
             style={styles.logo}
           />
         ) : (
-          <View style={styles.logoPlaceholder}>
+          <View style={dynamicStyles.logoPlaceholder}>
             <Text style={styles.logoPlaceholderText}>
               {currentBusiness.name.charAt(0).toUpperCase()}
             </Text>
@@ -68,113 +176,73 @@ export default function LobbyScreen() {
         )}
 
         <View style={styles.bannerInfo}>
-          <Text style={styles.businessName}>{currentBusiness.name}</Text>
-          <Text style={styles.roleText}>
+          <Text style={dynamicStyles.businessName}>{currentBusiness.name}</Text>
+          <Text style={dynamicStyles.roleText}>
             {currentMembership?.role
               ? currentMembership.role.charAt(0).toUpperCase() +
               currentMembership.role.slice(1)
               : "Scanner"}
           </Text>
-
-
-
-
         </View>
 
-        <TouchableOpacity style={styles.signOutFooterButton} hitSlop={12} onPress={signOut}>
-          <SignOut size={20} color="#6b7280" />
+        <TouchableOpacity
+          style={styles.signOutButton}
+          hitSlop={12}
+          onPress={signOut}
+        >
+          <SignOut size={20} color={theme.textSecondary} />
         </TouchableOpacity>
       </TouchableOpacity>
 
       {/* Main Content */}
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <QrCode size={80} color="#f97316" weight="duotone" />
+      <View style={dynamicStyles.content}>
+        {/* Signup QR Code */}
+        <View style={dynamicStyles.qrSection}>
+          <View style={dynamicStyles.qrContainer}>
+            {qrLoading ? (
+              <View style={dynamicStyles.qrPlaceholder}>
+                <ActivityIndicator size="large" color={theme.loadingColor} />
+              </View>
+            ) : signupQR ? (
+              <Image
+                source={{ uri: signupQR.qr_code }}
+                style={dynamicStyles.qrCode}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={dynamicStyles.qrPlaceholder}>
+                <Text style={{ color: theme.textSecondary }}>
+                  QR unavailable
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={dynamicStyles.qrLabel}>
+            Scan to get your loyalty card
+          </Text>
         </View>
 
-        <Text style={styles.title}>Ready to Scan</Text>
-        <Text style={styles.subtitle}>
-          Tap the button below to start scanning{"\n"}customer loyalty cards
-        </Text>
+        <View style={dynamicStyles.divider} />
 
+        {/* Scan Button */}
         <TouchableOpacity
-          style={styles.scanButton}
+          style={dynamicStyles.scanButton}
           onPress={handleStartScanning}
           activeOpacity={0.8}
         >
-          <Camera size={24} color="#fff" weight="bold" />
-          <Text style={styles.scanButtonText}>Start Scanning</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.qrButton}
-          onPress={() => setShowQRModal(true)}
-          activeOpacity={0.8}
-        >
-          <QrCode size={24} color="#f97316" weight="bold" />
-          <Text style={styles.qrButtonText}>Show Signup QR</Text>
+          <Camera size={24} color={theme.primaryText} weight="bold" />
+          <Text style={dynamicStyles.scanButtonText}>Start Scanning</Text>
         </TouchableOpacity>
       </View>
-
-      {currentBusiness && (
-        <SignupQRModal
-          visible={showQRModal}
-          onClose={() => setShowQRModal(false)}
-          businessId={currentBusiness.id}
-          businessName={currentBusiness.name}
-        />
-      )}
     </SafeAreaView>
   );
 }
 
+// Static styles that don't depend on theme
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#faf9f6",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f0efe9",
-  },
-  headerBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 12,
-    backgroundColor: "#faf9f6",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd9d0",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#f97316",
-  },
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#faf9f6",
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd9d0",
-  },
   logo: {
     width: 48,
     height: 48,
-    // borderRadius: 8,
-  },
-  logoPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: "#f97316",
-    justifyContent: "center",
-    alignItems: "center",
   },
   logoPlaceholderText: {
     fontSize: 20,
@@ -184,100 +252,9 @@ const styles = StyleSheet.create({
   bannerInfo: {
     flex: 1,
   },
-  businessName: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#2d3436",
-  },
-  roleText: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#f0efe9",
-  },
-  iconContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(249, 115, 22, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  scanButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f97316",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 9999,
-    gap: 10,
-  },
-  scanButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  qrButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#faf9f6",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 9999,
-    gap: 10,
-    marginTop: 12,
-    borderWidth: 2,
-    borderColor: "#f97316",
-  },
-  qrButtonText: {
-    color: "#f97316",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#ddd9d0",
-    backgroundColor: "#faf9f6",
-  },
-  switchButton: {
+  signOutButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  switchButtonText: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  signOutFooterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  signOutButtonText: {
-    fontSize: 14,
-    color: "#6b7280",
   },
 });
