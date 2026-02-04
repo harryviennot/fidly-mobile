@@ -25,7 +25,7 @@ function NavigationGuard() {
     if (!isNavigationReady || authLoading) return;
 
     const onLoginPage = segments[0] === "login";
-    const onRootPage = segments.length === 0 || segments[0] === undefined;
+    const onRootPage = !segments[0];
 
     if (!user) {
       // User is not signed in, redirect to login
@@ -40,11 +40,13 @@ function NavigationGuard() {
 
         if (currentBusiness) {
           router.replace("/lobby");
-        } else if (memberships.length > 0) {
-          // Multiple businesses or single business still loading auto-select
+        } else if (memberships.length > 1) {
+          // Multiple businesses - user must choose
           router.replace("/businesses");
         } else {
-          // User has no business memberships - go to businesses screen to show empty state
+          // Single or no memberships without currentBusiness selected yet
+          // The business context auto-selects when there's only one membership
+          // If it hasn't selected yet, redirect to businesses which will handle it
           router.replace("/businesses");
         }
       }

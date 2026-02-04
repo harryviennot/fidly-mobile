@@ -69,6 +69,9 @@ export default function ScanScreen() {
         <TouchableOpacity style={styles.button} onPress={requestPermission}>
           <Text style={styles.buttonText}>Grant Permission</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelButton} onPress={handleGoBack}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -288,8 +291,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 9999,
+
   },
   buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelButton: {
+    backgroundColor: "#000000",
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    marginTop: 16,
+    borderRadius: 9999,
+  },
+  cancelText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",

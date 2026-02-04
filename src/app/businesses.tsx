@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   View,
   Text,
@@ -74,6 +75,14 @@ export default function BusinessesScreen() {
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
   const { signOut } = useAuth();
+
+  // Auto-select and redirect if only one business
+  useEffect(() => {
+    if (!loading && memberships.length === 1 && memberships[0].business_id) {
+      selectBusiness(memberships[0].business_id);
+      router.replace("/lobby");
+    }
+  }, [loading, memberships, selectBusiness, router]);
 
   const handleSelectBusiness = (businessId: string) => {
     selectBusiness(businessId);

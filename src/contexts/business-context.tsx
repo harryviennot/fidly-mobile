@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { useAuth } from "./auth-context";
 import { getUserMemberships } from "../api/memberships";
@@ -28,12 +28,12 @@ const BusinessContext = createContext<BusinessContextType | undefined>(
   undefined
 );
 
-// Storage helpers for cross-platform support
+// Storage helpers for cross-platform support (non-sensitive data uses AsyncStorage)
 async function getStoredBusinessId(): Promise<string | null> {
   if (Platform.OS === "web") {
     return localStorage.getItem(SELECTED_BUSINESS_KEY);
   }
-  return SecureStore.getItemAsync(SELECTED_BUSINESS_KEY);
+  return AsyncStorage.getItem(SELECTED_BUSINESS_KEY);
 }
 
 async function setStoredBusinessId(businessId: string): Promise<void> {
@@ -41,7 +41,7 @@ async function setStoredBusinessId(businessId: string): Promise<void> {
     localStorage.setItem(SELECTED_BUSINESS_KEY, businessId);
     return;
   }
-  await SecureStore.setItemAsync(SELECTED_BUSINESS_KEY, businessId);
+  await AsyncStorage.setItem(SELECTED_BUSINESS_KEY, businessId);
 }
 
 async function removeStoredBusinessId(): Promise<void> {
@@ -49,7 +49,7 @@ async function removeStoredBusinessId(): Promise<void> {
     localStorage.removeItem(SELECTED_BUSINESS_KEY);
     return;
   }
-  await SecureStore.deleteItemAsync(SELECTED_BUSINESS_KEY);
+  await AsyncStorage.removeItem(SELECTED_BUSINESS_KEY);
 }
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
