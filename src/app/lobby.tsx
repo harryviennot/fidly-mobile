@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,8 +12,11 @@ import { useRouter } from "expo-router";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
-import { Camera, SignOut } from "phosphor-react-native";
+import { CameraIcon, SignOutIcon } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
+
+const LOGO_HEIGHT = 48;
+const MAX_LOGO_WIDTH = 120;
 
 export default function LobbyScreen() {
   const router = useRouter();
@@ -22,6 +25,22 @@ export default function LobbyScreen() {
   const { signOut } = useAuth();
 
   const hasMultipleBusinesses = memberships.length > 1;
+  const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
+
+  // Calculate logo width based on aspect ratio
+  useEffect(() => {
+    if (currentBusiness?.logo_url) {
+      Image.getSize(
+        currentBusiness.logo_url,
+        (width, height) => {
+          const aspectRatio = width / height;
+          const calculatedWidth = Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH);
+          setLogoWidth(calculatedWidth);
+        },
+        () => setLogoWidth(LOGO_HEIGHT) // Fallback to square on error
+      );
+    }
+  }, [currentBusiness?.logo_url]);
 
   const handleStartScanning = () => {
     router.push("/scan");
@@ -44,7 +63,8 @@ export default function LobbyScreen() {
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: "#faf9f6",
+          // backgroundColor: "#faf9f6",
+          backgroundColor: theme.primary,
         },
         loadingContainer: {
           flex: 1,
@@ -55,7 +75,7 @@ export default function LobbyScreen() {
         banner: {
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: theme.surface,
+          backgroundColor: theme.primary,
           padding: 16,
           gap: 12,
           borderBottomWidth: 1,
@@ -72,18 +92,19 @@ export default function LobbyScreen() {
         businessName: {
           fontSize: 17,
           fontWeight: "600",
-          color: theme.text,
+          color: theme.primaryText,
         },
         roleText: {
           fontSize: 14,
-          color: theme.textSecondary,
+          color: theme.primaryText,
         },
         content: {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
           padding: 24,
-          backgroundColor: "#f0efe9",
+          // backgroundColor: "#f0efe9",
+          backgroundColor: theme.background,
         },
         qrSection: {
           alignItems: "center",
@@ -165,7 +186,8 @@ export default function LobbyScreen() {
         {currentBusiness.logo_url ? (
           <Image
             source={{ uri: currentBusiness.logo_url }}
-            style={styles.logo}
+            style={{ width: logoWidth, height: LOGO_HEIGHT }}
+            resizeMode="contain"
           />
         ) : (
           <View style={dynamicStyles.logoPlaceholder}>
@@ -190,7 +212,7 @@ export default function LobbyScreen() {
           hitSlop={12}
           onPress={signOut}
         >
-          <SignOut size={20} color={theme.textSecondary} />
+          <SignOutIcon size={20} color={theme.primaryText} />
         </TouchableOpacity>
       </TouchableOpacity>
 
@@ -218,7 +240,7 @@ export default function LobbyScreen() {
             )}
           </View>
           <Text style={dynamicStyles.qrLabel}>
-            Scan to get your loyalty card
+            Customers scan this to get their loyalty card
           </Text>
         </View>
 
@@ -230,7 +252,7 @@ export default function LobbyScreen() {
           onPress={handleStartScanning}
           activeOpacity={0.8}
         >
-          <Camera size={24} color={theme.primaryText} weight="bold" />
+          <CameraIcon size={24} color={theme.primaryText} weight="bold" />
           <Text style={dynamicStyles.scanButtonText}>Start Scanning</Text>
         </TouchableOpacity>
       </View>
@@ -240,10 +262,6 @@ export default function LobbyScreen() {
 
 // Static styles that don't depend on theme
 const styles = StyleSheet.create({
-  logo: {
-    width: 48,
-    height: 48,
-  },
   logoPlaceholderText: {
     fontSize: 20,
     fontWeight: "bold",

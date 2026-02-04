@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
+
+const LOGO_HEIGHT = 36;
+const MAX_LOGO_WIDTH = 100;
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
@@ -21,6 +24,22 @@ export default function ScanScreen() {
   const isProcessingRef = useRef(false);
   const { currentBusiness, currentMembership } = useBusiness();
   const { theme } = useTheme();
+  const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
+
+  // Calculate logo width based on aspect ratio
+  useEffect(() => {
+    if (currentBusiness?.logo_url) {
+      Image.getSize(
+        currentBusiness.logo_url,
+        (width, height) => {
+          const aspectRatio = width / height;
+          const calculatedWidth = Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH);
+          setLogoWidth(calculatedWidth);
+        },
+        () => setLogoWidth(LOGO_HEIGHT)
+      );
+    }
+  }, [currentBusiness?.logo_url]);
 
   // Reset scanned state when screen comes into focus
   useFocusEffect(
@@ -130,7 +149,8 @@ export default function ScanScreen() {
           {currentBusiness.logo_url ? (
             <Image
               source={{ uri: currentBusiness.logo_url }}
-              style={styles.logo}
+              style={{ width: logoWidth, height: LOGO_HEIGHT, borderRadius: 6 }}
+              resizeMode="contain"
             />
           ) : (
             <View style={dynamicStyles.logoPlaceholder}>
@@ -210,11 +230,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-  },
-  logo: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
   },
   logoPlaceholderText: {
     fontSize: 16,

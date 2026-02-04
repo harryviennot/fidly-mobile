@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
+
+const LOGO_HEIGHT = 48;
+const MAX_LOGO_WIDTH = 120;
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useBusiness } from "@/contexts/business-context";
@@ -34,13 +37,33 @@ function BusinessCard({
   onPress: () => void;
 }) {
   const business = membership.business;
+  const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
+
+  useEffect(() => {
+    if (business?.logo_url) {
+      Image.getSize(
+        business.logo_url,
+        (width, height) => {
+          const aspectRatio = width / height;
+          const calculatedWidth = Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH);
+          setLogoWidth(calculatedWidth);
+        },
+        () => setLogoWidth(LOGO_HEIGHT)
+      );
+    }
+  }, [business?.logo_url]);
+
   if (!business) return null;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardContent}>
         {business.logo_url ? (
-          <Image source={{ uri: business.logo_url }} style={styles.logo} />
+          <Image
+            source={{ uri: business.logo_url }}
+            style={{ width: logoWidth, height: LOGO_HEIGHT, borderRadius: 8 }}
+            resizeMode="contain"
+          />
         ) : (
           <View style={styles.logoPlaceholder}>
             <Text style={styles.logoPlaceholderText}>
@@ -180,11 +203,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     gap: 12,
-  },
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
   },
   logoPlaceholder: {
     width: 48,
