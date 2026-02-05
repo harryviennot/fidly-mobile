@@ -64,15 +64,6 @@ function NavigationGuard() {
     isNavigationReady,
   ]);
 
-  console.log("user", user);
-  console.log("authLoading", authLoading);
-  console.log("bizLoading", bizLoading);
-  console.log("currentBusiness", currentBusiness);
-  console.log("memberships", memberships);
-  console.log("segments", segments);
-  console.log("router", router);
-  console.log("isNavigationReady", isNavigationReady);
-
   // Show loading screen while checking auth
   if (authLoading || !isNavigationReady) {
     return (
