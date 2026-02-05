@@ -60,10 +60,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session and validate it
     supabase.auth
       .getSession()
       .then(async ({ data: { session } }) => {
+        console.log(`[Auth] initial session: hasSession=${!!session}, expiresAt=${session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : "none"}`);
+
+        // Check if the session token is expired
+        if (session?.expires_at && session.expires_at * 1000 < Date.now()) {
+          console.log("[Auth] session expired, clearing");
+          // Token is expired — clear the stale session
+          supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -74,14 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch((err) => {
-        console.error("Error getting session:", err);
+        console.error("[Auth] error getting session:", err);
         setLoading(false);
       });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[Auth] event=${event}, hasSession=${!!session}, expiresAt=${session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : "none"}`);
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -106,7 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Clear React state first so the UI redirects immediately
+    setUser(null);
+    setAppUser(null);
+    setSession(null);
+    // Then clean up Supabase storage in the background
+    supabase.auth.signOut({ scope: "local" }).catch(() => {});
   }, []);
 
   return (

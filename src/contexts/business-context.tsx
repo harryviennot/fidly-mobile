@@ -54,6 +54,7 @@ async function removeStoredBusinessId(): Promise<void> {
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.id;
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [currentBusiness, setCurrentBusiness] = useState<Business | null>(null);
   const [currentMembership, setCurrentMembership] =
@@ -74,7 +75,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshMemberships = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
@@ -86,7 +87,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const data = await getUserMemberships(user.id);
+      const data = await getUserMemberships(userId);
       setMemberships(data);
 
       // Try to restore previously selected business
@@ -116,7 +117,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   // Fetch memberships when user changes
   useEffect(() => {
@@ -125,13 +126,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
   // Clear business when user logs out
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
       removeStoredBusinessId();
     }
-  }, [user]);
+  }, [userId]);
 
   return (
     <BusinessContext.Provider

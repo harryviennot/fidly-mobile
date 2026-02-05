@@ -48,27 +48,25 @@ if (Platform.OS !== "web") {
 }
 
 
-// Helper to get auth headers for API requests
-export async function getAuthHeaders(): Promise<HeadersInit> {
-  try {
-    const sessionPromise = supabase.auth.getSession();
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("getSession timeout")), 5000)
-    );
-    const {
-      data: { session },
-    } = await Promise.race([sessionPromise, timeoutPromise]);
+// Module-level token cache — updated by onAuthStateChange, read synchronously
+// by getAuthHeaders(). Avoids blocking on getSession() during Supabase init.
+let _currentAccessToken: string | null = null;
 
-    return {
-      "Content-Type": "application/json",
-      ...(session?.access_token && {
-        Authorization: `Bearer ${session.access_token}`,
-      }),
-    };
-  } catch {
-    // On timeout or error, return headers without auth
-    return { "Content-Type": "application/json" };
+supabase.auth.onAuthStateChange((_event, session) => {
+  _currentAccessToken = session?.access_token ?? null;
+});
+
+// Synchronous helper to get auth headers for API requests.
+// Reads from the in-memory token cache — never blocks on storage.
+export function getAuthHeaders(): HeadersInit {
+  if (!_currentAccessToken) {
+    console.warn("[Auth] getAuthHeaders: no access token available");
   }
-}
 
-console.log("Supabase client initialized");
+  return {
+    "Content-Type": "application/json",
+    ...(_currentAccessToken && {
+      Authorization: `Bearer ${_currentAccessToken}`,
+    }),
+  };
+}
