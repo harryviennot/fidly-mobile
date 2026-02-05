@@ -116,6 +116,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 24,
   },
   header: {
@@ -135,6 +136,8 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+    width: "100%",
+    maxWidth: 500,
   },
   inputContainer: {
     gap: 6,
