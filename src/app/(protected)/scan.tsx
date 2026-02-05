@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useCallback, useRef, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,8 +15,6 @@ import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { withOpacity } from "@/utils/colors";
 
-const LOGO_HEIGHT = 36;
-const MAX_LOGO_WIDTH = 100;
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
@@ -27,7 +25,6 @@ export default function ScanScreen() {
   const isProcessingRef = useRef(false);
   const { currentBusiness, currentMembership } = useBusiness();
   const { theme } = useTheme();
-  const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
 
   // Reset scanned state when screen comes into focus
   useFocusEffect(
@@ -135,17 +132,14 @@ export default function ScanScreen() {
           </TouchableOpacity>
 
           {currentBusiness.logo_url ? (
-            <Image
-              source={currentBusiness.logo_url}
-              style={{ width: logoWidth, height: LOGO_HEIGHT, borderRadius: 6 }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-              onLoad={(e) => {
-                const { width, height } = e.source;
-                const aspectRatio = width / height;
-                setLogoWidth(Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH));
-              }}
-            />
+            <View style={styles.logoContainer}>
+              <Image
+                source={currentBusiness.logo_url}
+                style={styles.logo}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+            </View>
           ) : (
             <View style={dynamicStyles.logoPlaceholder}>
               <Text style={styles.logoPlaceholderText}>
@@ -223,6 +217,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+  },
+  logoContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    width: 36,
+    height: 36,
   },
   logoPlaceholderText: {
     fontSize: 16,

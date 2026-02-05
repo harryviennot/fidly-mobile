@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -18,8 +18,6 @@ import { CameraIcon, SignOutIcon } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
 import { QRCodeSkeleton } from "@/components/skeleton";
 
-const LOGO_HEIGHT = 48;
-const MAX_LOGO_WIDTH = 120;
 
 export default function LobbyScreen() {
   const router = useRouter();
@@ -30,7 +28,6 @@ export default function LobbyScreen() {
   const { signOut } = useAuth();
 
   const hasMultipleBusinesses = memberships.length > 1;
-  const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
 
   const handleStartScanning = () => {
     router.push("/scan");
@@ -79,8 +76,6 @@ export default function LobbyScreen() {
           backgroundColor: theme.primary,
           padding: 16,
           gap: 12,
-          borderBottomWidth: 1,
-          borderBottomColor: "#ddd9d0",
         },
         logoPlaceholder: {
           width: 48,
@@ -186,17 +181,14 @@ export default function LobbyScreen() {
           activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
         >
           {currentBusiness.logo_url ? (
-            <Image
-              source={currentBusiness.logo_url}
-              style={{ width: logoWidth, height: LOGO_HEIGHT }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-              onLoad={(e) => {
-                const { width, height } = e.source;
-                const aspectRatio = width / height;
-                setLogoWidth(Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH));
-              }}
-            />
+            <View style={styles.logoContainer}>
+              <Image
+                source={currentBusiness.logo_url}
+                style={styles.logo}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+            </View>
           ) : (
             <View style={dynamicStyles.logoPlaceholder}>
               <Text style={styles.logoPlaceholderText}>
@@ -268,6 +260,18 @@ export default function LobbyScreen() {
 
 // Static styles that don't depend on theme
 const styles = StyleSheet.create({
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    overflow: "hidden" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+  },
   logoPlaceholderText: {
     fontSize: 20,
     fontWeight: "bold",

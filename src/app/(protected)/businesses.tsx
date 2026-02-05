@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,21 +13,18 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useAuth } from "@/contexts/auth-context";
-import { CaretRight } from "phosphor-react-native";
+import { CaretRight, SignOutIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
 import type { Membership } from "@/types/api";
 
-const LOGO_HEIGHT = 48;
-const MAX_LOGO_WIDTH = 120;
-
-function getRoleBadgeColor(role: string): string {
+function getRoleBadgeStyles(role: string): { bg: string; text: string; accent: string } {
   switch (role) {
     case "owner":
-      return "#f97316";
+      return { bg: "rgba(249, 115, 22, 0.12)", text: "#ea580c", accent: "#f97316" };
     case "admin":
-      return "#2563eb";
+      return { bg: "rgba(37, 99, 235, 0.10)", text: "#2563eb", accent: "#2563eb" };
     default:
-      return "#6b7280";
+      return { bg: "rgba(107, 114, 128, 0.10)", text: "#6b7280", accent: "#6b7280" };
   }
 }
 
@@ -39,7 +37,8 @@ function BusinessCard({
 }) {
   const { t } = useTranslation("common");
   const business = membership.business;
-  const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
+  const badgeStyles = getRoleBadgeStyles(membership.role);
+  const accentColor = (business?.settings?.backgroundColor as string) || "#f97316";
 
   if (!business) return null;
 
@@ -47,19 +46,16 @@ function BusinessCard({
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardContent}>
         {business.logo_url ? (
-          <Image
-            source={business.logo_url}
-            style={{ width: logoWidth, height: LOGO_HEIGHT, borderRadius: 8 }}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            onLoad={(e) => {
-              const { width, height } = e.source;
-              const aspectRatio = width / height;
-              setLogoWidth(Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH));
-            }}
-          />
+          <View style={[styles.logoContainer, { backgroundColor: accentColor }]}>
+            <Image
+              source={business.logo_url}
+              style={styles.logo}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          </View>
         ) : (
-          <View style={styles.logoPlaceholder}>
+          <View style={[styles.logoPlaceholder, { backgroundColor: accentColor }]}>
             <Text style={styles.logoPlaceholderText}>
               {business.name.charAt(0).toUpperCase()}
             </Text>
@@ -67,20 +63,22 @@ function BusinessCard({
         )}
 
         <View style={styles.cardInfo}>
-          <Text style={styles.businessName}>{business.name}</Text>
-          <View
-            style={[
-              styles.roleBadge,
-              { backgroundColor: getRoleBadgeColor(membership.role) },
-            ]}
-          >
-            <Text style={styles.roleText}>
-              {t(`roles.${membership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")}
-            </Text>
+          <Text style={styles.businessName} numberOfLines={1}>{business.name}</Text>
+          <View style={styles.cardMeta}>
+            <View style={[styles.roleBadge, { backgroundColor: badgeStyles.bg }]}>
+              <Text style={[styles.roleText, { color: badgeStyles.text }]}>
+                {t(`roles.${membership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")}
+              </Text>
+            </View>
+            {membership.scans_count !== undefined && membership.scans_count > 0 && (
+              <Text style={styles.scanCount}>
+                {membership.scans_count} {membership.scans_count === 1 ? "scan" : "scans"}
+              </Text>
+            )}
           </View>
         </View>
 
-        <CaretRight size={24} color="#ddd9d0" weight="bold" />
+        <CaretRight size={20} color="#ddd9d0" weight="bold" />
       </View>
     </TouchableOpacity>
   );
@@ -93,6 +91,17 @@ export default function BusinessesScreen() {
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
   const { signOut } = useAuth();
+
+  const handleSignOut = () => {
+    Alert.alert(
+      tCommon("signOutConfirmTitle"),
+      tCommon("signOutConfirmMessage"),
+      [
+        { text: tCommon("signOutConfirmNo"), style: "cancel" },
+        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOut },
+      ]
+    );
+  };
 
   // Auto-select and redirect if only one business
   useEffect(() => {
@@ -109,8 +118,10 @@ export default function BusinessesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.header}>{t("header")}</Text>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>{t("header")}</Text>
+        </View>
         <View style={styles.list}>
           <BusinessCardSkeleton delay={0} />
           <View style={styles.separator} />
@@ -124,7 +135,7 @@ export default function BusinessesScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <SafeAreaView style={styles.centered} edges={["top"]}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={refreshMemberships}>
           <Text style={styles.retryButtonText}>{tCommon("retry")}</Text>
@@ -135,12 +146,12 @@ export default function BusinessesScreen() {
 
   if (memberships.length === 0) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <SafeAreaView style={styles.centered} edges={["top"]}>
         <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
         <Text style={styles.emptyText}>
           {t("empty.message")}
         </Text>
-        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Text style={styles.signOutButtonText}>{tCommon("signOut")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -154,8 +165,18 @@ export default function BusinessesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>{t("header")}</Text>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.headerTitle}>{t("header")}</Text>
+          <Text style={styles.headerSubtitle}>
+            {t("subtitle", { count: memberships.length })}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.signOutIconButton} hitSlop={12} onPress={handleSignOut}>
+          <SignOutIcon size={20} color="#6b7280" />
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={memberships}
@@ -169,10 +190,6 @@ export default function BusinessesScreen() {
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
-
-      <TouchableOpacity style={styles.signOutLink} onPress={signOut}>
-        <Text style={styles.signOutLinkText}>{t("signOutLink")}</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -189,12 +206,23 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#f0efe9",
   },
-  header: {
-    fontSize: 16,
-    color: "#6b7280",
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#2d3436",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
   },
   list: {
     padding: 16,
@@ -203,6 +231,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#faf9f6",
     borderRadius: 10,
     overflow: "hidden",
+    shadowColor: "#2d3436",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardContent: {
     flexDirection: "row",
@@ -210,10 +243,23 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#faf9f6",
+  },
+  logo: {
+    width: 48,
+    height: 48,
+  },
   logoPlaceholder: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: "#f97316",
     justifyContent: "center",
     alignItems: "center",
@@ -225,7 +271,12 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     flex: 1,
-    gap: 4,
+    gap: 6,
+  },
+  cardMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   businessName: {
     fontSize: 17,
@@ -235,21 +286,19 @@ const styles = StyleSheet.create({
   roleBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   roleText: {
     fontSize: 12,
-    fontWeight: "500",
-    color: "#fff",
+    fontWeight: "600",
+  },
+  scanCount: {
+    fontSize: 12,
+    color: "#6b7280",
   },
   separator: {
     height: 12,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6b7280",
   },
   errorText: {
     fontSize: 16,
@@ -290,12 +339,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
-  signOutLink: {
-    padding: 16,
-    alignItems: "center",
-  },
-  signOutLinkText: {
-    color: "#6b7280",
-    fontSize: 14,
+  signOutIconButton: {
+    padding: 8,
   },
 });
