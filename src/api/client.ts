@@ -2,7 +2,7 @@ import { getAuthHeaders, supabase } from "../lib/supabase";
 
 // Use environment variable with fallback
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.122:8000";
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.73:8000";
 
 // Re-export for convenience
 export { getAuthHeaders };

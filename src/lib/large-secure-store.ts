@@ -9,6 +9,7 @@
  *
  * Uses AES-256-CTR encryption for security.
  */
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
@@ -77,6 +78,11 @@ export class LargeSecureStore {
    */
   async getItem(key: string): Promise<string | null> {
     try {
+      // On web, use localStorage directly (no SecureStore available)
+      if (Platform.OS === "web") {
+        if (typeof window === "undefined") return null;
+        return window.localStorage.getItem(key);
+      }
       const encryptedValue = await AsyncStorage.getItem(key);
       if (!encryptedValue) {
         return null;
@@ -93,6 +99,12 @@ export class LargeSecureStore {
    */
   async setItem(key: string, value: string): Promise<void> {
     try {
+      // On web, use localStorage directly (no SecureStore available)
+      if (Platform.OS === "web") {
+        if (typeof window === "undefined") return;
+        window.localStorage.setItem(key, value);
+        return;
+      }
       const encryptedValue = await this._encrypt(key, value);
       await AsyncStorage.setItem(key, encryptedValue);
     } catch (error) {
@@ -106,6 +118,12 @@ export class LargeSecureStore {
    */
   async removeItem(key: string): Promise<void> {
     try {
+      // On web, use localStorage directly
+      if (Platform.OS === "web") {
+        if (typeof window === "undefined") return;
+        window.localStorage.removeItem(key);
+        return;
+      }
       // Remove encrypted data from AsyncStorage
       await AsyncStorage.removeItem(key);
       // Remove encryption key from SecureStore
