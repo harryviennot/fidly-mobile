@@ -1,16 +1,16 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import {
   StyleSheet,
   Text,
   View,
   TouchableOpacity,
-  Image,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "phosphor-react-native";
+import { XIcon } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { withOpacity } from "@/utils/colors";
@@ -28,21 +28,6 @@ export default function ScanScreen() {
   const { currentBusiness, currentMembership } = useBusiness();
   const { theme } = useTheme();
   const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
-
-  // Calculate logo width based on aspect ratio
-  useEffect(() => {
-    if (currentBusiness?.logo_url) {
-      Image.getSize(
-        currentBusiness.logo_url,
-        (width, height) => {
-          const aspectRatio = width / height;
-          const calculatedWidth = Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH);
-          setLogoWidth(calculatedWidth);
-        },
-        () => setLogoWidth(LOGO_HEIGHT)
-      );
-    }
-  }, [currentBusiness?.logo_url]);
 
   // Reset scanned state when screen comes into focus
   useFocusEffect(
@@ -146,14 +131,20 @@ export default function ScanScreen() {
       {currentBusiness && (
         <View style={[dynamicStyles.banner, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <ArrowLeft size={24} color="#fff" weight="bold" />
+            <XIcon size={24} color="#fff" weight="bold" />
           </TouchableOpacity>
 
           {currentBusiness.logo_url ? (
             <Image
-              source={{ uri: currentBusiness.logo_url }}
+              source={currentBusiness.logo_url}
               style={{ width: logoWidth, height: LOGO_HEIGHT, borderRadius: 6 }}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              onLoad={(e) => {
+                const { width, height } = e.source;
+                const aspectRatio = width / height;
+                setLogoWidth(Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH));
+              }}
             />
           ) : (
             <View style={dynamicStyles.logoPlaceholder}>

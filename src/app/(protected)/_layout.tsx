@@ -31,6 +31,7 @@ export default function ProtectedLayout() {
         options={{
           animation: "slide_from_bottom",
           gestureDirection: "vertical",
+          animationDuration: 350
         }}
       />
       <Stack.Screen

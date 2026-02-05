@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -30,21 +30,6 @@ export default function LobbyScreen() {
 
   const hasMultipleBusinesses = memberships.length > 1;
   const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
-
-  // Calculate logo width based on aspect ratio
-  useEffect(() => {
-    if (currentBusiness?.logo_url) {
-      Image.getSize(
-        currentBusiness.logo_url,
-        (width, height) => {
-          const aspectRatio = width / height;
-          const calculatedWidth = Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH);
-          setLogoWidth(calculatedWidth);
-        },
-        () => setLogoWidth(LOGO_HEIGHT) // Fallback to square on error
-      );
-    }
-  }, [currentBusiness?.logo_url]);
 
   const handleStartScanning = () => {
     router.push("/scan");
@@ -201,9 +186,15 @@ export default function LobbyScreen() {
         >
           {currentBusiness.logo_url ? (
             <Image
-              source={{ uri: currentBusiness.logo_url }}
+              source={currentBusiness.logo_url}
               style={{ width: logoWidth, height: LOGO_HEIGHT }}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              onLoad={(e) => {
+                const { width, height } = e.source;
+                const aspectRatio = width / height;
+                setLogoWidth(Math.min(LOGO_HEIGHT * aspectRatio, MAX_LOGO_WIDTH));
+              }}
             />
           ) : (
             <View style={dynamicStyles.logoPlaceholder}>
@@ -243,9 +234,9 @@ export default function LobbyScreen() {
               </View>
             ) : signupQR ? (
               <Image
-                source={{ uri: signupQR.qr_code }}
+                source={signupQR.qr_code}
                 style={dynamicStyles.qrCode}
-                resizeMode="contain"
+                contentFit="contain"
               />
             ) : (
               <View style={dynamicStyles.qrPlaceholder}>
