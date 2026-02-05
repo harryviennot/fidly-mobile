@@ -26,11 +26,16 @@ export default function ScanScreen() {
   const { currentBusiness, currentMembership } = useBusiness();
   const { theme } = useTheme();
 
-  // Reset scanned state when screen comes into focus
+  // Reset scanned state when screen comes into focus.
+  // Delay re-enabling the scanner so the camera doesn't immediately
+  // re-detect the same QR code still in frame (especially on web).
   useFocusEffect(
     useCallback(() => {
-      setScanned(false);
-      isProcessingRef.current = false;
+      const timeout = setTimeout(() => {
+        setScanned(false);
+        isProcessingRef.current = false;
+      }, 1500);
+      return () => clearTimeout(timeout);
     }, [])
   );
 

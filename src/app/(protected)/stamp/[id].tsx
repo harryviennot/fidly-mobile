@@ -115,6 +115,9 @@ export default function StampScreen() {
           padding: 20,
           justifyContent: "center",
           alignItems: "center",
+          maxWidth: 480,
+          width: "100%",
+          alignSelf: "center",
         },
         card: {
           backgroundColor: theme.surface,

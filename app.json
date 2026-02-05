@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.stampeo.scanner",
+      "icon": "./assets/stampeo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs camera access to scan customer loyalty card QR codes"
       }
