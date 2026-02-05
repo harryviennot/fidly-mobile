@@ -51,9 +51,13 @@ if (Platform.OS !== "web") {
 // Helper to get auth headers for API requests
 export async function getAuthHeaders(): Promise<HeadersInit> {
   try {
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("getSession timeout")), 5000)
+    );
     const {
       data: { session },
-    } = await supabase.auth.getSession();
+    } = await Promise.race([sessionPromise, timeoutPromise]);
 
     return {
       "Content-Type": "application/json",

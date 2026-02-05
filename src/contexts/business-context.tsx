@@ -74,6 +74,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshMemberships = useCallback(async () => {
+
+    console.log("refreshMemberships");
     if (!user) {
       setMemberships([]);
       setCurrentBusiness(null);
@@ -87,6 +89,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
     try {
       const data = await getUserMemberships(user.id);
+      console.log("memberships", data);
       setMemberships(data);
 
       // Try to restore previously selected business
