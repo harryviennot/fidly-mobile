@@ -51,7 +51,7 @@ export default function LobbyScreen() {
   };
 
   const handleSwitchBusiness = () => {
-    router.replace("/businesses");
+    router.dismissTo("/businesses");
   };
 
   const handleSignOut = () => {

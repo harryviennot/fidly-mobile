@@ -1,19 +1,16 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
-import { Slot, useRouter, useSegments, useRootNavigationState } from "expo-router";
+import { Stack, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "@/global.css";
 import "@/locales/i18n";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import { BusinessProvider, useBusiness } from "@/contexts/business-context";
+import { BusinessProvider } from "@/contexts/business-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 
-function NavigationGuard() {
+function RootNavigator() {
   const { user, loading: authLoading } = useAuth();
-  const { currentBusiness, memberships, loading: bizLoading } = useBusiness();
-  const segments = useSegments();
-  const router = useRouter();
   const navigationState = useRootNavigationState();
   const [isNavigationReady, setIsNavigationReady] = useState(false);
 
@@ -23,48 +20,6 @@ function NavigationGuard() {
     }
   }, [navigationState?.key]);
 
-  useEffect(() => {
-    if (!isNavigationReady || authLoading) return;
-
-    const onLoginPage = segments[0] === "login";
-    const onRootPage = !segments[0];
-
-    if (!user) {
-      // User is not signed in, redirect to login
-      if (!onLoginPage) {
-        router.replace("/login");
-      }
-    } else {
-      // User is signed in - redirect away from login/root to the app
-      if (onLoginPage || onRootPage) {
-        // Wait for business loading
-        if (bizLoading) return;
-
-        if (currentBusiness) {
-          router.replace("/lobby");
-        } else if (memberships.length > 1) {
-          // Multiple businesses - user must choose
-          router.replace("/businesses");
-        } else {
-          // Single or no memberships without currentBusiness selected yet
-          // The business context auto-selects when there's only one membership
-          // If it hasn't selected yet, redirect to businesses which will handle it
-          router.replace("/businesses");
-        }
-      }
-    }
-  }, [
-    user,
-    authLoading,
-    bizLoading,
-    currentBusiness,
-    memberships,
-    segments,
-    router,
-    isNavigationReady,
-  ]);
-
-  // Show loading screen while checking auth
   if (authLoading || !isNavigationReady) {
     return (
       <View style={styles.loadingContainer}>
@@ -73,10 +28,20 @@ function NavigationGuard() {
     );
   }
 
+  const isLoggedIn = !!user;
+
   return (
     <>
       <StatusBar style="dark" />
-      <Slot />
+      <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+        <Stack.Protected guard={isLoggedIn}>
+          <Stack.Screen name="(protected)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!isLoggedIn}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Screen name="index" options={{ animation: "none" }} />
+      </Stack>
     </>
   );
 }
@@ -87,7 +52,7 @@ export default function RootLayout() {
       <AuthProvider>
         <BusinessProvider>
           <ThemeProvider>
-            <NavigationGuard />
+            <RootNavigator />
           </ThemeProvider>
         </BusinessProvider>
       </AuthProvider>

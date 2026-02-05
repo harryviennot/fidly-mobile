@@ -112,10 +112,8 @@ export default function BusinessesScreen() {
 
   const handleSelectBusiness = (businessId: string) => {
     selectBusiness(businessId);
-    router.replace("/lobby");
+    router.push("/lobby");
   };
-
-  console.log("memberships", memberships);
 
   if (loading) {
     return (
@@ -149,6 +147,12 @@ export default function BusinessesScreen() {
         </TouchableOpacity>
       </SafeAreaView>
     );
+  }
+
+  if (memberships.length === 1) {
+    return (
+      <View style={styles.container} />
+    )
   }
 
   return (
