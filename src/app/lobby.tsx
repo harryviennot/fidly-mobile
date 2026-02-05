@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -51,6 +52,17 @@ export default function LobbyScreen() {
 
   const handleSwitchBusiness = () => {
     router.replace("/businesses");
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      tCommon("signOutConfirmTitle"),
+      tCommon("signOutConfirmMessage"),
+      [
+        { text: tCommon("signOutConfirmNo"), style: "cancel" },
+        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOut },
+      ]
+    );
   };
 
   // Redirect to businesses screen if no business selected
@@ -181,42 +193,44 @@ export default function LobbyScreen() {
   return (
     <SafeAreaView style={dynamicStyles.container} edges={["top"]}>
       {/* Business Banner */}
-      <TouchableOpacity
-        style={dynamicStyles.banner}
-        onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
-        activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
-      >
-        {currentBusiness.logo_url ? (
-          <Image
-            source={{ uri: currentBusiness.logo_url }}
-            style={{ width: logoWidth, height: LOGO_HEIGHT }}
-            resizeMode="contain"
-          />
-        ) : (
-          <View style={dynamicStyles.logoPlaceholder}>
-            <Text style={styles.logoPlaceholderText}>
-              {currentBusiness.name.charAt(0).toUpperCase()}
+      <View style={dynamicStyles.banner}>
+        <TouchableOpacity
+          style={styles.bannerTouchable}
+          onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
+          activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
+        >
+          {currentBusiness.logo_url ? (
+            <Image
+              source={{ uri: currentBusiness.logo_url }}
+              style={{ width: logoWidth, height: LOGO_HEIGHT }}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={dynamicStyles.logoPlaceholder}>
+              <Text style={styles.logoPlaceholderText}>
+                {currentBusiness.name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.bannerInfo}>
+            <Text style={dynamicStyles.businessName}>{currentBusiness.name}</Text>
+            <Text style={dynamicStyles.roleText}>
+              {currentMembership?.role
+                ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
+                : tCommon("roles.scanner")}
             </Text>
           </View>
-        )}
-
-        <View style={styles.bannerInfo}>
-          <Text style={dynamicStyles.businessName}>{currentBusiness.name}</Text>
-          <Text style={dynamicStyles.roleText}>
-            {currentMembership?.role
-              ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
-              : tCommon("roles.scanner")}
-          </Text>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.signOutButton}
           hitSlop={12}
-          onPress={signOut}
+          onPress={handleSignOut}
         >
           <SignOutIcon size={20} color={theme.primaryText} />
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
 
       {/* Main Content */}
       <View style={dynamicStyles.content}>
@@ -268,6 +282,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
+  },
+  bannerTouchable: {
+    flex: 1,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 12,
   },
   bannerInfo: {
     flex: 1,

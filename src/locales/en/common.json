@@ -6,6 +6,10 @@
   "goBack": "Go Back",
   "goHome": "Go Home",
   "signOut": "Sign Out",
+  "signOutConfirmTitle": "Are you sure?",
+  "signOutConfirmMessage": "You will be logged out.",
+  "signOutConfirmNo": "No, stay",
+  "signOutConfirmYes": "Yes, log out",
   "roles": {
     "owner": "Owner",
     "admin": "Admin",
