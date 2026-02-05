@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -20,6 +21,8 @@ const MAX_LOGO_WIDTH = 120;
 
 export default function LobbyScreen() {
   const router = useRouter();
+  const { t } = useTranslation("lobby");
+  const { t: tCommon } = useTranslation("common");
   const { currentBusiness, currentMembership, memberships } = useBusiness();
   const { theme, signupQR, qrLoading } = useTheme();
   const { signOut } = useAuth();
@@ -201,9 +204,8 @@ export default function LobbyScreen() {
           <Text style={dynamicStyles.businessName}>{currentBusiness.name}</Text>
           <Text style={dynamicStyles.roleText}>
             {currentMembership?.role
-              ? currentMembership.role.charAt(0).toUpperCase() +
-              currentMembership.role.slice(1)
-              : "Scanner"}
+              ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
+              : tCommon("roles.scanner")}
           </Text>
         </View>
 
@@ -234,13 +236,13 @@ export default function LobbyScreen() {
             ) : (
               <View style={dynamicStyles.qrPlaceholder}>
                 <Text style={{ color: theme.textSecondary }}>
-                  QR unavailable
+                  {t("qrUnavailable")}
                 </Text>
               </View>
             )}
           </View>
           <Text style={dynamicStyles.qrLabel}>
-            Customers scan this to get their loyalty card
+            {t("qrLabel")}
           </Text>
         </View>
 
@@ -253,7 +255,7 @@ export default function LobbyScreen() {
           activeOpacity={0.8}
         >
           <CameraIcon size={24} color={theme.primaryText} weight="bold" />
-          <Text style={dynamicStyles.scanButtonText}>Start Scanning</Text>
+          <Text style={dynamicStyles.scanButtonText}>{t("startScanning")}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

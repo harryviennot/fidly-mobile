@@ -1,0 +1,14 @@
+{
+  "loading": "Chargement...",
+  "error": "Erreur",
+  "cancel": "Annuler",
+  "retry": "Réessayer",
+  "goBack": "Retour",
+  "goHome": "Accueil",
+  "signOut": "Déconnexion",
+  "roles": {
+    "owner": "Propriétaire",
+    "admin": "Admin",
+    "scanner": "Scanner"
+  }
+}

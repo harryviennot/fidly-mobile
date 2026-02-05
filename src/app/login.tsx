@@ -10,10 +10,12 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/auth-context";
 import { StampeoLogo } from "@/components/ui/StampeoLogo";
 
 export default function LoginScreen() {
+  const { t } = useTranslation("login");
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +24,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError("Please enter email and password");
+      setError(t("errors.required"));
       return;
     }
 
@@ -35,7 +37,7 @@ export default function LoginScreen() {
         setError(error.message);
       }
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("errors.unexpected"));
     } finally {
       setLoading(false);
     }
@@ -50,15 +52,15 @@ export default function LoginScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <StampeoLogo size={56} color="#000000" />
-            <Text style={styles.subtitle}>Sign in to start scanning</Text>
+            <Text style={styles.subtitle}>{t("subtitle")}</Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t("email")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="your@email.com"
+                placeholder={t("emailPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 value={email}
                 onChangeText={setEmail}
@@ -70,10 +72,10 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t("password")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your password"
+                placeholder={t("passwordPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 value={password}
                 onChangeText={setPassword}
@@ -93,7 +95,7 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
+                <Text style={styles.buttonText}>{t("signIn")}</Text>
               )}
             </TouchableOpacity>
           </View>

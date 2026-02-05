@@ -1,0 +1,31 @@
+{
+  "loading": "Loading customer...",
+  "currentStamps": "Current Stamps",
+  "stampsReset": "Stamps Reset",
+  "stampsCount": "{{current}} / {{total}}",
+  "stampsCountFull": "{{current}} / {{total}} - Card Full!",
+  "addStamp": "Add Stamp",
+  "scanNext": "Scan Next Customer",
+  "skipForNow": "Skip for Now",
+  "redeemReward": "Redeem Reward",
+  "success": {
+    "stampAdded": "Stamp Added!",
+    "cardComplete": "Card Complete!",
+    "rewardRedeemed": "Reward Redeemed!",
+    "stampAddedFor": "Stamp added for {{name}}.",
+    "cardFull": "Their card is now full!",
+    "cardReset": "{{name}}'s card has been reset.",
+    "collectAgain": "They can start collecting stamps again!"
+  },
+  "reward": {
+    "banner": "Ready for Reward!",
+    "prompt": "Would you like to redeem their reward now?",
+    "entitled": "This customer is entitled to their reward!"
+  },
+  "errors": {
+    "noBusinessSelected": "No business selected",
+    "loadFailed": "Failed to load customer",
+    "stampFailed": "Failed to add stamp",
+    "redeemFailed": "Failed to redeem reward"
+  }
+}

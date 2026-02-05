@@ -1,0 +1,14 @@
+{
+  "loading": "Loading...",
+  "error": "Error",
+  "cancel": "Cancel",
+  "retry": "Retry",
+  "goBack": "Go Back",
+  "goHome": "Go Home",
+  "signOut": "Sign Out",
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "scanner": "Scanner"
+  }
+}

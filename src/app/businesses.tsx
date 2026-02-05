@@ -8,15 +8,16 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-
-const LOGO_HEIGHT = 48;
-const MAX_LOGO_WIDTH = 120;
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useAuth } from "@/contexts/auth-context";
 import { CaretRight } from "phosphor-react-native";
 import type { Membership } from "@/types/api";
+
+const LOGO_HEIGHT = 48;
+const MAX_LOGO_WIDTH = 120;
 
 function getRoleBadgeColor(role: string): string {
   switch (role) {
@@ -36,6 +37,7 @@ function BusinessCard({
   membership: Membership;
   onPress: () => void;
 }) {
+  const { t } = useTranslation("common");
   const business = membership.business;
   const [logoWidth, setLogoWidth] = useState<number>(LOGO_HEIGHT);
 
@@ -81,8 +83,7 @@ function BusinessCard({
             ]}
           >
             <Text style={styles.roleText}>
-              {membership.role.charAt(0).toUpperCase() +
-                membership.role.slice(1)}
+              {t(`roles.${membership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")}
             </Text>
           </View>
         </View>
@@ -95,6 +96,8 @@ function BusinessCard({
 
 export default function BusinessesScreen() {
   const router = useRouter();
+  const { t } = useTranslation("businesses");
+  const { t: tCommon } = useTranslation("common");
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
   const { signOut } = useAuth();
@@ -116,7 +119,7 @@ export default function BusinessesScreen() {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" color="#f97316" />
-        <Text style={styles.loadingText}>Loading businesses...</Text>
+        <Text style={styles.loadingText}>{t("loading")}</Text>
       </SafeAreaView>
     );
   }
@@ -126,7 +129,7 @@ export default function BusinessesScreen() {
       <SafeAreaView style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={refreshMemberships}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={styles.retryButtonText}>{tCommon("retry")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -135,13 +138,12 @@ export default function BusinessesScreen() {
   if (memberships.length === 0) {
     return (
       <SafeAreaView style={styles.centered}>
-        <Text style={styles.emptyTitle}>No Businesses</Text>
+        <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
         <Text style={styles.emptyText}>
-          You have not been added to any businesses yet.{"\n"}
-          Contact your manager to get an invitation.
+          {t("empty.message")}
         </Text>
         <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
+          <Text style={styles.signOutButtonText}>{tCommon("signOut")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -149,7 +151,7 @@ export default function BusinessesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Choose a business to scan for</Text>
+      <Text style={styles.header}>{t("header")}</Text>
 
       <FlatList
         data={memberships}
@@ -165,7 +167,7 @@ export default function BusinessesScreen() {
       />
 
       <TouchableOpacity style={styles.signOutLink} onPress={signOut}>
-        <Text style={styles.signOutLinkText}>Sign out</Text>
+        <Text style={styles.signOutLinkText}>{t("signOutLink")}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

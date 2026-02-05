@@ -1,1 +1,4 @@
-// i18n setup will be added here
+import i18n from './i18n';
+import './types';
+
+export default i18n;

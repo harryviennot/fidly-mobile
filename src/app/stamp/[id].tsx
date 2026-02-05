@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { WarningCircle, Confetti, Check, Gift } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
@@ -17,6 +18,8 @@ import type { Customer, StampResponse } from "@/types/api";
 
 export default function StampScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { t } = useTranslation("stamp");
+  const { t: tCommon } = useTranslation("common");
   const { currentBusiness } = useBusiness();
   const { theme, design } = useTheme();
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -32,7 +35,7 @@ export default function StampScreen() {
 
   const loadCustomer = useCallback(async () => {
     if (!currentBusiness?.id) {
-      setError("No business selected");
+      setError(t("errors.noBusinessSelected"));
       setLoading(false);
       return;
     }
@@ -42,11 +45,11 @@ export default function StampScreen() {
       const data = await getCustomer(currentBusiness.id, id);
       setCustomer(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load customer");
+      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [id, currentBusiness?.id]);
+  }, [id, currentBusiness?.id, t]);
 
   useEffect(() => {
     loadCustomer();
@@ -63,7 +66,7 @@ export default function StampScreen() {
       setCustomer((prev) => (prev ? { ...prev, stamps: result.stamps } : null));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add stamp");
+      setError(err instanceof Error ? err.message : t("errors.stampFailed"));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setStamping(false);
@@ -82,7 +85,7 @@ export default function StampScreen() {
       setSuccess(result);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to redeem reward");
+      setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setRedeeming(false);
@@ -242,7 +245,7 @@ export default function StampScreen() {
     return (
       <SafeAreaView style={dynamicStyles.container}>
         <ActivityIndicator size="large" color={theme.loadingColor} />
-        <Text style={dynamicStyles.loadingText}>Loading customer...</Text>
+        <Text style={dynamicStyles.loadingText}>{t("loading")}</Text>
       </SafeAreaView>
     );
   }
@@ -253,13 +256,13 @@ export default function StampScreen() {
         <View style={styles.errorIcon}>
           <WarningCircle size={48} color="#fff" weight="bold" />
         </View>
-        <Text style={dynamicStyles.errorTitle}>Error</Text>
+        <Text style={dynamicStyles.errorTitle}>{tCommon("error")}</Text>
         <Text style={dynamicStyles.errorText}>{error}</Text>
         <TouchableOpacity style={dynamicStyles.button} onPress={handleGoHome}>
-          <Text style={dynamicStyles.buttonText}>Go Home</Text>
+          <Text style={dynamicStyles.buttonText}>{tCommon("goHome")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-          <Text style={dynamicStyles.cancelButtonText}>Go Back</Text>
+          <Text style={dynamicStyles.cancelButtonText}>{tCommon("goBack")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -272,24 +275,24 @@ export default function StampScreen() {
         <View style={styles.rewardIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
         </View>
-        <Text style={dynamicStyles.successTitle}>Reward Redeemed!</Text>
+        <Text style={dynamicStyles.successTitle}>{t("success.rewardRedeemed")}</Text>
         <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-          {customer?.name}&apos;s card has been reset.{"\n"}
-          They can start collecting stamps again!
+          {t("success.cardReset", { name: customer?.name })}{"\n"}
+          {t("success.collectAgain")}
         </Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>Stamps Reset</Text>
+          <Text style={dynamicStyles.stampsLabel}>{t("stampsReset")}</Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
               <View key={i} style={dynamicStyles.stampDot} />
             ))}
           </View>
-          <Text style={dynamicStyles.stampsCount}>0 / {totalStamps}</Text>
+          <Text style={dynamicStyles.stampsCount}>{t("stampsCount", { current: 0, total: totalStamps })}</Text>
         </View>
 
         <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
-          <Text style={dynamicStyles.buttonText}>Scan Next Customer</Text>
+          <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -302,10 +305,10 @@ export default function StampScreen() {
         <View style={styles.completedIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
         </View>
-        <Text style={dynamicStyles.successTitle}>Card Complete!</Text>
+        <Text style={dynamicStyles.successTitle}>{t("success.cardComplete")}</Text>
         <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-          Stamp added for {customer?.name}.{"\n"}
-          Their card is now full!
+          {t("success.stampAddedFor", { name: customer?.name })}{"\n"}
+          {t("success.cardFull")}
         </Text>
 
         <View style={styles.stampsDisplay}>
@@ -318,7 +321,7 @@ export default function StampScreen() {
             ))}
           </View>
           <Text style={dynamicStyles.stampsCount}>
-            {success.stamps} / {totalStamps} - Card Full!
+            {t("stampsCountFull", { current: success.stamps, total: totalStamps })}
           </Text>
         </View>
 
@@ -329,7 +332,7 @@ export default function StampScreen() {
         )}
 
         <Text style={dynamicStyles.rewardPrompt}>
-          Would you like to redeem their reward now?
+          {t("reward.prompt")}
         </Text>
 
         <TouchableOpacity
@@ -342,7 +345,7 @@ export default function StampScreen() {
           ) : (
             <>
               <Gift size={24} color="#fff" weight="bold" />
-              <Text style={styles.redeemButtonText}>Redeem Reward</Text>
+              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -352,7 +355,7 @@ export default function StampScreen() {
           onPress={handleDone}
           disabled={redeeming}
         >
-          <Text style={dynamicStyles.cancelButtonText}>Skip for Now</Text>
+          <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -365,11 +368,11 @@ export default function StampScreen() {
         <View style={styles.successIcon}>
           <Check size={56} color="#fff" weight="bold" />
         </View>
-        <Text style={dynamicStyles.successTitle}>Stamp Added!</Text>
+        <Text style={dynamicStyles.successTitle}>{t("success.stampAdded")}</Text>
         <Text style={dynamicStyles.successMessage}>{success.message}</Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>Current Stamps</Text>
+          <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
               <View
@@ -382,12 +385,12 @@ export default function StampScreen() {
             ))}
           </View>
           <Text style={dynamicStyles.stampsCount}>
-            {success.stamps} / {totalStamps}
+            {t("stampsCount", { current: success.stamps, total: totalStamps })}
           </Text>
         </View>
 
         <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
-          <Text style={dynamicStyles.buttonText}>Scan Next Customer</Text>
+          <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -400,7 +403,7 @@ export default function StampScreen() {
         <View style={dynamicStyles.card}>
           <View style={styles.rewardBanner}>
             <Gift size={32} color="#fff" weight="fill" />
-            <Text style={styles.rewardBannerText}>Ready for Reward!</Text>
+            <Text style={styles.rewardBannerText}>{t("reward.banner")}</Text>
           </View>
 
           <View style={dynamicStyles.avatar}>
@@ -422,7 +425,7 @@ export default function StampScreen() {
               ))}
             </View>
             <Text style={dynamicStyles.stampsCount}>
-              {customer?.stamps} / {totalStamps} - Card Full!
+              {t("stampsCountFull", { current: customer?.stamps, total: totalStamps })}
             </Text>
           </View>
 
@@ -434,7 +437,7 @@ export default function StampScreen() {
         </View>
 
         <Text style={dynamicStyles.rewardPrompt}>
-          This customer is entitled to their reward!
+          {t("reward.entitled")}
         </Text>
 
         <TouchableOpacity
@@ -447,7 +450,7 @@ export default function StampScreen() {
           ) : (
             <>
               <Gift size={24} color="#fff" weight="bold" />
-              <Text style={styles.redeemButtonText}>Redeem Reward</Text>
+              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -457,7 +460,7 @@ export default function StampScreen() {
           onPress={handleSkipReward}
           disabled={redeeming}
         >
-          <Text style={dynamicStyles.cancelButtonText}>Skip for Now</Text>
+          <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -477,7 +480,7 @@ export default function StampScreen() {
         <Text style={dynamicStyles.customerEmail}>{customer?.email}</Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>Current Stamps</Text>
+          <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
               <View
@@ -490,7 +493,7 @@ export default function StampScreen() {
             ))}
           </View>
           <Text style={dynamicStyles.stampsCount}>
-            {customer?.stamps || 0} / {totalStamps}
+            {t("stampsCount", { current: customer?.stamps || 0, total: totalStamps })}
           </Text>
         </View>
 
@@ -509,12 +512,12 @@ export default function StampScreen() {
         {stamping ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.stampButtonText}>Add Stamp</Text>
+          <Text style={styles.stampButtonText}>{t("addStamp")}</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-        <Text style={dynamicStyles.cancelButtonText}>Cancel</Text>
+        <Text style={dynamicStyles.cancelButtonText}>{tCommon("cancel")}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

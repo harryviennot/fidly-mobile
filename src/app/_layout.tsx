@@ -4,6 +4,7 @@ import { Slot, useRouter, useSegments, useRootNavigationState } from "expo-route
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "@/global.css";
+import "@/locales/i18n";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { BusinessProvider, useBusiness } from "@/contexts/business-context";
 import { ThemeProvider } from "@/contexts/theme-context";

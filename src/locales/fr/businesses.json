@@ -1,0 +1,9 @@
+{
+  "loading": "Chargement des commerces...",
+  "header": "Choisissez un commerce",
+  "empty": {
+    "title": "Aucun commerce",
+    "message": "Vous n'avez pas encore été ajouté à un commerce.\nContactez votre responsable pour recevoir une invitation."
+  },
+  "signOutLink": "Déconnexion"
+}

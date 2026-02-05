@@ -61,17 +61,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        const profile = await fetchAppUser(session.user.id);
-        setAppUser(profile);
-      }
-
-      setLoading(false);
-    });
+        if (session?.user) {
+          const profile = await fetchAppUser(session.user.id);
+          console.log("Profile:", profile);
+          setAppUser(profile);
+        }
+        console.log("Session:", session);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error getting session:", err);
+        setLoading(false);
+      });
 
     // Listen for auth changes
     const {
@@ -82,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         const profile = await fetchAppUser(session.user.id);
+        console.log("Profile:", profile);
         setAppUser(profile);
       } else {
         setAppUser(null);

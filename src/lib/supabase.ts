@@ -102,7 +102,7 @@ export async function getAuthHeaders(): Promise<HeadersInit> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
+  console.log("Session:", session);
   return {
     "Content-Type": "application/json",
     ...(session?.access_token && {

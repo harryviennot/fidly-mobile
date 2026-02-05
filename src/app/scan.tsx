@@ -6,19 +6,22 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
-
-const LOGO_HEIGHT = 36;
-const MAX_LOGO_WIDTH = 100;
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { withOpacity } from "@/utils/colors";
 
+const LOGO_HEIGHT = 36;
+const MAX_LOGO_WIDTH = 100;
+
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation("scanner");
+  const { t: tCommon } = useTranslation("common");
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const isProcessingRef = useRef(false);
@@ -63,7 +66,7 @@ export default function ScanScreen() {
     if (uuidRegex.test(data)) {
       router.push(`/stamp/${data}`);
     } else {
-      alert("Invalid QR code. Please scan a valid loyalty card.");
+      alert(t("invalidQr"));
       setScanned(false);
       isProcessingRef.current = false;
     }
@@ -115,7 +118,7 @@ export default function ScanScreen() {
   if (!permission) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.text}>Requesting camera permission...</Text>
+        <Text style={styles.text}>{t("requestingPermission")}</Text>
       </SafeAreaView>
     );
   }
@@ -123,15 +126,15 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.title}>Camera Permission Required</Text>
+        <Text style={styles.title}>{t("permission.title")}</Text>
         <Text style={styles.text}>
-          We need camera access to scan customer loyalty cards.
+          {t("permission.description")}
         </Text>
         <TouchableOpacity style={dynamicStyles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
+          <Text style={styles.buttonText}>{t("permission.grant")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={handleGoBack}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -166,9 +169,8 @@ export default function ScanScreen() {
             </Text>
             <Text style={styles.roleText}>
               {currentMembership?.role
-                ? currentMembership.role.charAt(0).toUpperCase() +
-                currentMembership.role.slice(1)
-                : "Scanner"}
+                ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
+                : tCommon("roles.scanner")}
             </Text>
           </View>
         </View>
@@ -199,7 +201,7 @@ export default function ScanScreen() {
 
         <View style={styles.instructionContainer}>
           <Text style={styles.instruction}>
-            Point camera at the customer loyalty card QR code
+            {t("instruction")}
           </Text>
         </View>
       </CameraView>
@@ -212,7 +214,7 @@ export default function ScanScreen() {
             isProcessingRef.current = false;
           }}
         >
-          <Text style={styles.rescanText}>Tap to Scan Again</Text>
+          <Text style={styles.rescanText}>{t("rescan")}</Text>
         </TouchableOpacity>
       )}
     </View>
