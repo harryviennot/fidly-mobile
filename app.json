@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Stampeo Scanner",
+    "name": "Stampeo",
     "slug": "stampeo-scanner",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.stampeo.scanner",
+      "icon": "./assets/stampeo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs camera access to scan customer loyalty card QR codes"
       }
@@ -34,16 +35,21 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["expo-router", { "root": "./src/app" }],
+      [
+        "expo-router",
+        {
+          "root": "./src/app"
+        }
+      ],
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 100,
           "resizeMode": "contain",
           "backgroundColor": "#f0efe9",
           "dark": {
-            "backgroundColor": "#151718"
+            "backgroundColor": "#f0efe9"
           }
         }
       ],

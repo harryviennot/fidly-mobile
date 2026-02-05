@@ -1,0 +1,10 @@
+{
+  "loading": "Chargement des commerces...",
+  "header": "Vos commerces",
+  "subtitle": "{{count}} commerces",
+  "empty": {
+    "title": "Aucun commerce",
+    "message": "Vous n'avez pas encore été ajouté à un commerce.\nContactez votre responsable pour recevoir une invitation."
+  },
+  "signOutLink": "Déconnexion"
+}

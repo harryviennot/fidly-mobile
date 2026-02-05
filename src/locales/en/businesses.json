@@ -1,0 +1,10 @@
+{
+  "loading": "Loading businesses...",
+  "header": "Your businesses",
+  "subtitle": "{{count}} businesses",
+  "empty": {
+    "title": "No Businesses",
+    "message": "You have not been added to any businesses yet.\nContact your manager to get an invitation."
+  },
+  "signOutLink": "Sign out"
+}

@@ -9,7 +9,7 @@ export async function addStamp(
   businessId: string,
   customerId: string
 ): Promise<StampResponse> {
-  const headers = await getAuthHeaders();
+  const headers = getAuthHeaders();
 
   const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${customerId}`, {
     method: "POST",
@@ -36,7 +36,7 @@ export async function redeemReward(
   businessId: string,
   customerId: string
 ): Promise<StampResponse> {
-  const headers = await getAuthHeaders();
+  const headers = getAuthHeaders();
 
   const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${customerId}/redeem`, {
     method: "POST",

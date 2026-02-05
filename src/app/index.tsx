@@ -1,4 +1,7 @@
-// Root route - NavigationGuard in _layout.tsx handles auth-based redirects
+import { Redirect } from "expo-router";
+import { useAuth } from "@/contexts/auth-context";
+
 export default function Index() {
-  return null;
+  const { user } = useAuth();
+  return <Redirect href={user ? "/lobby" : "/login"} />;
 }

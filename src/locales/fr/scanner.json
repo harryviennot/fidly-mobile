@@ -1,0 +1,11 @@
+{
+  "requestingPermission": "Demande d'accès à la caméra...",
+  "permission": {
+    "title": "Accès caméra requis",
+    "description": "Nous avons besoin d'accéder à la caméra pour scanner les cartes de fidélité.",
+    "grant": "Autoriser"
+  },
+  "invalidQr": "QR code invalide. Veuillez scanner une carte de fidélité valide.",
+  "instruction": "Pointez la caméra vers le QR code de la carte de fidélité",
+  "rescan": "Appuyez pour scanner à nouveau"
+}

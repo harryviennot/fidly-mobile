@@ -44,4 +44,15 @@ export interface CardDesign {
   name: string;
   is_active: boolean;
   total_stamps: number;
+  // Color fields (RGB strings like "rgb(139, 90, 43)")
+  background_color?: string;
+  foreground_color?: string;
+  label_color?: string;
+  stamp_filled_color?: string;
+  stamp_empty_color?: string;
+  stamp_border_color?: string;
+  // Icon configuration
+  stamp_icon?: string;
+  reward_icon?: string;
+  icon_color?: string;
 }

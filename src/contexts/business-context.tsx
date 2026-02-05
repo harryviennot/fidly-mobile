@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { useAuth } from "./auth-context";
 import { getUserMemberships } from "../api/memberships";
@@ -28,12 +28,12 @@ const BusinessContext = createContext<BusinessContextType | undefined>(
   undefined
 );
 
-// Storage helpers for cross-platform support
+// Storage helpers for cross-platform support (non-sensitive data uses AsyncStorage)
 async function getStoredBusinessId(): Promise<string | null> {
   if (Platform.OS === "web") {
     return localStorage.getItem(SELECTED_BUSINESS_KEY);
   }
-  return SecureStore.getItemAsync(SELECTED_BUSINESS_KEY);
+  return AsyncStorage.getItem(SELECTED_BUSINESS_KEY);
 }
 
 async function setStoredBusinessId(businessId: string): Promise<void> {
@@ -41,7 +41,7 @@ async function setStoredBusinessId(businessId: string): Promise<void> {
     localStorage.setItem(SELECTED_BUSINESS_KEY, businessId);
     return;
   }
-  await SecureStore.setItemAsync(SELECTED_BUSINESS_KEY, businessId);
+  await AsyncStorage.setItem(SELECTED_BUSINESS_KEY, businessId);
 }
 
 async function removeStoredBusinessId(): Promise<void> {
@@ -49,11 +49,12 @@ async function removeStoredBusinessId(): Promise<void> {
     localStorage.removeItem(SELECTED_BUSINESS_KEY);
     return;
   }
-  await SecureStore.deleteItemAsync(SELECTED_BUSINESS_KEY);
+  await AsyncStorage.removeItem(SELECTED_BUSINESS_KEY);
 }
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.id;
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [currentBusiness, setCurrentBusiness] = useState<Business | null>(null);
   const [currentMembership, setCurrentMembership] =
@@ -74,7 +75,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshMemberships = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
@@ -86,7 +87,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const data = await getUserMemberships(user.id);
+      const data = await getUserMemberships(userId);
       setMemberships(data);
 
       // Try to restore previously selected business
@@ -116,7 +117,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   // Fetch memberships when user changes
   useEffect(() => {
@@ -125,13 +126,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
   // Clear business when user logs out
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
       removeStoredBusinessId();
     }
-  }, [user]);
+  }, [userId]);
 
   return (
     <BusinessContext.Provider

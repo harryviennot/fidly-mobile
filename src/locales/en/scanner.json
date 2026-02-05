@@ -1,0 +1,11 @@
+{
+  "requestingPermission": "Requesting camera permission...",
+  "permission": {
+    "title": "Camera Permission Required",
+    "description": "We need camera access to scan customer loyalty cards.",
+    "grant": "Grant Permission"
+  },
+  "invalidQr": "Invalid QR code. Please scan a valid loyalty card.",
+  "instruction": "Point camera at the customer loyalty card QR code",
+  "rescan": "Tap to Scan Again"
+}

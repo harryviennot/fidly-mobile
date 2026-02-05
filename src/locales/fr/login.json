@@ -1,0 +1,12 @@
+{
+  "subtitle": "Connectez-vous pour scanner",
+  "email": "Email",
+  "emailPlaceholder": "votre@email.com",
+  "password": "Mot de passe",
+  "passwordPlaceholder": "Entrez votre mot de passe",
+  "signIn": "Se connecter",
+  "errors": {
+    "required": "Veuillez entrer votre email et mot de passe",
+    "unexpected": "Une erreur inattendue s'est produite"
+  }
+}

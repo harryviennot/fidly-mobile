@@ -1,0 +1,12 @@
+{
+  "subtitle": "Sign in to start scanning",
+  "email": "Email",
+  "emailPlaceholder": "your@email.com",
+  "password": "Password",
+  "passwordPlaceholder": "Enter your password",
+  "signIn": "Sign In",
+  "errors": {
+    "required": "Please enter email and password",
+    "unexpected": "An unexpected error occurred"
+  }
+}

@@ -1,31 +1,41 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
   View,
   TouchableOpacity,
-  Image,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
-import { ArrowLeft, ArrowsLeftRight } from "phosphor-react-native";
+import { useTranslation } from "react-i18next";
+import { XIcon } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
+import { useTheme } from "@/contexts/theme-context";
+import { withOpacity } from "@/utils/colors";
+
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation("scanner");
+  const { t: tCommon } = useTranslation("common");
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const isProcessingRef = useRef(false);
-  const { currentBusiness, currentMembership, memberships } = useBusiness();
+  const { currentBusiness, currentMembership } = useBusiness();
+  const { theme } = useTheme();
 
-  const hasMultipleBusinesses = memberships.length > 1;
-
-  // Reset scanned state when screen comes into focus
+  // Reset scanned state when screen comes into focus.
+  // Delay re-enabling the scanner so the camera doesn't immediately
+  // re-detect the same QR code still in frame (especially on web).
   useFocusEffect(
     useCallback(() => {
-      setScanned(false);
-      isProcessingRef.current = false;
+      const timeout = setTimeout(() => {
+        setScanned(false);
+        isProcessingRef.current = false;
+      }, 1500);
+      return () => clearTimeout(timeout);
     }, [])
   );
 
@@ -43,24 +53,59 @@ export default function ScanScreen() {
     if (uuidRegex.test(data)) {
       router.push(`/stamp/${data}`);
     } else {
-      alert("Invalid QR code. Please scan a valid loyalty card.");
+      alert(t("invalidQr"));
       setScanned(false);
       isProcessingRef.current = false;
     }
-  };
-
-  const handleSwitchBusiness = () => {
-    router.replace("/businesses");
   };
 
   const handleGoBack = () => {
     router.back();
   };
 
+  // Memoize dynamic styles based on theme
+  const dynamicStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        banner: {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: withOpacity(theme.primary, 0.95),
+          padding: 12,
+          gap: 10,
+        },
+        logoPlaceholder: {
+          width: 36,
+          height: 36,
+          borderRadius: 6,
+          backgroundColor: "rgba(255, 255, 255, 0.2)",
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        button: {
+          backgroundColor: theme.primary,
+          paddingHorizontal: 32,
+          paddingVertical: 16,
+          borderRadius: 9999,
+        },
+        rescanButton: {
+          position: "absolute",
+          bottom: 40,
+          left: 20,
+          right: 20,
+          backgroundColor: theme.primary,
+          paddingVertical: 16,
+          borderRadius: 9999,
+          alignItems: "center",
+        },
+      }),
+    [theme]
+  );
+
   if (!permission) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.text}>Requesting camera permission...</Text>
+        <Text style={styles.text}>{t("requestingPermission")}</Text>
       </SafeAreaView>
     );
   }
@@ -68,12 +113,15 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.title}>Camera Permission Required</Text>
+        <Text style={styles.title}>{t("permission.title")}</Text>
         <Text style={styles.text}>
-          We need camera access to scan customer loyalty cards.
+          {t("permission.description")}
         </Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
+        <TouchableOpacity style={dynamicStyles.button} onPress={requestPermission}>
+          <Text style={styles.buttonText}>{t("permission.grant")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelButton} onPress={handleGoBack}>
+          <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -83,18 +131,22 @@ export default function ScanScreen() {
     <View style={styles.container}>
       {/* Business Banner */}
       {currentBusiness && (
-        <TouchableOpacity
-          style={[styles.banner, { paddingTop: insets.top + 12 }]}
-          onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
-          activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
-        >
+        <View style={[dynamicStyles.banner, { paddingTop: insets.top + 12 }]}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+            <XIcon size={24} color="#fff" weight="bold" />
+          </TouchableOpacity>
+
           {currentBusiness.logo_url ? (
-            <Image
-              source={{ uri: currentBusiness.logo_url }}
-              style={styles.logo}
-            />
+            <View style={styles.logoContainer}>
+              <Image
+                source={currentBusiness.logo_url}
+                style={styles.logo}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+            </View>
           ) : (
-            <View style={styles.logoPlaceholder}>
+            <View style={dynamicStyles.logoPlaceholder}>
               <Text style={styles.logoPlaceholderText}>
                 {currentBusiness.name.charAt(0).toUpperCase()}
               </Text>
@@ -107,16 +159,11 @@ export default function ScanScreen() {
             </Text>
             <Text style={styles.roleText}>
               {currentMembership?.role
-                ? currentMembership.role.charAt(0).toUpperCase() +
-                  currentMembership.role.slice(1)
-                : "Scanner"}
+                ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
+                : tCommon("roles.scanner")}
             </Text>
           </View>
-
-          {hasMultipleBusinesses && (
-            <ArrowsLeftRight size={20} color="#fff" weight="bold" />
-          )}
-        </TouchableOpacity>
+        </View>
       )}
 
       <CameraView
@@ -144,30 +191,22 @@ export default function ScanScreen() {
 
         <View style={styles.instructionContainer}>
           <Text style={styles.instruction}>
-            Point camera at the customer loyalty card QR code
+            {t("instruction")}
           </Text>
         </View>
       </CameraView>
 
       {scanned && (
         <TouchableOpacity
-          style={[styles.rescanButton, { bottom: insets.bottom + 20 }]}
+          style={[dynamicStyles.rescanButton, { bottom: insets.bottom + 20 }]}
           onPress={() => {
             setScanned(false);
             isProcessingRef.current = false;
           }}
         >
-          <Text style={styles.rescanText}>Tap to Scan Again</Text>
+          <Text style={styles.rescanText}>{t("rescan")}</Text>
         </TouchableOpacity>
       )}
-
-      {/* Back button */}
-      <TouchableOpacity
-        style={[styles.backButton, { top: insets.top + 12 }]}
-        onPress={handleGoBack}
-      >
-        <ArrowLeft size={24} color="#fff" weight="bold" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -184,25 +223,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
   },
-  banner: {
-    flexDirection: "row",
+  logoContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    overflow: "hidden",
     alignItems: "center",
-    backgroundColor: "rgba(249, 115, 22, 0.95)",
-    padding: 12,
-    gap: 10,
+    justifyContent: "center",
   },
   logo: {
     width: 36,
     height: 36,
-    borderRadius: 6,
-  },
-  logoPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   logoPlaceholderText: {
     fontSize: 16,
@@ -273,8 +304,8 @@ const styles = StyleSheet.create({
   instructionContainer: {
     position: "absolute",
     bottom: 100,
-    left: 0,
-    right: 0,
+    left: 24,
+    right: 24,
     alignItems: "center",
   },
   instruction: {
@@ -300,26 +331,22 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 40,
   },
-  button: {
-    backgroundColor: "#f97316",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 9999,
-  },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
-  rescanButton: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: "#f97316",
+  cancelButton: {
+    backgroundColor: "#000000",
+    paddingHorizontal: 32,
     paddingVertical: 16,
+    marginTop: 16,
     borderRadius: 9999,
-    alignItems: "center",
+  },
+  cancelText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   rescanText: {
     color: "#fff",
@@ -327,13 +354,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   backButton: {
-    position: "absolute",
-    top: 60,
-    left: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
   },

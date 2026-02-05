@@ -1,0 +1,31 @@
+{
+  "loading": "Chargement du client...",
+  "currentStamps": "Tampons actuels",
+  "stampsReset": "Tampons réinitialisés",
+  "stampsCount": "{{current}} / {{total}}",
+  "stampsCountFull": "{{current}} / {{total}} - Carte complète !",
+  "addStamp": "Ajouter un tampon",
+  "scanNext": "Scanner le prochain client",
+  "skipForNow": "Passer pour l'instant",
+  "redeemReward": "Utiliser la récompense",
+  "success": {
+    "stampAdded": "Tampon ajouté !",
+    "cardComplete": "Carte complète !",
+    "rewardRedeemed": "Récompense utilisée !",
+    "stampAddedFor": "Tampon ajouté pour {{name}}.",
+    "cardFull": "Sa carte est maintenant complète !",
+    "cardReset": "La carte de {{name}} a été réinitialisée.",
+    "collectAgain": "Il/Elle peut recommencer à collecter des tampons !"
+  },
+  "reward": {
+    "banner": "Récompense disponible !",
+    "prompt": "Voulez-vous utiliser sa récompense maintenant ?",
+    "entitled": "Ce client a droit à sa récompense !"
+  },
+  "errors": {
+    "noBusinessSelected": "Aucun commerce sélectionné",
+    "loadFailed": "Échec du chargement du client",
+    "stampFailed": "Échec de l'ajout du tampon",
+    "redeemFailed": "Échec de l'utilisation de la récompense"
+  }
+}

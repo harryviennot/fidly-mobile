@@ -1,0 +1,18 @@
+{
+  "loading": "Chargement...",
+  "error": "Erreur",
+  "cancel": "Annuler",
+  "retry": "Réessayer",
+  "goBack": "Retour",
+  "goHome": "Accueil",
+  "signOut": "Déconnexion",
+  "signOutConfirmTitle": "Êtes-vous sûr ?",
+  "signOutConfirmMessage": "Vous allez être déconnecté.",
+  "signOutConfirmNo": "Non, rester",
+  "signOutConfirmYes": "Oui, se déconnecter",
+  "roles": {
+    "owner": "Propriétaire",
+    "admin": "Admin",
+    "scanner": "Scanner"
+  }
+}
