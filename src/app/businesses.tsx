@@ -115,6 +115,8 @@ export default function BusinessesScreen() {
     router.replace("/lobby");
   };
 
+  console.log("memberships", memberships);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>

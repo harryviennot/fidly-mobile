@@ -13,12 +13,12 @@ interface RGB {
  * Parse "rgb(139, 90, 43)" to { r: 139, g: 90, b: 43 }
  */
 export function parseRgb(rgbString: string): RGB | null {
-  const match = rgbString.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  const match = new RegExp(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/).exec(rgbString);
   if (!match) return null;
   return {
-    r: parseInt(match[1], 10),
-    g: parseInt(match[2], 10),
-    b: parseInt(match[3], 10),
+    r: Number.parseInt(match[1], 10),
+    g: Number.parseInt(match[2], 10),
+    b: Number.parseInt(match[3], 10),
   };
 }
 

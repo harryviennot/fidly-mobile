@@ -1,112 +1,70 @@
+/**
+ * Supabase client configuration for React Native / Expo
+ *
+ * This module initializes the Supabase client with:
+ * - LargeSecureStore for encrypted token storage (handles tokens > 2048 bytes)
+ * - Auto-refresh token handling
+ * - App state awareness (stops refresh when backgrounded)
+ */
 import { createClient } from "@supabase/supabase-js";
-import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
+import { LargeSecureStore } from "./large-secure-store";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+// Storage adapter using LargeSecureStore for encrypted storage
+// This handles Supabase tokens that exceed SecureStore's 2048 byte limit
+const storage = new LargeSecureStore();
 
-// Check if localStorage is available (not available in SSR)
-const isLocalStorageAvailable = () => {
-  try {
-    return typeof localStorage !== "undefined";
-  } catch {
-    return false;
-  }
-};
+// Get Supabase configuration from environment variables
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// SecureStore has a 2048 byte limit - chunk large values to avoid warnings
-const CHUNK_SIZE = 1800;
-
-async function getChunkedItem(key: string): Promise<string | null> {
-  const countStr = await SecureStore.getItemAsync(`${key}_count`);
-  if (!countStr) {
-    // Try single item (backwards compatibility)
-    return SecureStore.getItemAsync(key);
-  }
-  const count = parseInt(countStr, 10);
-  const chunks: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const chunk = await SecureStore.getItemAsync(`${key}_${i}`);
-    if (!chunk) return null;
-    chunks.push(chunk);
-  }
-  return chunks.join("");
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Missing Supabase configuration. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file."
+  );
 }
 
-async function setChunkedItem(key: string, value: string): Promise<void> {
-  await removeChunkedItem(key);
-  if (value.length <= CHUNK_SIZE) {
-    await SecureStore.setItemAsync(key, value);
-    return;
-  }
-  const chunks: string[] = [];
-  for (let i = 0; i < value.length; i += CHUNK_SIZE) {
-    chunks.push(value.slice(i, i + CHUNK_SIZE));
-  }
-  await SecureStore.setItemAsync(`${key}_count`, chunks.length.toString());
-  await Promise.all(chunks.map((chunk, i) => SecureStore.setItemAsync(`${key}_${i}`, chunk)));
-}
-
-async function removeChunkedItem(key: string): Promise<void> {
-  const countStr = await SecureStore.getItemAsync(`${key}_count`);
-  await SecureStore.deleteItemAsync(key);
-  if (countStr) {
-    const count = parseInt(countStr, 10);
-    await SecureStore.deleteItemAsync(`${key}_count`);
-    await Promise.all(Array.from({ length: count }, (_, i) => SecureStore.deleteItemAsync(`${key}_${i}`)));
-  }
-}
-
-// Custom storage adapter using SecureStore for native, localStorage for web
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    if (Platform.OS === "web" && isLocalStorageAvailable()) {
-      return localStorage.getItem(key);
-    }
-    if (Platform.OS !== "web") {
-      return getChunkedItem(key);
-    }
-    return null;
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    if (Platform.OS === "web" && isLocalStorageAvailable()) {
-      localStorage.setItem(key, value);
-      return;
-    }
-    if (Platform.OS !== "web") {
-      await setChunkedItem(key, value);
-    }
-  },
-  removeItem: async (key: string): Promise<void> => {
-    if (Platform.OS === "web" && isLocalStorageAvailable()) {
-      localStorage.removeItem(key);
-      return;
-    }
-    if (Platform.OS !== "web") {
-      await removeChunkedItem(key);
-    }
-  },
-};
-
+// Create Supabase client with mobile-optimized settings
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
+    storage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: false, // Not needed for mobile apps
   },
 });
 
+// Handle app state changes for token refresh management
+// This ensures tokens are refreshed when app comes to foreground
+// and stops refresh attempts when backgrounded (saves battery/resources)
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
+
+
 // Helper to get auth headers for API requests
 export async function getAuthHeaders(): Promise<HeadersInit> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  console.log("Session:", session);
-  return {
-    "Content-Type": "application/json",
-    ...(session?.access_token && {
-      Authorization: `Bearer ${session.access_token}`,
-    }),
-  };
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      "Content-Type": "application/json",
+      ...(session?.access_token && {
+        Authorization: `Bearer ${session.access_token}`,
+      }),
+    };
+  } catch {
+    // On timeout or error, return headers without auth
+    return { "Content-Type": "application/json" };
+  }
 }
+
+console.log("Supabase client initialized");
