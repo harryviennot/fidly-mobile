@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
+import { CustomerCardSkeleton } from "@/components/skeleton";
 import type { Customer, StampResponse } from "@/types/api";
 
 export default function StampScreen() {
@@ -244,8 +245,10 @@ export default function StampScreen() {
   if (loading) {
     return (
       <SafeAreaView style={dynamicStyles.container}>
-        <ActivityIndicator size="large" color={theme.loadingColor} />
-        <Text style={dynamicStyles.loadingText}>{t("loading")}</Text>
+        <CustomerCardSkeleton
+          totalStamps={totalStamps}
+          theme={{ surface: theme.surface, text: theme.text }}
+        />
       </SafeAreaView>
     );
   }

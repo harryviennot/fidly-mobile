@@ -16,6 +16,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
 import { CameraIcon, SignOutIcon } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
+import { QRCodeSkeleton } from "@/components/skeleton";
 
 const LOGO_HEIGHT = 48;
 const MAX_LOGO_WIDTH = 120;
@@ -229,9 +230,7 @@ export default function LobbyScreen() {
         <View style={dynamicStyles.qrSection}>
           <View style={dynamicStyles.qrContainer}>
             {qrLoading ? (
-              <View style={dynamicStyles.qrPlaceholder}>
-                <ActivityIndicator size="large" color={theme.loadingColor} />
-              </View>
+              <QRCodeSkeleton />
             ) : signupQR ? (
               <Image
                 source={signupQR.qr_code}

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useAuth } from "@/contexts/auth-context";
 import { CaretRight } from "phosphor-react-native";
+import { BusinessCardSkeleton } from "@/components/skeleton";
 import type { Membership } from "@/types/api";
 
 const LOGO_HEIGHT = 48;
@@ -109,9 +109,15 @@ export default function BusinessesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#f97316" />
-        <Text style={styles.loadingText}>{t("loading")}</Text>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.header}>{t("header")}</Text>
+        <View style={styles.list}>
+          <BusinessCardSkeleton delay={0} />
+          <View style={styles.separator} />
+          <BusinessCardSkeleton delay={100} />
+          <View style={styles.separator} />
+          <BusinessCardSkeleton delay={200} />
+        </View>
       </SafeAreaView>
     );
   }
