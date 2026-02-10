@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.stampeo.scanner",
       "icon": "./assets/stampeo.icon",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app needs camera access to scan customer loyalty card QR codes"
+        "NSCameraUsageDescription": "This app needs camera access to scan customer loyalty card QR codes",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -24,7 +25,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.stampeo.scanner",
       "edgeToEdgeEnabled": true,
@@ -63,6 +65,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "root": "./src/app"
+      },
+      "eas": {
+        "projectId": "90b8f436-1de4-47ba-ad18-c897db0ab688"
+      }
+    },
+    "owner": "harrys-expo-org"
   }
 }
