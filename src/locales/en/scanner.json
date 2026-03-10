@@ -3,7 +3,11 @@
   "permission": {
     "title": "Camera Permission Required",
     "description": "We need camera access to scan customer loyalty cards.",
-    "grant": "Grant Permission"
+    "grant": "Grant Permission",
+    "denied": "Camera access was denied. Please enable it in your settings to use the scanner.",
+    "openSettings": "Open Settings",
+    "browserHint": "Camera access is blocked. Click the camera icon in your browser's address bar to re-allow it.",
+    "insecureContext": "Camera access requires HTTPS. Please open this page over a secure connection."
   },
   "invalidQr": "Invalid QR code. Please scan a valid loyalty card.",
   "instruction": "Point camera at the customer loyalty card QR code",

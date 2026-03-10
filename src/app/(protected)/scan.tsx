@@ -1,9 +1,11 @@
-import { useCallback, useRef, useMemo, useState } from "react";
+import React, { useCallback, useRef, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
   View,
   TouchableOpacity,
+  Linking,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
@@ -111,15 +113,41 @@ export default function ScanScreen() {
   }
 
   if (!permission.granted) {
+    const canAsk = permission.canAskAgain;
+    const isWeb = Platform.OS === "web";
+
+    let permissionAction: React.ReactNode;
+    const isInsecureContext = isWeb && globalThis.window !== undefined && !globalThis.isSecureContext;
+
+    if (isInsecureContext) {
+      permissionAction = (
+        <Text style={styles.settingsHint}>{t("permission.insecureContext")}</Text>
+      );
+    } else if (canAsk) {
+      permissionAction = (
+        <TouchableOpacity style={dynamicStyles.button} onPress={requestPermission}>
+          <Text style={styles.buttonText}>{t("permission.grant")}</Text>
+        </TouchableOpacity>
+      );
+    } else if (isWeb) {
+      permissionAction = (
+        <Text style={styles.settingsHint}>{t("permission.browserHint")}</Text>
+      );
+    } else {
+      permissionAction = (
+        <TouchableOpacity style={dynamicStyles.button} onPress={() => Linking.openSettings()}>
+          <Text style={styles.buttonText}>{t("permission.openSettings")}</Text>
+        </TouchableOpacity>
+      );
+    }
+
     return (
       <SafeAreaView style={styles.permissionContainer}>
         <Text style={styles.title}>{t("permission.title")}</Text>
         <Text style={styles.text}>
-          {t("permission.description")}
+          {canAsk ? t("permission.description") : t("permission.denied")}
         </Text>
-        <TouchableOpacity style={dynamicStyles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>{t("permission.grant")}</Text>
-        </TouchableOpacity>
+        {permissionAction}
         <TouchableOpacity style={styles.cancelButton} onPress={handleGoBack}>
           <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
         </TouchableOpacity>
@@ -352,6 +380,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  settingsHint: {
+    color: "#aaa",
+    fontSize: 13,
+    textAlign: "center",
+    paddingHorizontal: 40,
+    marginTop: 16,
   },
   backButton: {
     width: 40,
