@@ -1,7 +1,6 @@
 import Animated from "react-native-reanimated";
 import { View, StyleSheet } from "react-native";
 
-const GRID_SIZE = 9;
 const SQUARE_SIZE = 16;
 const GAP = 6;
 
