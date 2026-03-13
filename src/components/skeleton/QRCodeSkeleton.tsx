@@ -54,6 +54,7 @@ export function QRCodeSkeleton() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     width: 200,
