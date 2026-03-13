@@ -14,6 +14,9 @@ jobs:
       - run: bun run lint
       - run: bunx tsc --noEmit
       - run: bunx expo export --platform web
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
   audit:
     if: github.event_name == 'pull_request'
