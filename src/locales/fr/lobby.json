@@ -1,5 +1,10 @@
 {
   "qrUnavailable": "QR indisponible",
   "qrLabel": "Les clients scannent ce code pour obtenir leur carte de fidélité",
-  "startScanning": "Commencer à scanner"
+  "startScanning": "Commencer à scanner",
+  "paused": {
+    "banner": "Votre accès au scanner est suspendu",
+    "description": "Le propriétaire de l'entreprise a suspendu votre accès au scanner. Contactez-le pour le restaurer.",
+    "switchBusiness": "Changer d'entreprise"
+  }
 }

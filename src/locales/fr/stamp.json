@@ -26,6 +26,9 @@
     "noBusinessSelected": "Aucun commerce sélectionné",
     "loadFailed": "Échec du chargement du client",
     "stampFailed": "Échec de l'ajout du tampon",
-    "redeemFailed": "Échec de l'utilisation de la récompense"
+    "redeemFailed": "Échec de l'utilisation de la récompense",
+    "pausedTitle": "Scanner suspendu",
+    "pausedMessage": "Votre accès au scanner a été suspendu par le propriétaire. Contactez-le pour le restaurer.",
+    "goHome": "Retour à l'accueil"
   }
 }

@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { WarningCircle, Confetti, Check, Gift } from "phosphor-react-native";
+import { WarningCircle, Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
 import { useBusiness } from "@/contexts/business-context";
@@ -28,6 +28,7 @@ export default function StampScreen() {
   const [stamping, setStamping] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPausedError, setIsPausedError] = useState(false);
   const [success, setSuccess] = useState<StampResponse | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
 
@@ -67,7 +68,11 @@ export default function StampScreen() {
       setCustomer((prev) => (prev ? { ...prev, stamps: result.stamps } : null));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.stampFailed"));
+      if ((err as any)?.code === "MEMBER_PAUSED") {
+        setIsPausedError(true);
+      } else {
+        setError(err instanceof Error ? err.message : t("errors.stampFailed"));
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setStamping(false);
@@ -86,7 +91,11 @@ export default function StampScreen() {
       setSuccess(result);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
+      if ((err as any)?.code === "MEMBER_PAUSED") {
+        setIsPausedError(true);
+      } else {
+        setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setRedeeming(false);
@@ -252,6 +261,22 @@ export default function StampScreen() {
           totalStamps={totalStamps}
           theme={{ surface: theme.surface, text: theme.text }}
         />
+      </SafeAreaView>
+    );
+  }
+
+  // Paused member error — shown as dedicated screen with Go Home action
+  if (isPausedError) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={[styles.errorIcon, { backgroundColor: "#D97706" }]}>
+          <PauseCircle size={48} color="#fff" weight="fill" />
+        </View>
+        <Text style={dynamicStyles.errorTitle}>{t("errors.pausedTitle")}</Text>
+        <Text style={dynamicStyles.errorText}>{t("errors.pausedMessage")}</Text>
+        <TouchableOpacity style={dynamicStyles.button} onPress={handleGoHome}>
+          <Text style={dynamicStyles.buttonText}>{t("errors.goHome")}</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
