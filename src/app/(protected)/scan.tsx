@@ -24,6 +24,7 @@ export default function ScanScreen() {
   const { t: tCommon } = useTranslation("common");
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
   const isProcessingRef = useRef(false);
   const { currentBusiness, currentMembership } = useBusiness();
   const { theme } = useTheme();
@@ -35,6 +36,7 @@ export default function ScanScreen() {
     useCallback(() => {
       const timeout = setTimeout(() => {
         setScanned(false);
+        setScanError(null);
         isProcessingRef.current = false;
       }, 1500);
       return () => clearTimeout(timeout);
@@ -55,9 +57,10 @@ export default function ScanScreen() {
     if (uuidRegex.test(data)) {
       router.push(`/stamp/${data}`);
     } else {
-      alert(t("invalidQr"));
-      setScanned(false);
-      isProcessingRef.current = false;
+      // Show inline error instead of alert() to prevent re-scan loop.
+      // Keep scanned=true so the camera stays disabled until the user
+      // taps "Scan Again" (by which time the invalid QR is out of frame).
+      setScanError(t("invalidQr"));
     }
   };
 
@@ -224,12 +227,23 @@ export default function ScanScreen() {
         </View>
       </CameraView>
 
+      {scanError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{scanError}</Text>
+        </View>
+      )}
+
       {scanned && (
         <TouchableOpacity
           style={[dynamicStyles.rescanButton, { bottom: insets.bottom + 20 }]}
           onPress={() => {
-            setScanned(false);
-            isProcessingRef.current = false;
+            setScanError(null);
+            // Delay re-enabling the scanner so the camera doesn't
+            // immediately re-detect the same QR code still in frame.
+            setTimeout(() => {
+              setScanned(false);
+              isProcessingRef.current = false;
+            }, 1500);
           }}
         >
           <Text style={styles.rescanText}>{t("rescan")}</Text>
@@ -387,6 +401,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 40,
     marginTop: 16,
+  },
+  errorBanner: {
+    position: "absolute",
+    bottom: 110,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(220, 38, 38, 0.9)",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
   },
   backButton: {
     width: 40,
