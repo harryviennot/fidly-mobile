@@ -3,7 +3,11 @@
   "permission": {
     "title": "Accès caméra requis",
     "description": "Nous avons besoin d'accéder à la caméra pour scanner les cartes de fidélité.",
-    "grant": "Autoriser"
+    "grant": "Autoriser",
+    "denied": "L'accès à la caméra a été refusé. Veuillez l'activer dans vos paramètres pour utiliser le scanner.",
+    "openSettings": "Ouvrir les paramètres",
+    "browserHint": "L'accès à la caméra est bloqué. Cliquez sur l'icône caméra dans la barre d'adresse de votre navigateur pour le réautoriser.",
+    "insecureContext": "L'accès à la caméra nécessite HTTPS. Veuillez ouvrir cette page via une connexion sécurisée."
   },
   "invalidQr": "QR code invalide. Veuillez scanner une carte de fidélité valide.",
   "instruction": "Pointez la caméra vers le QR code de la carte de fidélité",

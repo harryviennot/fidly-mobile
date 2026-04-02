@@ -1,7 +1,6 @@
 import type { CardDesign } from "./api";
 import {
   isLightColor,
-  adjustBrightness,
   blendColors,
   getContrastingTextColor,
 } from "../utils/colors";

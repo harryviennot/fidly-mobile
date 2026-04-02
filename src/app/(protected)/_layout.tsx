@@ -4,7 +4,7 @@ import { useBusiness } from "@/contexts/business-context";
 
 export default function ProtectedLayout() {
   const router = useRouter();
-  const segments = useSegments();
+  const segments: string[] = useSegments();
   const { currentBusiness, memberships, loading: bizLoading } = useBusiness();
 
   // Redirect to correct screen within the protected group
