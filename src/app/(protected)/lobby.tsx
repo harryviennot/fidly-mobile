@@ -210,7 +210,6 @@ export default function LobbyScreen() {
 
         <TouchableOpacity
           style={styles.signOutButton}
-          hitSlop={12}
           onPress={handleSignOut}
         >
           <SignOutIcon size={20} color={theme.primaryText} />
@@ -308,9 +307,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   signOutButton: {
-    flexDirection: "row",
+    padding: 12,
+    justifyContent: "center",
     alignItems: "center",
-    gap: 6,
   },
   pausedBanner: {
     flexDirection: "row",
