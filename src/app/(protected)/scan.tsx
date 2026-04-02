@@ -11,6 +11,7 @@ import { Image } from "expo-image";
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { XIcon } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
@@ -28,6 +29,7 @@ export default function ScanScreen() {
   const isProcessingRef = useRef(false);
   const { currentBusiness, currentMembership } = useBusiness();
   const { theme } = useTheme();
+  const isFocused = useIsFocused();
 
   // Reset scanned state when screen comes into focus.
   // Delay re-enabling the scanner so the camera doesn't immediately
@@ -197,35 +199,39 @@ export default function ScanScreen() {
         </View>
       )}
 
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.unfocusedArea} />
-          <View style={styles.middleRow}>
+      {isFocused ? (
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr"],
+          }}
+          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+        >
+          <View style={styles.overlay}>
             <View style={styles.unfocusedArea} />
-            <View style={styles.focusedArea}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+            <View style={styles.middleRow}>
+              <View style={styles.unfocusedArea} />
+              <View style={styles.focusedArea}>
+                <View style={[styles.corner, styles.topLeft]} />
+                <View style={[styles.corner, styles.topRight]} />
+                <View style={[styles.corner, styles.bottomLeft]} />
+                <View style={[styles.corner, styles.bottomRight]} />
+              </View>
+              <View style={styles.unfocusedArea} />
             </View>
             <View style={styles.unfocusedArea} />
           </View>
-          <View style={styles.unfocusedArea} />
-        </View>
 
-        <View style={styles.instructionContainer}>
-          <Text style={styles.instruction}>
-            {t("instruction")}
-          </Text>
-        </View>
-      </CameraView>
+          <View style={styles.instructionContainer}>
+            <Text style={styles.instruction}>
+              {t("instruction")}
+            </Text>
+          </View>
+        </CameraView>
+      ) : (
+        <View style={styles.camera} />
+      )}
 
       {scanError && (
         <View style={styles.errorBanner}>
