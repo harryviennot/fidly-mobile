@@ -21,6 +21,12 @@ export async function addStamp(
       throw new Error("Not authorized to add stamps");
     }
     if (response.status === 403) {
+      const body = await response.json().catch(() => ({}));
+      if (body?.detail?.code === "MEMBER_PAUSED") {
+        const err = new Error("MEMBER_PAUSED");
+        (err as any).code = "MEMBER_PAUSED";
+        throw err;
+      }
       throw new Error("You don't have access to this business");
     }
     if (response.status === 404) {
@@ -48,6 +54,12 @@ export async function redeemReward(
       throw new Error("Not authorized to redeem rewards");
     }
     if (response.status === 403) {
+      const body = await response.json().catch(() => ({}));
+      if (body?.detail?.code === "MEMBER_PAUSED") {
+        const err = new Error("MEMBER_PAUSED");
+        (err as any).code = "MEMBER_PAUSED";
+        throw err;
+      }
       throw new Error("You don't have access to this business");
     }
     if (response.status === 404) {

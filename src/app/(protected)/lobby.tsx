@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
-import { CameraIcon, SignOutIcon } from "phosphor-react-native";
+import { CameraIcon, SignOutIcon, PauseCircleIcon } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
 import { QRCodeSkeleton } from "@/components/skeleton";
 
@@ -28,6 +28,7 @@ export default function LobbyScreen() {
   const { signOut } = useAuth();
 
   const hasMultipleBusinesses = memberships.length > 1;
+  const isPaused = currentMembership?.is_paused ?? false;
 
   const handleStartScanning = () => {
     router.push("/scan");
@@ -244,15 +245,35 @@ export default function LobbyScreen() {
 
         <View style={dynamicStyles.divider} />
 
+        {/* Paused Banner */}
+        {isPaused && (
+          <View style={styles.pausedBanner}>
+            <PauseCircleIcon size={22} color="#D97706" weight="fill" />
+            <View style={styles.pausedTextContainer}>
+              <Text style={styles.pausedTitle}>{t("paused.banner")}</Text>
+              <Text style={styles.pausedDescription}>{t("paused.description")}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Scan Button */}
         <TouchableOpacity
-          style={dynamicStyles.scanButton}
-          onPress={handleStartScanning}
-          activeOpacity={0.8}
+          style={[dynamicStyles.scanButton, isPaused && styles.scanButtonDisabled]}
+          onPress={isPaused ? undefined : handleStartScanning}
+          activeOpacity={isPaused ? 1 : 0.8}
         >
-          <CameraIcon size={24} color={theme.primaryText} weight="bold" />
-          <Text style={dynamicStyles.scanButtonText}>{t("startScanning")}</Text>
+          <CameraIcon size={24} color={isPaused ? "#999" : theme.primaryText} weight="bold" />
+          <Text style={[dynamicStyles.scanButtonText, isPaused && styles.scanButtonTextDisabled]}>
+            {t("startScanning")}
+          </Text>
         </TouchableOpacity>
+
+        {/* Switch business hint when paused */}
+        {isPaused && hasMultipleBusinesses && (
+          <TouchableOpacity style={styles.switchHint} onPress={handleSwitchBusiness}>
+            <Text style={styles.switchHintText}>{t("paused.switchBusiness")}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -290,5 +311,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  pausedBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+    marginBottom: 20,
+    width: "100%",
+  },
+  pausedTextContainer: {
+    flex: 1,
+  },
+  pausedTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#92400E",
+    marginBottom: 2,
+  },
+  pausedDescription: {
+    fontSize: 13,
+    color: "#A16207",
+    lineHeight: 18,
+  },
+  scanButtonDisabled: {
+    backgroundColor: "#E5E5E5",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  scanButtonTextDisabled: {
+    color: "#999",
+  },
+  switchHint: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  switchHintText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6B7280",
+    textDecorationLine: "underline",
   },
 });

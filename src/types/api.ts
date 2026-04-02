@@ -30,6 +30,7 @@ export interface Membership {
   user_id: string;
   business_id: string;
   role: "owner" | "admin" | "scanner";
+  is_paused?: boolean;
   invited_by?: string;
   created_at?: string;
   updated_at?: string;

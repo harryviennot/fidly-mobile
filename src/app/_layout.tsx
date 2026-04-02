@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
-import { Stack, useRootNavigationState } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "@/global.css";
@@ -11,16 +10,8 @@ import { ThemeProvider } from "@/contexts/theme-context";
 
 function RootNavigator() {
   const { user, loading: authLoading } = useAuth();
-  const navigationState = useRootNavigationState();
-  const [isNavigationReady, setIsNavigationReady] = useState(false);
 
-  useEffect(() => {
-    if (navigationState?.key) {
-      setIsNavigationReady(true);
-    }
-  }, [navigationState?.key]);
-
-  if (authLoading || !isNavigationReady) {
+  if (authLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f97316" />

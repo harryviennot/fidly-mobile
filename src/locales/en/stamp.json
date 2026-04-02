@@ -26,6 +26,9 @@
     "noBusinessSelected": "No business selected",
     "loadFailed": "Failed to load customer",
     "stampFailed": "Failed to add stamp",
-    "redeemFailed": "Failed to redeem reward"
+    "redeemFailed": "Failed to redeem reward",
+    "pausedTitle": "Scanning Paused",
+    "pausedMessage": "Your scanning access has been paused by the business owner. Contact them to restore access.",
+    "goHome": "Go Home"
   }
 }
