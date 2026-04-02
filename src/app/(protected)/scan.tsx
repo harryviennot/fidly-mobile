@@ -10,7 +10,8 @@ import {
 import { Image } from "expo-image";
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { router, useFocusEffect, useIsFocused } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { XIcon } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
