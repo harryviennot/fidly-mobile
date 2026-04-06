@@ -7,6 +7,7 @@ import "@/locales/i18n";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { BusinessProvider } from "@/contexts/business-context";
 import { ThemeProvider } from "@/contexts/theme-context";
+import { AlertProvider } from "@/contexts/alert-context";
 
 function RootNavigator() {
   const { user, loading: authLoading } = useAuth();
@@ -43,7 +44,9 @@ export default function RootLayout() {
       <AuthProvider>
         <BusinessProvider>
           <ThemeProvider>
-            <RootNavigator />
+            <AlertProvider>
+              <RootNavigator />
+            </AlertProvider>
           </ThemeProvider>
         </BusinessProvider>
       </AuthProvider>

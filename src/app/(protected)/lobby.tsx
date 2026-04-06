@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
+import { useAlert } from "@/contexts/alert-context";
 import { CameraIcon, SignOutIcon, PauseCircleIcon } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
 import { QRCodeSkeleton } from "@/components/skeleton";
@@ -26,6 +27,7 @@ export default function LobbyScreen() {
   const { currentBusiness, currentMembership, memberships } = useBusiness();
   const { theme, signupQR, qrLoading } = useTheme();
   const { signOut } = useAuth();
+  const { alert } = useAlert();
 
   const hasMultipleBusinesses = memberships.length > 1;
   const isPaused = currentMembership?.is_paused ?? false;
@@ -39,7 +41,7 @@ export default function LobbyScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert(
+    alert(
       tCommon("signOutConfirmTitle"),
       tCommon("signOutConfirmMessage"),
       [
