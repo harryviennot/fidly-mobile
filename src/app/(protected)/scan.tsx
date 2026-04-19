@@ -153,9 +153,6 @@ export default function ScanScreen() {
           {canAsk ? t("permission.description") : t("permission.denied")}
         </Text>
         {permissionAction}
-        <TouchableOpacity style={styles.cancelButton} onPress={handleGoBack}>
-          <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
-        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -380,18 +377,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  cancelButton: {
-    backgroundColor: "#000000",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    marginTop: 16,
-    borderRadius: 9999,
-  },
-  cancelText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
