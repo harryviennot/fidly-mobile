@@ -6,8 +6,37 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as WebBrowser from "expo-web-browser";
+import {
+  GoogleSignin,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
 import { supabase } from "@/lib/supabase";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
+
+export type OAuthProvider = "apple" | "google";
+
+// Native deep-link redirect for OAuth callbacks (must match scheme in app.config.ts).
+const NATIVE_OAUTH_REDIRECT = "stampeo-scanner://auth/callback";
+
+// Configure Google Sign In once at module load (native only).
+if (Platform.OS !== "web") {
+  const iosClientId = Constants.expoConfig?.extra?.googleIosClientId as
+    | string
+    | undefined;
+  const webClientId = Constants.expoConfig?.extra?.googleWebClientId as
+    | string
+    | undefined;
+  if (iosClientId && webClientId) {
+    GoogleSignin.configure({ iosClientId, webClientId });
+  }
+}
+
+// Required for expo-web-browser OAuth completion on web (no-op on native).
+WebBrowser.maybeCompleteAuthSession();
 
 // App user profile from public.users table
 export interface AppUser {
@@ -28,6 +57,9 @@ interface AuthContextType {
     email: string,
     password: string
   ) => Promise<{ error: AuthError | null }>;
+  signInWithProvider: (
+    provider: OAuthProvider
+  ) => Promise<{ error: AuthError | { message: string } | null; cancelled?: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -120,6 +152,111 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   }, []);
 
+  const signInWithProvider = useCallback(
+    async (provider: OAuthProvider) => {
+      // Native iOS Apple — uses ASAuthorizationController, returns identity token directly.
+      if (provider === "apple" && Platform.OS === "ios") {
+        try {
+          const credential = await AppleAuthentication.signInAsync({
+            requestedScopes: [
+              AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+              AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            ],
+          });
+          if (!credential.identityToken) {
+            return { error: { message: "Apple sign-in returned no identity token" } };
+          }
+          const { error } = await supabase.auth.signInWithIdToken({
+            provider: "apple",
+            token: credential.identityToken,
+          });
+          return { error };
+        } catch (err: unknown) {
+          const code = (err as { code?: string }).code;
+          if (code === "ERR_REQUEST_CANCELED" || code === "ERR_CANCELED") {
+            return { error: null, cancelled: true };
+          }
+          return {
+            error: { message: err instanceof Error ? err.message : "Apple sign-in failed" },
+          };
+        }
+      }
+
+      // Native Google (iOS / Android) — uses Google Sign In SDK.
+      if (provider === "google" && Platform.OS !== "web") {
+        try {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+          const result = await GoogleSignin.signIn();
+          const idToken = result.data?.idToken;
+          if (!idToken) {
+            return { error: { message: "Google sign-in returned no ID token" } };
+          }
+          const { error } = await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: idToken,
+          });
+          return { error };
+        } catch (err: unknown) {
+          const code = (err as { code?: string }).code;
+          if (code === statusCodes.SIGN_IN_CANCELLED) {
+            return { error: null, cancelled: true };
+          }
+          return {
+            error: { message: err instanceof Error ? err.message : "Google sign-in failed" },
+          };
+        }
+      }
+
+      // Fallback: Web (any provider) + native Apple on Android — uses Supabase OAuth via web browser.
+      const redirectTo =
+        Platform.OS === "web"
+          ? `${globalThis.location.origin}${globalThis.location.pathname}`
+          : NATIVE_OAUTH_REDIRECT;
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo, skipBrowserRedirect: Platform.OS !== "web" },
+      });
+
+      if (oauthError) return { error: oauthError };
+
+      // On web, supabase-js triggers the redirect itself.
+      if (Platform.OS === "web") return { error: null };
+
+      // On native, open the auth URL in the system browser and wait for the redirect.
+      if (!data?.url) {
+        return { error: { message: "Failed to start OAuth flow" } };
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        NATIVE_OAUTH_REDIRECT
+      );
+
+      if (result.type === "cancel" || result.type === "dismiss") {
+        return { error: null, cancelled: true };
+      }
+
+      if (result.type !== "success" || !result.url) {
+        return { error: { message: "OAuth flow did not complete" } };
+      }
+
+      const url = new URL(result.url);
+      const code = url.searchParams.get("code");
+      if (!code) {
+        const errorDescription =
+          url.searchParams.get("error_description") || url.searchParams.get("error");
+        return {
+          error: { message: errorDescription || "OAuth callback missing code" },
+        };
+      }
+
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      return { error: exchangeError };
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
     // Clear React state first so the UI redirects immediately
     setUser(null);
@@ -131,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, appUser, session, loading, signIn, signOut }}
+      value={{ user, appUser, session, loading, signIn, signInWithProvider, signOut }}
     >
       {children}
     </AuthContext.Provider>

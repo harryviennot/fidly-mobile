@@ -5,8 +5,15 @@
   "password": "Password",
   "passwordPlaceholder": "Enter your password",
   "signIn": "Sign In",
+  "oauth": {
+    "apple": "Continue with Apple",
+    "google": "Continue with Google",
+    "divider": "or"
+  },
   "errors": {
     "required": "Please enter email and password",
-    "unexpected": "An unexpected error occurred"
+    "unexpected": "An unexpected error occurred",
+    "oauthFailed": "Sign-in failed. Please try again.",
+    "noAccount": "No account is linked to this sign-in. Create a business at stampeo.app or ask your business owner to invite you."
   }
 }

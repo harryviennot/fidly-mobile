@@ -24,13 +24,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Create Supabase client with mobile-optimized settings
+// Create Supabase client with mobile-optimized settings.
+// On web, OAuth providers redirect back with the session in the URL fragment —
+// detectSessionInUrl lets supabase-js consume it automatically.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false, // Not needed for mobile apps
+    detectSessionInUrl: Platform.OS === "web",
   },
 });
 
