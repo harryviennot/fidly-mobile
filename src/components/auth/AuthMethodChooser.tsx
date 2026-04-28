@@ -36,7 +36,9 @@ export function AuthMethodChooser({
       const { error, cancelled } = await signInWithProvider(provider);
       if (cancelled) return;
       if (error) {
-        onError(t("errors.oauthFailed"));
+        const message = "message" in error && error.message ? error.message : t("errors.oauthFailed");
+        console.log(`[Auth] ${provider} sign-in error:`, error);
+        onError(message);
         return;
       }
       onSuccess();
