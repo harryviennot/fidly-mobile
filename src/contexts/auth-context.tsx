@@ -16,6 +16,7 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { supabase } from "@/lib/supabase";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
+import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 
 export type OAuthProvider = "apple" | "google";
 
@@ -136,6 +137,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         const profile = await fetchAppUser(session.user.id);
         setAppUser(profile);
+
+        if (event === "SIGNED_IN") {
+          const provider = session.user.app_metadata?.provider;
+          if (provider === "google" || provider === "apple" || provider === "email") {
+            void writeLastLogin(provider as LastLoginMethod, session.user.email);
+          }
+        }
       } else {
         setAppUser(null);
       }

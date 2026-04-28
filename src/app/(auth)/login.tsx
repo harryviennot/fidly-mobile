@@ -9,25 +9,38 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { ArrowLeftIcon } from "phosphor-react-native";
 import { useAuth } from "@/contexts/auth-context";
 import { StampeoLogo } from "@/components/ui/StampeoLogo";
-import { OAuthButtons, OAuthDivider } from "@/components/auth/OAuthButtons";
+import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
 import { supabase } from "@/lib/supabase";
 import { getUserMemberships } from "@/api/memberships";
 
+const SHOWCASE_BASE_URL = "https://stampeo.app";
+
+type Phase = "choose" | "credentials";
+
 export default function LoginScreen() {
-  const { t } = useTranslation("login");
+  const { t, i18n } = useTranslation("login");
+  const router = useRouter();
   const { signIn } = useAuth();
+  const [phase, setPhase] = useState<Phase>("choose");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
+  const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
+
   // After ANY successful auth, ensure the user has at least one membership.
-  // Scanner-app is invite-only — orphan auth users (no business) are signed out.
+  // Scanner-app is invite-only — orphan auth users (no business) are signed
+  // out and routed to the no-account screen.
   const enforceInviteOnly = async (): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
@@ -35,18 +48,19 @@ export default function LoginScreen() {
       const memberships = await getUserMemberships(user.id);
       if (memberships.length === 0) {
         await supabase.auth.signOut({ scope: "local" });
-        setError(t("errors.noAccount"));
+        router.replace("/(auth)/no-account");
         return false;
       }
       return true;
     } catch {
-      // If membership fetch fails, leave the session intact and let the protected
-      // layout handle the error. Don't block login on transient API failures.
+      // If membership fetch fails, leave the session intact and let the
+      // protected layout handle the error. Don't block login on transient
+      // API failures.
       return true;
     }
   };
 
-  const handleLogin = async () => {
+  const handleEmailLogin = async () => {
     if (!email || !password) {
       setError(t("errors.required"));
       return;
@@ -69,6 +83,19 @@ export default function LoginScreen() {
     }
   };
 
+  const handleOpenOnboarding = () => {
+    if (Platform.OS === "web") {
+      globalThis.location.href = onboardingUrl;
+    } else {
+      Linking.openURL(onboardingUrl).catch(() => {});
+    }
+  };
+
+  const handleBackToChoose = () => {
+    setPhase("choose");
+    setError(null);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -80,62 +107,105 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.content}>
-            <View style={styles.header}>
-              <StampeoLogo size={56} color="#000000" />
-              <Text style={styles.subtitle}>{t("subtitle")}</Text>
-            </View>
+          <View style={styles.logoWrap}>
+            <StampeoLogo size={48} color="#000000" />
+          </View>
 
-            <View style={styles.form}>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.card}>
+            {phase === "choose" ? (
+              <>
+                <View style={styles.heading}>
+                  <Text style={styles.title}>{t("title")}</Text>
+                  <Text style={styles.subtitle}>{t("subtitle")}</Text>
+                </View>
 
-              <OAuthButtons
-                disabled={loading}
-                onSuccess={enforceInviteOnly}
-                onError={(message) => setError(message)}
-              />
+                {error ? (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : null}
 
-              <OAuthDivider />
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t("email")}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t("emailPlaceholder")}
-                  placeholderTextColor="#9ca3af"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  editable={!loading}
+                <AuthMethodChooser
+                  disabled={loading}
+                  onChooseEmail={() => {
+                    setPhase("credentials");
+                    setError(null);
+                  }}
+                  onSuccess={enforceInviteOnly}
+                  onError={(message) => setError(message)}
                 />
-              </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.headingRow}>
+                  <TouchableOpacity
+                    onPress={handleBackToChoose}
+                    style={styles.backButton}
+                    hitSlop={12}
+                    accessibilityLabel={t("back")}
+                  >
+                    <ArrowLeftIcon size={20} color="#6b7280" weight="bold" />
+                  </TouchableOpacity>
+                  <View style={styles.headingCenter}>
+                    <Text style={styles.title}>{t("emailTitle")}</Text>
+                    <Text style={styles.subtitle}>{t("emailSubtitle")}</Text>
+                  </View>
+                </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t("password")}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t("passwordPlaceholder")}
-                  placeholderTextColor="#9ca3af"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoComplete="password"
-                  editable={!loading}
-                />
-              </View>
+                {error ? (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : null}
 
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>{t("signIn")}</Text>
-                )}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>{t("email")}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t("emailPlaceholder")}
+                    placeholderTextColor="#9ca3af"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    autoComplete="email"
+                    editable={!loading}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>{t("password")}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t("passwordPlaceholder")}
+                    placeholderTextColor="#9ca3af"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    autoComplete="password"
+                    editable={!loading}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+                  onPress={handleEmailLogin}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>{t("signIn")}</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>{t("signupPrompt")} </Text>
+              <TouchableOpacity onPress={handleOpenOnboarding} hitSlop={6}>
+                <Text style={styles.footerLink}>{t("getStarted")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -156,69 +226,120 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 32,
+    gap: 24,
   },
-  header: {
+  logoWrap: {
     alignItems: "center",
-    marginBottom: 32,
-    gap: 12,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 460,
+    backgroundColor: "#faf9f6",
+    borderWidth: 1,
+    borderColor: "#ddd9d0",
+    borderRadius: 24,
+    padding: 24,
+    gap: 20,
+    shadowColor: "#2d3436",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  heading: {
+    alignItems: "center",
+    gap: 6,
+  },
+  headingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headingCenter: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+    marginRight: 36,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#000000",
-    marginTop: 4,
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#2d3436",
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#6b7280",
+    textAlign: "center",
   },
-  form: {
-    gap: 16,
-    width: "100%",
-    maxWidth: 500,
+  errorBox: {
+    backgroundColor: "rgba(220, 38, 38, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(220, 38, 38, 0.20)",
+    borderRadius: 16,
+    padding: 12,
+  },
+  errorText: {
+    color: "#dc2626",
+    fontSize: 13,
+    textAlign: "center",
   },
   inputContainer: {
     gap: 6,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "#2d3436",
   },
   input: {
-    backgroundColor: "#faf9f6",
+    backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ddd9d0",
-    borderRadius: 10,
-    padding: 16,
-    fontSize: 16,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: "#2d3436",
   },
-  error: {
-    color: "#dc2626",
-    fontSize: 14,
-    textAlign: "center",
-  },
-  button: {
+  primaryButton: {
     backgroundColor: "#f97316",
     borderRadius: 9999,
-    padding: 16,
+    paddingVertical: 16,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 4,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  primaryButtonDisabled: {
+    opacity: 0.6,
   },
-  buttonText: {
+  primaryButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    paddingTop: 4,
+  },
+  footerText: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  footerLink: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#d97706",
   },
 });
