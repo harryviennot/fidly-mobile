@@ -24,7 +24,12 @@
   "errors": {
     "required": "Veuillez entrer votre email et mot de passe",
     "unexpected": "Une erreur inattendue s'est produite",
-    "oauthFailed": "La connexion a échoué. Veuillez réessayer."
+    "oauthFailed": "La connexion a échoué. Veuillez réessayer.",
+    "invalidCredentials": "Email ou mot de passe incorrect",
+    "tooManyRequests": "Trop de tentatives. Veuillez patienter un instant.",
+    "userNotFound": "Aucun compte trouvé pour cet email",
+    "networkError": "Erreur réseau. Vérifiez votre connexion.",
+    "generic": "Une erreur s'est produite. Veuillez réessayer."
   },
   "noAccount": {
     "title": "Aucun compte trouvé",

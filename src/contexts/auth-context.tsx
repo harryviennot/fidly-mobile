@@ -16,7 +16,7 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { supabase } from "@/lib/supabase";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
-import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
+import { writeLastLogin } from "@/lib/last-login";
 
 export type OAuthProvider = "apple" | "google";
 
@@ -137,13 +137,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         const profile = await fetchAppUser(session.user.id);
         setAppUser(profile);
-
-        if (event === "SIGNED_IN") {
-          const provider = session.user.app_metadata?.provider;
-          if (provider === "google" || provider === "apple" || provider === "email") {
-            void writeLastLogin(provider as LastLoginMethod, session.user.email);
-          }
-        }
       } else {
         setAppUser(null);
       }
@@ -157,6 +150,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
+    if (!error) {
+      void writeLastLogin("email", email);
+    }
     return { error };
   }, []);
 
@@ -171,7 +167,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               AppleAuthentication.AppleAuthenticationScope.EMAIL,
             ],
           });
-          console.log("[Auth] Apple credential received, hasToken=", !!credential.identityToken);
           if (!credential.identityToken) {
             return { error: { message: "Apple sign-in returned no identity token" } };
           }
@@ -179,8 +174,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             provider: "apple",
             token: credential.identityToken,
           });
-          if (error) {
-            console.log("[Auth] Supabase rejected Apple token:", error.message, error.status);
+          if (!error) {
+            void writeLastLogin("apple", credential.email ?? undefined);
           }
           return { error };
         } catch (err: unknown) {
@@ -188,7 +183,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (code === "ERR_REQUEST_CANCELED" || code === "ERR_CANCELED") {
             return { error: null, cancelled: true };
           }
-          console.log("[Auth] Apple SDK error:", err);
           return {
             error: { message: err instanceof Error ? err.message : "Apple sign-in failed" },
           };
@@ -199,9 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (provider === "google" && Platform.OS !== "web") {
         try {
           await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-          console.log("[Auth] Google: launching native sign-in");
           const result = await GoogleSignin.signIn();
-          console.log("[Auth] Google SDK returned, hasToken=", !!result.data?.idToken);
           const idToken = result.data?.idToken;
           if (!idToken) {
             return { error: { message: "Google sign-in returned no ID token" } };
@@ -210,8 +202,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             provider: "google",
             token: idToken,
           });
-          if (error) {
-            console.log("[Auth] Supabase rejected Google token:", error.message, error.status);
+          if (!error) {
+            void writeLastLogin("google", result.data?.user?.email ?? undefined);
           }
           return { error };
         } catch (err: unknown) {
@@ -219,7 +211,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (code === statusCodes.SIGN_IN_CANCELLED) {
             return { error: null, cancelled: true };
           }
-          console.log("[Auth] Google SDK error:", err);
           return {
             error: { message: err instanceof Error ? err.message : "Google sign-in failed" },
           };
@@ -239,8 +230,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (oauthError) return { error: oauthError };
 
-      // On web, supabase-js triggers the redirect itself.
-      if (Platform.OS === "web") return { error: null };
+      // On web, supabase-js triggers the redirect itself. Write last-login
+      // before navigating away — we won't get another chance to observe success.
+      if (Platform.OS === "web") {
+        void writeLastLogin(provider);
+        return { error: null };
+      }
 
       // On native, open the auth URL in the system browser and wait for the redirect.
       if (!data?.url) {
@@ -271,6 +266,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (!exchangeError) {
+        void writeLastLogin(provider);
+      }
       return { error: exchangeError };
     },
     []

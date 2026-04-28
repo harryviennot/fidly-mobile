@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -38,6 +38,30 @@ export default function LoginScreen() {
   const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
   const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
 
+  // Translate raw Supabase error messages into friendly, localised copy.
+  const translateError = useCallback(
+    (message: string) => {
+      const msg = message.toLowerCase();
+      if (
+        msg.includes("invalid") &&
+        (msg.includes("credentials") || msg.includes("password") || msg.includes("login"))
+      ) {
+        return t("errors.invalidCredentials");
+      }
+      if (msg.includes("rate") || msg.includes("too many") || msg.includes("429")) {
+        return t("errors.tooManyRequests");
+      }
+      if (msg.includes("user not found") || msg.includes("no user")) {
+        return t("errors.userNotFound");
+      }
+      if (msg.includes("network") || msg.includes("fetch")) {
+        return t("errors.networkError");
+      }
+      return t("errors.generic");
+    },
+    [t]
+  );
+
   // After ANY successful auth, ensure the user has at least one membership.
   // Scanner-app is invite-only — orphan auth users (no business) are signed
   // out and routed to the no-account screen.
@@ -72,7 +96,7 @@ export default function LoginScreen() {
     try {
       const { error: signInError } = await signIn(email, password);
       if (signInError) {
-        setError(signInError.message);
+        setError(translateError(signInError.message));
         return;
       }
       await enforceInviteOnly();

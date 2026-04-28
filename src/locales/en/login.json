@@ -24,7 +24,12 @@
   "errors": {
     "required": "Please enter email and password",
     "unexpected": "An unexpected error occurred",
-    "oauthFailed": "Sign-in failed. Please try again."
+    "oauthFailed": "Sign-in failed. Please try again.",
+    "invalidCredentials": "Wrong email or password",
+    "tooManyRequests": "Too many attempts. Please wait a moment.",
+    "userNotFound": "No account found for this email",
+    "networkError": "Network error. Check your connection.",
+    "generic": "Something went wrong. Please try again."
   },
   "noAccount": {
     "title": "No account found",
