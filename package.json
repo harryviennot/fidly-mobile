@@ -17,6 +17,7 @@
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.3.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.99.1",
     "aes-js": "^3.1.2",
     "expo": "~54.0.33",

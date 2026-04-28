@@ -218,9 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Fallback: Web (any provider) + native Apple on Android — uses Supabase OAuth via web browser.
+      // On web, pin the redirect to /login so the page-level useEffect can run
+      // exchangeCodeForSession() deterministically (PKCE flow via @supabase/ssr).
       const redirectTo =
         Platform.OS === "web"
-          ? `${globalThis.location.origin}${globalThis.location.pathname}`
+          ? `${globalThis.location.origin}/login`
           : NATIVE_OAUTH_REDIRECT;
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({

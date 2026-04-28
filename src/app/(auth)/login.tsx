@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { StampeoLogo } from "@/components/ui/StampeoLogo";
 import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
 import { supabase } from "@/lib/supabase";
+import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 import { getUserMemberships } from "@/api/memberships";
 
 const SHOWCASE_BASE_URL = "https://stampeo.app";
@@ -34,6 +35,13 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [oauthCallbackInFlight, setOauthCallbackInFlight] = useState(
+    () =>
+      Platform.OS === "web" &&
+      typeof window !== "undefined" &&
+      /[?&](code|error)=/.test(window.location.search)
+  );
+  const oauthHandledRef = useRef(false);
 
   const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
   const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
@@ -65,7 +73,7 @@ export default function LoginScreen() {
   // After ANY successful auth, ensure the user has at least one membership.
   // Scanner-app is invite-only — orphan auth users (no business) are signed
   // out and routed to the no-account screen.
-  const enforceInviteOnly = async (): Promise<boolean> => {
+  const enforceInviteOnly = useCallback(async (): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     try {
@@ -82,7 +90,65 @@ export default function LoginScreen() {
       // API failures.
       return true;
     }
-  };
+  }, [router]);
+
+  // Web-only: handle the OAuth provider redirect (?code=...). With the
+  // @supabase/ssr browser client we use PKCE, so we must call
+  // exchangeCodeForSession explicitly. The verifier cookie was set on the
+  // shared parent domain by signInWithOAuth before the redirect.
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    if (typeof window === "undefined") return;
+    if (oauthHandledRef.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const oauthError = params.get("error");
+    const oauthErrorDescription = params.get("error_description");
+
+    if (!code && !oauthError) return;
+
+    oauthHandledRef.current = true;
+
+    const stripUrl = () => {
+      window.history.replaceState({}, "", window.location.pathname);
+    };
+
+    if (oauthError) {
+      setError(translateError(oauthErrorDescription ?? oauthError));
+      setOauthCallbackInFlight(false);
+      stripUrl();
+      return;
+    }
+
+    (async () => {
+      try {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+          code!
+        );
+        if (exchangeError) {
+          setError(translateError(exchangeError.message));
+          setOauthCallbackInFlight(false);
+          stripUrl();
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        const provider = user?.app_metadata?.provider;
+        if (provider === "google" || provider === "apple") {
+          await writeLastLogin(provider as LastLoginMethod, user?.email ?? undefined);
+        }
+
+        stripUrl();
+        await enforceInviteOnly();
+      } catch {
+        setError(t("errors.unexpected"));
+        stripUrl();
+      } finally {
+        setOauthCallbackInFlight(false);
+      }
+    })();
+  }, [translateError, enforceInviteOnly, t]);
 
   const handleEmailLogin = async () => {
     if (!email || !password) {
@@ -136,7 +202,12 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.card}>
-            {phase === "choose" ? (
+            {oauthCallbackInFlight ? (
+              <View style={styles.oauthCallback}>
+                <ActivityIndicator size="large" color="#f97316" />
+                <Text style={styles.subtitle}>{t("oauth.connecting")}</Text>
+              </View>
+            ) : phase === "choose" ? (
               <>
                 <View style={styles.heading}>
                   <Text style={styles.title}>{t("title")}</Text>
@@ -276,6 +347,12 @@ const styles = StyleSheet.create({
   heading: {
     alignItems: "center",
     gap: 6,
+  },
+  oauthCallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    paddingVertical: 32,
   },
   headingRow: {
     flexDirection: "row",
