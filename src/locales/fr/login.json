@@ -1,12 +1,40 @@
 {
+  "title": "Content de vous revoir",
   "subtitle": "Connectez-vous pour scanner",
+  "emailTitle": "Connexion par email",
+  "emailSubtitle": "Entrez vos identifiants pour continuer",
   "email": "Email",
   "emailPlaceholder": "votre@email.com",
   "password": "Mot de passe",
   "passwordPlaceholder": "Entrez votre mot de passe",
   "signIn": "Se connecter",
+  "back": "Retour",
+  "signupPrompt": "Pas encore de compte ?",
+  "getStarted": "Commencer",
+  "continueGoogle": "Continuer avec Google",
+  "continueApple": "Continuer avec Apple",
+  "continueEmail": "Continuer avec email",
+  "oauth": {
+    "apple": "Continuer avec Apple",
+    "google": "Continuer avec Google",
+    "divider": "ou",
+    "connecting": "Connexion…",
+    "lastUsed": "Dernier"
+  },
   "errors": {
     "required": "Veuillez entrer votre email et mot de passe",
-    "unexpected": "Une erreur inattendue s'est produite"
+    "unexpected": "Une erreur inattendue s'est produite",
+    "oauthFailed": "La connexion a échoué. Veuillez réessayer.",
+    "invalidCredentials": "Email ou mot de passe incorrect",
+    "tooManyRequests": "Trop de tentatives. Veuillez patienter un instant.",
+    "userNotFound": "Aucun compte trouvé pour cet email",
+    "networkError": "Erreur réseau. Vérifiez votre connexion.",
+    "generic": "Une erreur s'est produite. Veuillez réessayer."
+  },
+  "noAccount": {
+    "title": "Aucun compte trouvé",
+    "message": "Cette connexion n'est liée à aucune entreprise. Créez la vôtre sur Stampeo, ou demandez à votre patron de vous inviter.",
+    "createBusiness": "Créer une entreprise",
+    "backToLogin": "Retour à la connexion"
   }
 }

@@ -4,22 +4,21 @@ import { ConfigContext, ExpoConfig } from "expo/config";
 const IS_DEV = process.env.APP_VARIANT === 'development';
 const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
 
-// Google OAuth iOS Client IDs per environment
-// const GOOGLE_IOS_CLIENT_IDS = {
-//   development: '576860647918-nm7ghog299kfj4dirlln5a7s7dotto95',
-//   preview: '576860647918-hf9vfimbv7bnenvtcgeecepeub1lko1p',
-//   production: '576860647918-qn7ok48tfb5q2iopjb56pf1mqcp3s109',
-// };
+// Google OAuth iOS Client IDs per environment (raw IDs without the .apps.googleusercontent.com suffix,
+// used to build the iOS reversed URL scheme below).
+const GOOGLE_IOS_CLIENT_IDS = {
+  development: '697360742144-uvt8crdjvh3qpbm0kqlnai27n4qrnef5',
+  preview: '697360742144-e3k0tsrgokgejokt867lc9q2uk6nvq2j',
+  production: '697360742144-bchjmu7c1vphnvg057ir8a606et5csup',
+};
 
-// const getGoogleIosClientId = () => {
-//   if (IS_DEV) {
-//     return GOOGLE_IOS_CLIENT_IDS.development;
-//   }
-//   if (IS_PREVIEW) {
-//     return GOOGLE_IOS_CLIENT_IDS.preview;
-//   }
-//   return GOOGLE_IOS_CLIENT_IDS.production;
-// };
+const GOOGLE_WEB_CLIENT_ID = '697360742144-qc1frui0nd27bc8hke7rb3vls2u8fnhe.apps.googleusercontent.com';
+
+const getGoogleIosClientId = () => {
+  if (IS_DEV) return GOOGLE_IOS_CLIENT_IDS.development;
+  if (IS_PREVIEW) return GOOGLE_IOS_CLIENT_IDS.preview;
+  return GOOGLE_IOS_CLIENT_IDS.production;
+};
 
 const getUniqueIdentifier = () => {
   if (IS_DEV) {
@@ -61,7 +60,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: getUniqueIdentifier(),
     icon: "./assets/stampeo.icon",
-    // usesAppleSignIn: true,
+    usesAppleSignIn: true,
     infoPlist: {
       NSCameraUsageDescription: "This app needs camera access to scan customer loyalty card QR codes",
       ITSAppUsesNonExemptEncryption: false
@@ -114,20 +113,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes."
       }
     ],
-    // "expo-apple-authentication",
-    // [
-    //   "@react-native-google-signin/google-signin",
-    //   {
-    //     iosUrlScheme: `com.googleusercontent.apps.${getGoogleIosClientId()}`
-    //   }
-    // ],
-    // [
-    //   "expo-notifications",
-    //   {
-    //     color: "#334d43",
-    //     sounds: []
-    //   }
-    // ]
+    "expo-apple-authentication",
+    [
+      "@react-native-google-signin/google-signin",
+      {
+        iosUrlScheme: `com.googleusercontent.apps.${getGoogleIosClientId()}`
+      }
+    ],
+    "expo-web-browser",
   ],
   experiments: {
     typedRoutes: true,
@@ -137,7 +130,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     router: {
       "root": "./src/app"
     },
-    // googleIosClientId: `${getGoogleIosClientId()}.apps.googleusercontent.com`,
+    googleIosClientId: `${getGoogleIosClientId()}.apps.googleusercontent.com`,
+    googleWebClientId: GOOGLE_WEB_CLIENT_ID,
     appVariant: process.env.APP_VARIANT || 'production',
     eas: {
       projectId: "90b8f436-1de4-47ba-ad18-c897db0ab688"
