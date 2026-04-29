@@ -1,9 +1,10 @@
 {
   "name": "scanner-app2",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "start": "expo start",
+    "dev": "APP_VARIANT=development npx expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -13,11 +14,14 @@
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.3.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.99.1",
     "aes-js": "^3.1.2",
     "expo": "~54.0.33",
+    "expo-apple-authentication": "~8.0.8",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-crypto": "^15.0.8",
@@ -60,12 +64,13 @@
   "overrides": {
     "minimatch": "^9.0.6",
     "tar": "^7.5.8",
-    "@xmldom/xmldom": ">=0.8.12",
-    "brace-expansion": ">=2.0.3",
     "node-forge": ">=1.3.4",
     "undici": ">=6.24.0",
     "yaml": ">=2.8.3",
     "flatted": ">=3.4.0",
-    "picomatch": ">=4.0.4"
+    "picomatch": ">=4.0.4",
+    "@xmldom/xmldom": "^0.8.13",
+    "postcss": "^8.5.10",
+    "uuid": "^14.0.0"
   }
 }

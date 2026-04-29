@@ -1,20 +1,16 @@
 /**
  * Supabase client configuration for React Native / Expo
  *
- * This module initializes the Supabase client with:
- * - LargeSecureStore for encrypted token storage (handles tokens > 2048 bytes)
- * - Auto-refresh token handling
- * - App state awareness (stops refresh when backgrounded)
+ * - Native: createClient from @supabase/supabase-js + LargeSecureStore (encrypted).
+ * - Web: createBrowserClient from @supabase/ssr with cookies on the shared
+ *   parent domain (EXPO_PUBLIC_COOKIE_DOMAIN). This lets scan.stampeo.app
+ *   share its auth session with app.stampeo.app and stampeo.app.
  */
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import { AppState, Platform } from "react-native";
 import { LargeSecureStore } from "./large-secure-store";
 
-// Storage adapter using LargeSecureStore for encrypted storage
-// This handles Supabase tokens that exceed SecureStore's 2048 byte limit
-const storage = new LargeSecureStore();
-
-// Get Supabase configuration from environment variables
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -24,19 +20,76 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Create Supabase client with mobile-optimized settings
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false, // Not needed for mobile apps
-  },
-});
+interface CookieOptions {
+  maxAge?: number;
+  path?: string;
+  domain?: string;
+  secure?: boolean;
+  sameSite?: "lax" | "strict" | "none" | boolean;
+}
 
-// Handle app state changes for token refresh management
-// This ensures tokens are refreshed when app comes to foreground
-// and stops refresh attempts when backgrounded (saves battery/resources)
+interface CookieToSet {
+  name: string;
+  value: string;
+  options: Partial<CookieOptions>;
+}
+
+function parseCookies(): { name: string; value: string }[] {
+  if (typeof document === "undefined") return [];
+  return document.cookie.split(";").map((cookie) => {
+    const [name, ...rest] = cookie.trim().split("=");
+    return { name, value: rest.join("=") };
+  });
+}
+
+function setCookie(name: string, value: string, options: CookieOptions) {
+  if (typeof document === "undefined") return;
+  const cookieDomain = process.env.EXPO_PUBLIC_COOKIE_DOMAIN;
+  let cookie = `${name}=${value}`;
+
+  // Use !== undefined so Max-Age=0 (chunk-removal writes from @supabase/ssr)
+  // is emitted, not skipped.
+  if (options.maxAge !== undefined) {
+    cookie += `; Max-Age=${options.maxAge}`;
+  }
+  cookie += `; Path=${options.path || "/"}`;
+
+  if (cookieDomain) {
+    cookie += `; Domain=${cookieDomain}`;
+  }
+
+  if (options.secure || process.env.NODE_ENV === "production") {
+    cookie += "; Secure";
+  }
+
+  cookie += `; SameSite=${options.sameSite || "Lax"}`;
+
+  document.cookie = cookie;
+}
+
+export const supabase: SupabaseClient =
+  Platform.OS === "web"
+    ? createBrowserClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return parseCookies();
+          },
+          setAll(cookiesToSet: CookieToSet[]) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              setCookie(name, value, options);
+            });
+          },
+        },
+      })
+    : createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          storage: new LargeSecureStore(),
+          autoRefreshToken: true,
+          persistSession: true,
+        },
+      });
+
+// AppState foreground/background refresh — native only.
 if (Platform.OS !== "web") {
   AppState.addEventListener("change", (state) => {
     if (state === "active") {
@@ -46,7 +99,6 @@ if (Platform.OS !== "web") {
     }
   });
 }
-
 
 // Module-level token cache — updated by onAuthStateChange, read synchronously
 // by getAuthHeaders(). Avoids blocking on getSession() during Supabase init.

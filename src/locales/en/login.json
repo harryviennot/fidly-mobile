@@ -1,12 +1,40 @@
 {
+  "title": "Welcome back",
   "subtitle": "Sign in to start scanning",
+  "emailTitle": "Sign in with email",
+  "emailSubtitle": "Enter your credentials to continue",
   "email": "Email",
   "emailPlaceholder": "your@email.com",
   "password": "Password",
   "passwordPlaceholder": "Enter your password",
   "signIn": "Sign In",
+  "back": "Back",
+  "signupPrompt": "No account?",
+  "getStarted": "Get started",
+  "continueGoogle": "Continue with Google",
+  "continueApple": "Continue with Apple",
+  "continueEmail": "Continue with email",
+  "oauth": {
+    "apple": "Continue with Apple",
+    "google": "Continue with Google",
+    "divider": "or",
+    "connecting": "Connecting…",
+    "lastUsed": "Last used"
+  },
   "errors": {
     "required": "Please enter email and password",
-    "unexpected": "An unexpected error occurred"
+    "unexpected": "An unexpected error occurred",
+    "oauthFailed": "Sign-in failed. Please try again.",
+    "invalidCredentials": "Wrong email or password",
+    "tooManyRequests": "Too many attempts. Please wait a moment.",
+    "userNotFound": "No account found for this email",
+    "networkError": "Network error. Check your connection.",
+    "generic": "Something went wrong. Please try again."
+  },
+  "noAccount": {
+    "title": "No account found",
+    "message": "This sign-in isn't linked to any business yet. Create one on Stampeo, or ask your business owner to invite you.",
+    "createBusiness": "Create a business",
+    "backToLogin": "Back to sign in"
   }
 }

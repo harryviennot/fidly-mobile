@@ -3,7 +3,7 @@
   "permission": {
     "title": "Accès caméra requis",
     "description": "Nous avons besoin d'accéder à la caméra pour scanner les cartes de fidélité.",
-    "grant": "Autoriser",
+    "grant": "Continuer",
     "denied": "L'accès à la caméra a été refusé. Veuillez l'activer dans vos paramètres pour utiliser le scanner.",
     "openSettings": "Ouvrir les paramètres",
     "browserHint": "L'accès à la caméra est bloqué. Cliquez sur l'icône caméra dans la barre d'adresse de votre navigateur pour le réautoriser.",

@@ -5,7 +5,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
+
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useAuth } from "@/contexts/auth-context";
+import { useAlert } from "@/contexts/alert-context";
 import { CaretRight, SignOutIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
 import type { Membership } from "@/types/api";
@@ -91,9 +92,10 @@ export default function BusinessesScreen() {
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
   const { signOut } = useAuth();
+  const { alert } = useAlert();
 
   const handleSignOut = () => {
-    Alert.alert(
+    alert(
       tCommon("signOutConfirmTitle"),
       tCommon("signOutConfirmMessage"),
       [
