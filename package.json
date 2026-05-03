@@ -8,6 +8,11 @@
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "prebuild:dev": "APP_VARIANT=development npx expo prebuild --clean",
+    "prebuild:dev:ios": "APP_VARIANT=development npx expo prebuild --clean --platform ios",
+    "prebuild:dev:android": "APP_VARIANT=development npx expo prebuild --clean --platform android",
+    "ios:dev": "APP_VARIANT=development npx expo run:ios --device",
+    "android:dev": "APP_VARIANT=development npx expo run:android --device",
     "web": "expo start --web",
     "lint": "expo lint"
   },
