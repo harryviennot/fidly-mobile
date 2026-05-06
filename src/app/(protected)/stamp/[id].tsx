@@ -63,7 +63,10 @@ export default function StampScreen() {
     try {
       setStamping(true);
       setError(null);
-      const result = await addStamp(currentBusiness.id, customer.id);
+      // Phase 4: /stamps takes enrollment_id. Post-Phase-3 every QR returns
+      // an enrollment_id, which is the URL `id` here — send it directly
+      // instead of round-tripping through customer.id.
+      const result = await addStamp(currentBusiness.id, id);
       setSuccess(result);
       setCustomer((prev) => (prev ? { ...prev, stamps: result.stamps } : null));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -85,7 +88,7 @@ export default function StampScreen() {
     try {
       setRedeeming(true);
       setError(null);
-      const result = await redeemReward(currentBusiness.id, customer.id);
+      const result = await redeemReward(currentBusiness.id, id);
       setCustomer((prev) => (prev ? { ...prev, stamps: 0 } : null));
       setRedeemSuccess(true);
       setSuccess(result);
