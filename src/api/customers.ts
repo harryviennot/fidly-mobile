@@ -7,11 +7,11 @@ export async function getCustomer(businessId: string, customerId: string): Promi
 
 export async function addStamp(
   businessId: string,
-  customerId: string
+  enrollmentId: string
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${customerId}`, {
+  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${enrollmentId}`, {
     method: "POST",
     headers,
   });
@@ -30,7 +30,7 @@ export async function addStamp(
       throw new Error("You don't have access to this business");
     }
     if (response.status === 404) {
-      throw new Error("Customer not found");
+      throw new Error("Enrollment not found");
     }
     throw new Error("Failed to add stamp");
   }
@@ -40,11 +40,11 @@ export async function addStamp(
 
 export async function redeemReward(
   businessId: string,
-  customerId: string
+  enrollmentId: string
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${customerId}/redeem`, {
+  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${enrollmentId}/redeem`, {
     method: "POST",
     headers,
   });
@@ -63,7 +63,7 @@ export async function redeemReward(
       throw new Error("You don't have access to this business");
     }
     if (response.status === 404) {
-      throw new Error("Customer not found");
+      throw new Error("Enrollment not found");
     }
     if (response.status === 400) {
       const error = await response.json().catch(() => ({}));
