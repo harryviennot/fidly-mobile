@@ -41,6 +41,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal",
+        "serviceAccountKeyPath": "./gcp-eas-svc-acc.json"
+      }
+    }
   }
 }
