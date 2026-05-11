@@ -9,8 +9,6 @@ dist/
 web-build/
 expo-env.d.ts
 
-gcp-eas-svc-acc.json
-
 # Native
 .kotlin/
 *.orig.*

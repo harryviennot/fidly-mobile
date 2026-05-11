@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { Platform } from "react-native";
+import { Platform, Linking } from "react-native";
 import Constants from "expo-constants";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as WebBrowser from "expo-web-browser";
@@ -145,6 +145,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchAppUser]);
 
+  // Native-only: catch OAuth deep links (`stampeo-scanner://auth/callback?code=...`)
+  // that arrive when the app is cold-launched or warm-resumed via the redirect.
+  // This is independent of expo-router — we parse the URL directly so the code
+  // exchange happens even if Custom Tabs killed the original WebBrowser flow.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    const handleUrl = async (url: string | null) => {
+      if (!url) return;
+
+      let code: string | null = null;
+      try {
+        const parsed = new URL(url);
+        code = parsed.searchParams.get("code");
+      } catch {
+        // Some URL inputs trip the WHATWG URL parser; fall back to a quick regex.
+        const match = url.match(/[?&]code=([^&]+)/);
+        code = match ? decodeURIComponent(match[1]) : null;
+      }
+
+      if (!code) return;
+
+      const { data: { session: existing } } = await supabase.auth.getSession();
+      if (existing) return;
+
+      await supabase.auth.exchangeCodeForSession(code);
+    };
+
+    Linking.getInitialURL().then((url) => handleUrl(url)).catch(() => {});
+
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      void handleUrl(url);
+    });
+
+    return () => sub.remove();
+  }, []);
+
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -161,28 +198,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Native iOS Apple — uses ASAuthorizationController, returns identity token directly.
       if (provider === "apple" && Platform.OS === "ios") {
         try {
+          console.log("[Auth] Apple: launching native sign-in");
           const credential = await AppleAuthentication.signInAsync({
             requestedScopes: [
               AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
               AppleAuthentication.AppleAuthenticationScope.EMAIL,
             ],
           });
+          console.log("[Auth] Apple: credential received, hasToken=", !!credential.identityToken, "email=", credential.email ?? "<none>");
           if (!credential.identityToken) {
             return { error: { message: "Apple sign-in returned no identity token" } };
           }
+          console.log("[Auth] Apple: exchanging with Supabase");
           const { error } = await supabase.auth.signInWithIdToken({
             provider: "apple",
             token: credential.identityToken,
           });
-          if (!error) {
+          if (error) {
+            console.log("[Auth] Apple: Supabase rejected token, message=", error.message, "status=", error.status);
+          } else {
+            console.log("[Auth] Apple: Supabase accepted token");
             void writeLastLogin("apple", credential.email ?? undefined);
           }
           return { error };
         } catch (err: unknown) {
           const code = (err as { code?: string }).code;
           if (code === "ERR_REQUEST_CANCELED" || code === "ERR_CANCELED") {
+            console.log("[Auth] Apple: user cancelled");
             return { error: null, cancelled: true };
           }
+          console.log("[Auth] Apple: SDK threw, code=", code, "err=", err);
           return {
             error: { message: err instanceof Error ? err.message : "Apple sign-in failed" },
           };
@@ -192,25 +237,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Native Google (iOS / Android) — uses Google Sign In SDK.
       if (provider === "google" && Platform.OS !== "web") {
         try {
+          console.log("[Auth] Google: checking Play Services");
           await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+          console.log("[Auth] Google: launching native sign-in");
           const result = await GoogleSignin.signIn();
           const idToken = result.data?.idToken;
+          console.log("[Auth] Google: SDK returned, hasIdToken=", !!idToken, "email=", result.data?.user?.email ?? "<none>");
           if (!idToken) {
             return { error: { message: "Google sign-in returned no ID token" } };
           }
+          console.log("[Auth] Google: exchanging with Supabase");
           const { error } = await supabase.auth.signInWithIdToken({
             provider: "google",
             token: idToken,
           });
-          if (!error) {
+          if (error) {
+            console.log("[Auth] Google: Supabase rejected token, message=", error.message, "status=", error.status, "name=", error.name);
+          } else {
+            console.log("[Auth] Google: Supabase accepted token");
             void writeLastLogin("google", result.data?.user?.email ?? undefined);
           }
           return { error };
         } catch (err: unknown) {
           const code = (err as { code?: string }).code;
           if (code === statusCodes.SIGN_IN_CANCELLED) {
+            console.log("[Auth] Google: user cancelled");
             return { error: null, cancelled: true };
           }
+          console.log("[Auth] Google: SDK threw, code=", code, "err=", err);
           return {
             error: { message: err instanceof Error ? err.message : "Google sign-in failed" },
           };
@@ -225,12 +279,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? `${globalThis.location.origin}/login`
           : NATIVE_OAUTH_REDIRECT;
 
+      console.log(`[Auth] OAuth fallback path: provider=${provider}, redirectTo=${redirectTo}`);
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo, skipBrowserRedirect: Platform.OS !== "web" },
       });
 
-      if (oauthError) return { error: oauthError };
+      if (oauthError) {
+        console.log("[Auth] OAuth: signInWithOAuth error,", oauthError.message);
+        return { error: oauthError };
+      }
 
       // On web, supabase-js triggers the redirect itself. Write last-login
       // before navigating away — we won't get another chance to observe success.
@@ -241,13 +299,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // On native, open the auth URL in the system browser and wait for the redirect.
       if (!data?.url) {
+        console.log("[Auth] OAuth: no URL returned from Supabase");
         return { error: { message: "Failed to start OAuth flow" } };
       }
 
+      console.log("[Auth] OAuth: opening WebBrowser with redirect=", NATIVE_OAUTH_REDIRECT);
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
         NATIVE_OAUTH_REDIRECT
       );
+      console.log("[Auth] OAuth: WebBrowser returned type=", result.type);
 
       if (result.type === "cancel" || result.type === "dismiss") {
         return { error: null, cancelled: true };
@@ -262,13 +323,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!code) {
         const errorDescription =
           url.searchParams.get("error_description") || url.searchParams.get("error");
+        console.log("[Auth] OAuth: no code, errorDescription=", errorDescription);
         return {
           error: { message: errorDescription || "OAuth callback missing code" },
         };
       }
 
+      console.log("[Auth] OAuth: exchanging code for session");
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (!exchangeError) {
+      if (exchangeError) {
+        console.log("[Auth] OAuth: exchangeCodeForSession error, message=", exchangeError.message, "status=", exchangeError.status);
+      } else {
         void writeLastLogin(provider);
       }
       return { error: exchangeError };

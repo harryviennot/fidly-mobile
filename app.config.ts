@@ -121,6 +121,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       }
     ],
     "expo-web-browser",
+    [
+      "@sentry/react-native/expo",
+      {
+        organization: "stampeo",
+        project: "scanner-app",
+        url: "https://sentry.io/"
+      }
+    ],
   ],
   experiments: {
     typedRoutes: true,
@@ -133,6 +141,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleIosClientId: `${getGoogleIosClientId()}.apps.googleusercontent.com`,
     googleWebClientId: GOOGLE_WEB_CLIENT_ID,
     appVariant: process.env.APP_VARIANT || 'production',
+    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     eas: {
       projectId: "90b8f436-1de4-47ba-ad18-c897db0ab688"
     }
