@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { BusinessProvider } from "@/contexts/business-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AlertProvider } from "@/contexts/alert-context";
+import { LocationProvider } from "@/contexts/location-context";
 
 const sentryDsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
 const appVariant = (Constants.expoConfig?.extra?.appVariant as string) ?? "production";
@@ -97,7 +98,9 @@ function RootLayout() {
         <BusinessProvider>
           <ThemeProvider>
             <AlertProvider>
-              <RootNavigator />
+              <LocationProvider>
+                <RootNavigator />
+              </LocationProvider>
             </AlertProvider>
           </ThemeProvider>
         </BusinessProvider>

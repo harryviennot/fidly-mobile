@@ -1,0 +1,28 @@
+{
+  "pickerLabel": "Location",
+  "pickerTitle": "Where are you scanning?",
+  "searchPlaceholder": "Search locations",
+  "noMatches": "No location matches your search.",
+  "chooseLocationHint": "Choose a location before you start scanning.",
+  "scanningAt": "Scanning at {{name}}",
+  "noneAssigned": {
+    "title": "No location assigned",
+    "body": "You're not assigned to any location yet. Ask the business owner to assign you one before scanning."
+  },
+  "permission": {
+    "title": "Use your location?",
+    "body": "We check your location only to confirm you're at the right place, so stamps don't land on the wrong location. It's never stored or shared.",
+    "enable": "Use my location",
+    "notNow": "Not now"
+  },
+  "proximity": {
+    "title": "Wrong location?",
+    "body": "You seem to be at {{name}}, about {{distance}} away. Want to switch to it?",
+    "switch": "Switch to {{name}}",
+    "keep": "Stay at {{current}}"
+  },
+  "errors": {
+    "locationRequired": "Pick a location before stamping.",
+    "notPermitted": "You're not assigned to this location. Pick one you're assigned to."
+  }
+}

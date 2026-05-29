@@ -26,6 +26,7 @@
         "expo-image": "~3.0.11",
         "expo-linking": "~8.0.11",
         "expo-localization": "^17.0.8",
+        "expo-location": "~19.0.8",
         "expo-router": "~6.0.23",
         "expo-secure-store": "~15.0.8",
         "expo-splash-screen": "~31.0.13",
@@ -1000,6 +1001,8 @@
     "expo-linking": ["expo-linking@8.0.11", "", { "dependencies": { "expo-constants": "~18.0.12", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, ""],
 
     "expo-localization": ["expo-localization@17.0.8", "", { "dependencies": { "rtl-detect": "^1.0.2" }, "peerDependencies": { "expo": "*", "react": "*" } }, ""],
+
+    "expo-location": ["expo-location@19.0.8", "", { "peerDependencies": { "expo": "*" } }, "sha512-H/FI75VuJ1coodJbbMu82pf+Zjess8X8Xkiv9Bv58ZgPKS/2ztjC1YO1/XMcGz7+s9DrbLuMIw22dFuP4HqneA=="],
 
     "expo-manifests": ["expo-manifests@1.0.10", "", { "dependencies": { "@expo/config": "~12.0.11", "expo-json-utils": "~0.15.0" }, "peerDependencies": { "expo": "*" } }, ""],
 

@@ -82,6 +82,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     permissions: [
       "android.permission.RECORD_AUDIO",
       "android.permission.CAMERA",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION",
     ]
   },
   web: {
@@ -111,6 +113,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "expo-camera",
       {
         "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes."
+      }
+    ],
+    [
+      "expo-location",
+      {
+        "locationWhenInUsePermission": "Stampeo uses your location only to confirm you're at the right store before stamping, so stamps don't land on the wrong location. It's never stored or shared."
       }
     ],
     "expo-apple-authentication",

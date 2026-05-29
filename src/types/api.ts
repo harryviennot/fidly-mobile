@@ -39,6 +39,42 @@ export interface Membership {
   business?: Business;
 }
 
+export interface ScannerLocation {
+  id: string;
+  business_id: string;
+  name: string;
+  slug: string;
+  address?: string;
+  latitude: number | null;
+  longitude: number | null;
+  radius_meters: number;
+  is_primary: boolean;
+}
+
+export interface ScannableLocationsResponse {
+  locations: ScannerLocation[];
+  // True only on a Pro tier with >1 active location → the scanner MUST send a
+  // location_id when stamping. Mirrors POST /stamps validation server-side.
+  requires_location: boolean;
+  scope: "all" | "assigned";
+}
+
+export interface LocationQRResponse {
+  enrollment_url: string;
+  qr_png_base64: string | null;
+  location_id: string;
+  location_slug: string;
+  business_slug: string;
+}
+
+export interface LocationMatch {
+  location_id: string;
+  distance_meters: number;
+  confidence: "high" | "medium" | "low";
+  // True when the user is outside the nearest location's radius.
+  suggested: boolean;
+}
+
 export interface CardDesign {
   id: string;
   business_id: string;
