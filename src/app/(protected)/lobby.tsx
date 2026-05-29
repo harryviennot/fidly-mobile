@@ -5,9 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -30,21 +28,12 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
 import { getLocationQR } from "@/api/locations";
 
-const EXPLAINER_SEEN_KEY = "location_explainer_seen";
-
-async function getExplainerSeen(): Promise<boolean> {
-  if (Platform.OS === "web") return localStorage.getItem(EXPLAINER_SEEN_KEY) === "1";
-  return (await AsyncStorage.getItem(EXPLAINER_SEEN_KEY)) === "1";
-}
-
-async function setExplainerSeen(): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.setItem(EXPLAINER_SEEN_KEY, "1");
-    return;
-  }
-  await AsyncStorage.setItem(EXPLAINER_SEEN_KEY, "1");
-}
-
+// Whether we've shown the location explainer this app session. Deliberately
+// in-memory (not persisted): if the user dismisses with "Not now" we don't nag
+// them again this session, but they'll be asked once more next app launch. Once
+// they grant or OS-deny, the permission status itself takes over and we stop
+// asking. Resets on reload.
+let explainerAskedThisSession = false;
 
 export default function LobbyScreen() {
   const router = useRouter();
@@ -86,13 +75,15 @@ export default function LobbyScreen() {
     router.push("/scan");
   };
 
-  // GPS proximity check on lobby load (Pro multi-location only). The explainer
-  // precedes the OS prompt; an already-granted permission runs silently. GPS is
-  // assistive only and never blocks scanning, so failures are swallowed upstream.
+  // GPS proximity check on lobby load. Only meaningful when the user has 2+
+  // locations they can switch between (Pro multi-location) — `showLocationPicker`
+  // already encodes "Pro tier AND >1 accessible location", so we never prompt a
+  // single-location or non-Pro user. The explainer precedes the OS prompt; an
+  // already-granted permission runs silently. GPS is assistive only and never
+  // blocks scanning, so failures are swallowed upstream.
   const businessId = currentBusiness?.id;
-  const hasAccessibleLocations = scannableLocations.length > 0;
   useEffect(() => {
-    if (!businessId || !requiresLocation || !hasAccessibleLocations) return;
+    if (!businessId || !showLocationPicker) return;
     let active = true;
 
     (async () => {
@@ -102,10 +93,8 @@ export default function LobbyScreen() {
         requestLocationAndCheck();
         return;
       }
-      if (status === "undetermined") {
-        if (await getExplainerSeen()) return;
-        if (!active) return;
-        await setExplainerSeen();
+      if (status === "undetermined" && !explainerAskedThisSession) {
+        explainerAskedThisSession = true;
         alert(
           tLocation("permission.title"),
           tLocation("permission.body"),
@@ -125,8 +114,7 @@ export default function LobbyScreen() {
     };
   }, [
     businessId,
-    requiresLocation,
-    hasAccessibleLocations,
+    showLocationPicker,
     getPermissionStatus,
     requestLocationAndCheck,
     alert,

@@ -1,24 +1,32 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  Modal,
-  Pressable,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
+  type ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  BottomSheetModal,
+  BottomSheetBackdrop,
+  BottomSheetFlatList,
+  BottomSheetTextInput,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
 import {
   CaretDownIcon,
   CheckIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
-  XIcon,
 } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
+import { WebBottomSheet } from "@/components/WebBottomSheet";
 import type { ScannerLocation } from "@/types/api";
 
 interface LocationPickerProps {
@@ -29,12 +37,15 @@ interface LocationPickerProps {
 
 // Show a search box once the list gets long enough to be worth filtering.
 const SEARCH_THRESHOLD = 8;
+const IS_WEB = Platform.OS === "web";
 
 /**
  * Location selector shown in the lobby banner. Tapping the pill opens a bottom
- * sheet listing the locations the user can scan at. The sheet scrolls and can
- * be searched, so it scales to dozens of locations. Used only when there are
- * 2+ choices — a single location renders as a static label in the lobby.
+ * sheet listing the locations the user can scan at. Native uses
+ * @gorhom/bottom-sheet (dynamic sizing + `keyboardBehavior="fillParent"` so a
+ * shrinking search result list never collapses behind the keyboard); web falls
+ * back to a Modal-based sheet, since gorhom's gestures are unreliable on web.
+ * Used only when there are 2+ choices.
  */
 export function LocationPicker({
   locations,
@@ -44,6 +55,8 @@ export function LocationPicker({
   const { t } = useTranslation("location");
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetRef = useRef<BottomSheetModal>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -59,34 +72,43 @@ export function LocationPicker({
     );
   }, [locations, query]);
 
+  // Native: bridge the declarative `open` flag to gorhom's imperative API.
+  useEffect(() => {
+    if (IS_WEB) return;
+    if (open) sheetRef.current?.present();
+    else sheetRef.current?.dismiss();
+  }, [open]);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+  }, []);
+
+  const handleSelect = useCallback(
+    (id: string) => {
+      onSelect(id);
+      close();
+    },
+    [onSelect, close]
+  );
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />
+    ),
+    []
+  );
+
   const s = useMemo(
     () =>
       StyleSheet.create({
-        sheet: {
-          backgroundColor: theme.surface,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingTop: 8,
-          paddingBottom: insets.bottom + 12,
-          maxHeight: "85%",
-        },
-        grabber: {
-          alignSelf: "center",
-          width: 40,
-          height: 4,
-          borderRadius: 2,
-          backgroundColor: theme.border,
-          marginBottom: 12,
-        },
-        header: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
+        title: {
+          fontSize: 18,
+          fontWeight: "700",
+          color: theme.text,
           paddingHorizontal: 20,
           marginBottom: 12,
         },
-        title: { fontSize: 18, fontWeight: "700", color: theme.text },
-        close: { padding: 4 },
         searchWrap: {
           flexDirection: "row",
           alignItems: "center",
@@ -114,15 +136,71 @@ export function LocationPicker({
           color: theme.textSecondary,
           paddingVertical: 24,
         },
+        // Web sheet surface (native styling comes from gorhom props).
+        webSheet: {
+          backgroundColor: theme.surface,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          height: windowHeight * 0.7,
+        },
       }),
-    [theme, insets.bottom]
+    [theme, windowHeight]
   );
 
-  function handleSelect(id: string) {
-    onSelect(id);
-    setOpen(false);
-    setQuery("");
-  }
+  const renderItem: ListRenderItem<ScannerLocation> = useCallback(
+    ({ item }) => {
+      const isSelected = item.id === selectedLocation?.id;
+      return (
+        <TouchableOpacity
+          style={[s.row, isSelected && s.rowSelected]}
+          onPress={() => handleSelect(item.id)}
+          activeOpacity={0.7}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>{item.name}</Text>
+            {item.address ? <Text style={s.address}>{item.address}</Text> : null}
+          </View>
+          {isSelected && <CheckIcon size={20} color={theme.primary} weight="bold" />}
+        </TouchableOpacity>
+      );
+    },
+    [s, selectedLocation?.id, theme.primary, handleSelect]
+  );
+
+  // Header (title + optional search). The search uses the sheet-aware input on
+  // native (gorhom keyboard handling) and a plain TextInput on web.
+  const Header = (
+    <>
+      <Text style={s.title}>{t("pickerTitle")}</Text>
+      {showSearch && (
+        <View style={s.searchWrap}>
+          <MagnifyingGlassIcon size={18} color={theme.textSecondary} />
+          {IS_WEB ? (
+            <TextInput
+              style={s.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t("searchPlaceholder")}
+              placeholderTextColor={theme.textSecondary}
+              autoCorrect={false}
+            />
+          ) : (
+            <BottomSheetTextInput
+              style={s.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t("searchPlaceholder")}
+              placeholderTextColor={theme.textSecondary}
+              autoCorrect={false}
+            />
+          )}
+        </View>
+      )}
+    </>
+  );
+
+  const Empty = <Text style={s.empty}>{t("noMatches")}</Text>;
+  const listPadding = { paddingBottom: insets.bottom + 12 };
 
   return (
     <>
@@ -138,66 +216,46 @@ export function LocationPicker({
         <CaretDownIcon size={14} color="rgba(255, 255, 255, 0.9)" weight="bold" />
       </TouchableOpacity>
 
-      <Modal
-        visible={open}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={s.grabber} />
-            <View style={s.header}>
-              <Text style={s.title}>{t("pickerTitle")}</Text>
-              <TouchableOpacity style={s.close} onPress={() => setOpen(false)}>
-                <XIcon size={22} color={theme.textSecondary} weight="bold" />
-              </TouchableOpacity>
-            </View>
-
-            {showSearch && (
-              <View style={s.searchWrap}>
-                <MagnifyingGlassIcon size={18} color={theme.textSecondary} />
-                <TextInput
-                  style={s.searchInput}
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder={t("searchPlaceholder")}
-                  placeholderTextColor={theme.textSecondary}
-                  autoCorrect={false}
-                />
-              </View>
-            )}
-
-            <FlatList
-              data={filtered}
-              keyExtractor={(item) => item.id}
-              keyboardShouldPersistTaps="handled"
-              style={{ flexShrink: 1 }}
-              ListEmptyComponent={<Text style={s.empty}>{t("noMatches")}</Text>}
-              renderItem={({ item }) => {
-                const isSelected = item.id === selectedLocation?.id;
-                return (
-                  <TouchableOpacity
-                    style={[s.row, isSelected && s.rowSelected]}
-                    onPress={() => handleSelect(item.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.name}>{item.name}</Text>
-                      {item.address ? (
-                        <Text style={s.address}>{item.address}</Text>
-                      ) : null}
-                    </View>
-                    {isSelected && (
-                      <CheckIcon size={20} color={theme.primary} weight="bold" />
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {IS_WEB ? (
+        <WebBottomSheet
+          visible={open}
+          onClose={close}
+          sheetStyle={s.webSheet}
+          handleColor={theme.border}
+        >
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            style={{ flexShrink: 1 }}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={listPadding}
+            ListHeaderComponent={Header}
+            ListEmptyComponent={Empty}
+            renderItem={renderItem}
+          />
+        </WebBottomSheet>
+      ) : (
+        <BottomSheetModal
+          ref={sheetRef}
+          enableDynamicSizing
+          enablePanDownToClose
+          keyboardBehavior="fillParent"
+          keyboardBlurBehavior="restore"
+          onDismiss={close}
+          backdropComponent={renderBackdrop}
+          backgroundStyle={{ backgroundColor: theme.surface }}
+          handleIndicatorStyle={{ backgroundColor: theme.border, width: 40 }}
+        >
+          <BottomSheetFlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={listPadding}
+            ListHeaderComponent={Header}
+            ListEmptyComponent={Empty}
+            renderItem={renderItem}
+          />
+        </BottomSheetModal>
+      )}
     </>
   );
 }
@@ -220,10 +278,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     flexShrink: 1,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    justifyContent: "flex-end",
   },
 });

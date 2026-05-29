@@ -1,16 +1,16 @@
-import { useMemo } from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  BottomSheetModal,
+  BottomSheetView,
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
 import { MapPinIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
+import { WebBottomSheet } from "@/components/WebBottomSheet";
 import type { ScannerLocation } from "@/types/api";
 
 interface ProximitySheetProps {
@@ -20,6 +20,8 @@ interface ProximitySheetProps {
   onKeep: () => void;
 }
 
+const IS_WEB = Platform.OS === "web";
+
 // "120 m" under 1 km, "1.2 km" beyond.
 function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
@@ -27,9 +29,10 @@ function formatDistance(meters: number): string {
 }
 
 /**
- * Bottom sheet that suggests switching to the location the device is actually
- * near. Driven by the GPS proximity check on lobby load. Strictly a suggestion:
- * dismissing ("keep") leaves the current selection untouched.
+ * Bottom sheet suggesting a switch to the location the device is actually near.
+ * Driven by the GPS proximity check on lobby load: a non-null `suggestion`
+ * presents it. Native uses @gorhom/bottom-sheet; web falls back to a Modal-based
+ * sheet. Strictly a suggestion — any dismissal leaves the selection untouched.
  */
 export function ProximitySheet({
   suggestion,
@@ -40,26 +43,35 @@ export function ProximitySheet({
   const { t } = useTranslation("location");
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const sheetRef = useRef<BottomSheetModal>(null);
   const loc = suggestion?.location;
+
+  // Native: bridge the declarative `suggestion` prop to gorhom's imperative API.
+  useEffect(() => {
+    if (IS_WEB) return;
+    if (suggestion) sheetRef.current?.present();
+    else sheetRef.current?.dismiss();
+  }, [suggestion]);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />
+    ),
+    []
+  );
 
   const s = useMemo(
     () =>
       StyleSheet.create({
-        sheet: {
+        webSheet: {
           backgroundColor: theme.surface,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          paddingTop: 8,
-          paddingHorizontal: 24,
-          paddingBottom: insets.bottom + 16,
         },
-        grabber: {
-          alignSelf: "center",
-          width: 40,
-          height: 4,
-          borderRadius: 2,
-          backgroundColor: theme.border,
-          marginBottom: 20,
+        content: {
+          paddingHorizontal: 24,
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 16,
         },
         iconWrap: {
           alignSelf: "center",
@@ -91,73 +103,63 @@ export function ProximitySheet({
           borderRadius: 9999,
           alignItems: "center",
         },
-        switchText: {
-          color: theme.primaryText,
-          fontSize: 16,
-          fontWeight: "600",
-        },
-        keepButton: {
-          paddingVertical: 16,
-          alignItems: "center",
-          marginTop: 4,
-        },
-        keepText: {
-          color: theme.textSecondary,
-          fontSize: 15,
-          fontWeight: "500",
-        },
+        switchText: { color: theme.primaryText, fontSize: 16, fontWeight: "600" },
+        keepButton: { paddingVertical: 16, alignItems: "center", marginTop: 4 },
+        keepText: { color: theme.textSecondary, fontSize: 15, fontWeight: "500" },
       }),
     [theme, insets.bottom]
   );
 
+  const inner = loc ? (
+    <View style={s.content}>
+      <View style={s.iconWrap}>
+        <MapPinIcon size={28} color={theme.primary} weight="fill" />
+      </View>
+      <Text style={s.title}>{t("proximity.title")}</Text>
+      <Text style={s.body}>
+        {t("proximity.body", {
+          name: loc.name,
+          distance: formatDistance(suggestion!.distanceMeters),
+        })}
+      </Text>
+      <TouchableOpacity style={s.switchButton} onPress={onSwitch} activeOpacity={0.85}>
+        <Text style={s.switchText}>{t("proximity.switch", { name: loc.name })}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={s.keepButton} onPress={handleKeep}>
+        <Text style={s.keepText}>{t("proximity.keep", { current: currentName })}</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
+  function handleKeep() {
+    if (IS_WEB) onKeep();
+    else sheetRef.current?.dismiss(); // native: triggers onDismiss → onKeep
+  }
+
+  if (IS_WEB) {
+    return (
+      <WebBottomSheet
+        visible={!!suggestion}
+        onClose={onKeep}
+        sheetStyle={s.webSheet}
+        handleColor={theme.border}
+      >
+        {inner}
+      </WebBottomSheet>
+    );
+  }
+
   return (
-    <Modal
-      visible={!!suggestion}
-      transparent
-      animationType="slide"
-      onRequestClose={onKeep}
+    <BottomSheetModal
+      ref={sheetRef}
+      enableDynamicSizing
+      enablePanDownToClose
+      onDismiss={onKeep}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{ backgroundColor: theme.surface }}
+      handleIndicatorStyle={{ backgroundColor: theme.border, width: 40 }}
     >
-      <Pressable style={styles.backdrop} onPress={onKeep}>
-        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={s.grabber} />
-          {loc && (
-            <>
-              <View style={s.iconWrap}>
-                <MapPinIcon size={28} color={theme.primary} weight="fill" />
-              </View>
-              <Text style={s.title}>{t("proximity.title")}</Text>
-              <Text style={s.body}>
-                {t("proximity.body", {
-                  name: loc.name,
-                  distance: formatDistance(suggestion!.distanceMeters),
-                })}
-              </Text>
-              <TouchableOpacity
-                style={s.switchButton}
-                onPress={onSwitch}
-                activeOpacity={0.85}
-              >
-                <Text style={s.switchText}>
-                  {t("proximity.switch", { name: loc.name })}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.keepButton} onPress={onKeep}>
-                <Text style={s.keepText}>
-                  {t("proximity.keep", { current: currentName })}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+      <BottomSheetView>{inner}</BottomSheetView>
+    </BottomSheetModal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    justifyContent: "flex-end",
-  },
-});
