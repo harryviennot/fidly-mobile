@@ -118,7 +118,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-location",
       {
-        "locationWhenInUsePermission": "Stampeo uses your location only to confirm you're at the right store before stamping, so stamps don't land on the wrong location. It's never stored or shared."
+        "locationWhenInUsePermission": "Stampeo uses your location only on your device to confirm you're at the right store before stamping. It never leaves your phone, and we never receive, store, or share it."
       }
     ],
     "expo-apple-authentication",

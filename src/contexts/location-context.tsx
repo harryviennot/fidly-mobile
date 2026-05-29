@@ -10,7 +10,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import { useBusiness } from "./business-context";
-import { getScannableLocations, matchLocation } from "../api/locations";
+import { getScannableLocations } from "../api/locations";
+import { haversineMeters } from "../utils/geo";
 import type { ScannerLocation } from "../types/api";
 
 const SELECTED_LOCATION_KEY_PREFIX = "selected_location_id:";
@@ -164,7 +165,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const requestLocationAndCheck = useCallback(async () => {
     // Everything here is best-effort: any failure leaves scanning untouched.
-    if (!businessId || gpsUnavailableOnWeb()) return;
+    // The position never leaves the device — the nearest location is computed
+    // here, on-device, against the locations the user can already scan at.
+    if (gpsUnavailableOnWeb()) return;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
@@ -172,23 +175,31 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      const match = await matchLocation(
-        businessId,
-        pos.coords.latitude,
-        pos.coords.longitude
-      );
-      if (!match) return;
+      const { latitude, longitude } = pos.coords;
 
-      // Only suggest a switch to a location the user can actually access AND
-      // that differs from the current selection.
-      const target = scannableLocations.find((l) => l.id === match.location_id);
-      if (target && target.id !== selectedLocation?.id) {
-        setProximitySuggestion({ location: target, distanceMeters: match.distance_meters });
+      // Nearest accessible location with coordinates.
+      let nearest: ScannerLocation | null = null;
+      let nearestDist = Infinity;
+      for (const loc of scannableLocations) {
+        if (loc.latitude == null || loc.longitude == null) continue;
+        const d = haversineMeters(latitude, longitude, loc.latitude, loc.longitude);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearest = loc;
+        }
+      }
+
+      // Suggest a switch only when the nearest differs from the current pick.
+      if (nearest && nearest.id !== selectedLocation?.id) {
+        setProximitySuggestion({
+          location: nearest,
+          distanceMeters: Math.round(nearestDist),
+        });
       }
     } catch {
       // GPS unavailable / timed out / denied mid-flow — silently ignore.
     }
-  }, [businessId, scannableLocations, selectedLocation?.id]);
+  }, [scannableLocations, selectedLocation?.id]);
 
   return (
     <LocationContext.Provider

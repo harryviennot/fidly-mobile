@@ -67,14 +67,6 @@ export interface LocationQRResponse {
   business_slug: string;
 }
 
-export interface LocationMatch {
-  location_id: string;
-  distance_meters: number;
-  confidence: "high" | "medium" | "low";
-  // True when the user is outside the nearest location's radius.
-  suggested: boolean;
-}
-
 export interface CardDesign {
   id: string;
   business_id: string;

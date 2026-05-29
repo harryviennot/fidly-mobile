@@ -11,7 +11,7 @@
   },
   "permission": {
     "title": "Utiliser votre position ?",
-    "body": "On vérifie votre position uniquement pour confirmer que vous êtes au bon endroit, afin d'éviter d'ajouter des tampons au mauvais emplacement. Elle n'est jamais conservée ni partagée.",
+    "body": "Votre position est utilisée uniquement sur votre appareil pour confirmer que vous êtes au bon emplacement avant d'ajouter un tampon. Elle ne quitte jamais votre téléphone : on ne la reçoit pas, on ne la conserve pas, on ne la partage pas.",
     "enable": "Utiliser ma position",
     "notNow": "Plus tard"
   },

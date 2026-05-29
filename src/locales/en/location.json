@@ -11,7 +11,7 @@
   },
   "permission": {
     "title": "Use your location?",
-    "body": "We check your location only to confirm you're at the right place, so stamps don't land on the wrong location. It's never stored or shared.",
+    "body": "Your location is used only on your device to confirm you're at the right store before stamping. It never leaves your phone, and we never receive, store, or share it.",
     "enable": "Use my location",
     "notNow": "Not now"
   },
