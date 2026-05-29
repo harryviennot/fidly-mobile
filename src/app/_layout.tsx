@@ -2,8 +2,6 @@ import { ActivityIndicator, View, StyleSheet, Platform } from "react-native";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Constants from "expo-constants";
 import * as Sentry from "@sentry/react-native";
 import * as SentryReact from "@sentry/react";
@@ -95,23 +93,19 @@ function RootLayout() {
   }, [navigationRef]);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <BottomSheetModalProvider>
-          <AuthProvider>
-            <BusinessProvider>
-              <ThemeProvider>
-                <AlertProvider>
-                  <LocationProvider>
-                    <RootNavigator />
-                  </LocationProvider>
-                </AlertProvider>
-              </ThemeProvider>
-            </BusinessProvider>
-          </AuthProvider>
-        </BottomSheetModalProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <BusinessProvider>
+          <ThemeProvider>
+            <AlertProvider>
+              <LocationProvider>
+                <RootNavigator />
+              </LocationProvider>
+            </AlertProvider>
+          </ThemeProvider>
+        </BusinessProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -120,9 +114,6 @@ export default Platform.OS === "web"
   : Sentry.wrap(RootLayout);
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
