@@ -92,6 +92,7 @@ export function ProximitySheet({
       onClose={onKeep}
       sheetStyle={s.sheet}
       handleColor={theme.border}
+      fullSheetDrag
     >
       {loc && (
         <View style={s.content}>

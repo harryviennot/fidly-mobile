@@ -20,6 +20,12 @@ interface BottomSheetProps {
   sheetStyle?: ViewStyle | ViewStyle[];
   /** Handle indicator color (drawn at the top of the sheet). */
   handleColor?: string;
+  /**
+   * When true, the whole sheet is draggable to dismiss (use for sheets WITHOUT
+   * an internal scroll list). When false (default), only the top handle area is
+   * draggable, so the gesture never competes with a scrollable body.
+   */
+  fullSheetDrag?: boolean;
 }
 
 const OPEN_DURATION = 240;
@@ -27,16 +33,16 @@ const CLOSE_DURATION = 200;
 // Pan-to-close is mobile-only — PanResponder drags are unreliable on web.
 const ENABLE_PAN = Platform.OS !== "web";
 // Drag distance / velocity past which a downward swipe dismisses the sheet.
-const DISMISS_DISTANCE = 120;
+const DISMISS_DISTANCE = 110;
 const DISMISS_VELOCITY = 0.6;
 
 /**
  * Cross-platform bottom sheet: RN Modal + Animated. Used on every platform
  * instead of @gorhom/bottom-sheet (which would not reliably present on the
  * native New-Architecture build). The backdrop opacity fades as the sheet
- * slides, derived from a single translateY value. On mobile, dragging the
- * handle down dismisses it; the drag zone is the handle only, so it never
- * competes with a scrollable list in the sheet body.
+ * slides, derived from a single translateY value. On mobile, dragging down
+ * dismisses it (whole sheet when `fullSheetDrag`, otherwise the handle only so
+ * it never competes with a scrollable list in the body).
  */
 export function BottomSheet({
   visible,
@@ -44,6 +50,7 @@ export function BottomSheet({
   children,
   sheetStyle,
   handleColor = "rgba(0,0,0,0.2)",
+  fullSheetDrag = false,
 }: BottomSheetProps) {
   // Keep the Modal mounted through the close animation, then unmount.
   const [mounted, setMounted] = useState(visible);
@@ -79,9 +86,11 @@ export function BottomSheet({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      // Claim only clear downward drags so taps still work.
+      onStartShouldSetPanResponder: () => true,
+      // Claim only clear downward drags so taps/horizontal moves still work.
       onMoveShouldSetPanResponder: (_, g) =>
+        g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+      onMoveShouldSetPanResponderCapture: (_, g) =>
         g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) translateY.setValue(g.dy);
@@ -97,6 +106,7 @@ export function BottomSheet({
           }).start();
         }
       },
+      onPanResponderTerminationRequest: () => false,
     })
   ).current;
 
@@ -108,6 +118,11 @@ export function BottomSheet({
     extrapolate: "clamp",
   });
 
+  // Whole-sheet drag attaches the handlers to the surface; otherwise only the
+  // handle zone is draggable.
+  const sheetPan = ENABLE_PAN && fullSheetDrag ? panResponder.panHandlers : {};
+  const handlePan = ENABLE_PAN && !fullSheetDrag ? panResponder.panHandlers : {};
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
@@ -117,11 +132,8 @@ export function BottomSheet({
         style={[styles.wrap, { transform: [{ translateY }] }]}
         pointerEvents="box-none"
       >
-        <View style={sheetStyle}>
-          <View
-            style={styles.dragZone}
-            {...(ENABLE_PAN ? panResponder.panHandlers : {})}
-          >
+        <View style={sheetStyle} {...sheetPan}>
+          <View style={styles.dragZone} {...handlePan}>
             <View style={[styles.grabber, { backgroundColor: handleColor }]} />
           </View>
           {children}
@@ -142,14 +154,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
+  // Generous full-width hit area so the handle is easy to grab and drag.
   dragZone: {
     alignItems: "center",
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
   grabber: {
     width: 40,
-    height: 4,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
   },
 });
