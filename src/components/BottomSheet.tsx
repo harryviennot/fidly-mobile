@@ -71,16 +71,21 @@ export function BottomSheet({
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }).start();
-    } else if (mounted) {
-      Animated.timing(translateY, {
-        toValue: screenHeight,
-        duration: CLOSE_DURATION,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: false,
-      }).start(({ finished }) => {
-        if (finished) setMounted(false);
-      });
+      return;
     }
+    if (!mounted) return;
+    Animated.timing(translateY, {
+      toValue: screenHeight,
+      duration: CLOSE_DURATION,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    // Unmount on a timer rather than the animation's `finished` callback: if the
+    // close animation is interrupted (e.g. a rapid reopen), the callback never
+    // fires and the Modal would stay mounted with a transparent backdrop that
+    // swallows all touches — a full-screen freeze. The timer always unmounts.
+    const id = setTimeout(() => setMounted(false), CLOSE_DURATION + 60);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 

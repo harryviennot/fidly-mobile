@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -83,6 +84,15 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [proximitySuggestion, setProximitySuggestion] =
     useState<ProximitySuggestion | null>(null);
+
+  // Latest values mirrored into refs so the proximity check reads them without
+  // being a dependency — otherwise switching location would change the callback
+  // identity, re-fire the lobby GPS effect, and re-open the suggestion sheet in
+  // a loop.
+  const scannableRef = useRef(scannableLocations);
+  scannableRef.current = scannableLocations;
+  const selectedLocationRef = useRef(selectedLocation);
+  selectedLocationRef.current = selectedLocation;
 
   const isStranded = requiresLocation && scannableLocations.length === 0;
 
@@ -177,10 +187,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       });
       const { latitude, longitude } = pos.coords;
 
-      // Nearest accessible location with coordinates.
+      // Nearest accessible location with coordinates (read from refs so this
+      // callback stays stable and doesn't re-fire on every selection change).
       let nearest: ScannerLocation | null = null;
       let nearestDist = Infinity;
-      for (const loc of scannableLocations) {
+      for (const loc of scannableRef.current) {
         if (loc.latitude == null || loc.longitude == null) continue;
         const d = haversineMeters(latitude, longitude, loc.latitude, loc.longitude);
         if (d < nearestDist) {
@@ -190,7 +201,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       }
 
       // Suggest a switch only when the nearest differs from the current pick.
-      if (nearest && nearest.id !== selectedLocation?.id) {
+      if (nearest && nearest.id !== selectedLocationRef.current?.id) {
         setProximitySuggestion({
           location: nearest,
           distanceMeters: Math.round(nearestDist),
@@ -199,7 +210,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     } catch {
       // GPS unavailable / timed out / denied mid-flow — silently ignore.
     }
-  }, [scannableLocations, selectedLocation?.id]);
+  }, []);
 
   return (
     <LocationContext.Provider
