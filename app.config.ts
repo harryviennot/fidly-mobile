@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: getAppName(),
   slug: "stampeo-scanner",
-  version: "1.1.1",
+  version: "1.2.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "stampeo-scanner",
