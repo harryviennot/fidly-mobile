@@ -1,0 +1,28 @@
+{
+  "pickerLabel": "Emplacement",
+  "pickerTitle": "Où scannez-vous ?",
+  "searchPlaceholder": "Rechercher un emplacement",
+  "noMatches": "Aucun emplacement ne correspond à votre recherche.",
+  "chooseLocationHint": "Choisissez un emplacement avant de commencer à scanner.",
+  "scanningAt": "Vous scannez à {{name}}",
+  "noneAssigned": {
+    "title": "Aucun emplacement assigné",
+    "body": "Vous n'êtes assigné à aucun emplacement pour le moment. Demandez au propriétaire de vous en assigner un avant de scanner."
+  },
+  "permission": {
+    "title": "Utiliser votre position ?",
+    "body": "Votre position est utilisée uniquement sur votre appareil pour confirmer que vous êtes au bon emplacement avant d'ajouter un tampon. Elle ne quitte jamais votre téléphone : on ne la reçoit pas, on ne la conserve pas, on ne la partage pas.",
+    "enable": "Utiliser ma position",
+    "notNow": "Plus tard"
+  },
+  "proximity": {
+    "title": "Mauvais emplacement ?",
+    "body": "Vous semblez être à {{name}}, à environ {{distance}}. Voulez-vous y basculer ?",
+    "switch": "Basculer sur {{name}}",
+    "keep": "Rester à {{current}}"
+  },
+  "errors": {
+    "locationRequired": "Choisissez un emplacement avant d'ajouter un tampon.",
+    "notPermitted": "Vous n'êtes pas assigné à cet emplacement. Choisissez-en un auquel vous êtes assigné."
+  }
+}

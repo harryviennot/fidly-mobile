@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { XIcon } from "phosphor-react-native";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
+import { useLocation } from "@/contexts/location-context";
 import { withOpacity } from "@/utils/colors";
 
 
@@ -23,11 +24,13 @@ export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation("scanner");
   const { t: tCommon } = useTranslation("common");
+  const { t: tLocation } = useTranslation("location");
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const isProcessingRef = useRef(false);
   const { currentBusiness, currentMembership } = useBusiness();
+  const { selectedLocation } = useLocation();
   const { theme } = useTheme();
   const isFocused = useIsFocused();
 
@@ -187,10 +190,12 @@ export default function ScanScreen() {
             <Text style={styles.businessName} numberOfLines={1}>
               {currentBusiness.name}
             </Text>
-            <Text style={styles.roleText}>
-              {currentMembership?.role
-                ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
-                : tCommon("roles.scanner")}
+            <Text style={styles.roleText} numberOfLines={1}>
+              {selectedLocation
+                ? tLocation("scanningAt", { name: selectedLocation.name })
+                : currentMembership?.role
+                  ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
+                  : tCommon("roles.scanner")}
             </Text>
           </View>
         </View>

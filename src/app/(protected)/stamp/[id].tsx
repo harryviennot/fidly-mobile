@@ -13,6 +13,7 @@ import { WarningCircle, Confetti, Check, Gift, PauseCircle } from "phosphor-reac
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
 import { useBusiness } from "@/contexts/business-context";
+import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
 import { CustomerCardSkeleton } from "@/components/skeleton";
 import type { Customer, StampResponse } from "@/types/api";
@@ -21,7 +22,9 @@ export default function StampScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
+  const { t: tLocation } = useTranslation("location");
   const { currentBusiness } = useBusiness();
+  const { selectedLocation } = useLocation();
   const { theme, design } = useTheme();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,14 +68,20 @@ export default function StampScreen() {
       setError(null);
       // Phase 4: /stamps takes enrollment_id. Post-Phase-3 every QR returns
       // an enrollment_id, which is the URL `id` here — send it directly
-      // instead of round-tripping through customer.id.
-      const result = await addStamp(currentBusiness.id, id);
+      // instead of round-tripping through customer.id. On Pro multi-location
+      // businesses we attach the lobby-selected location for attribution.
+      const result = await addStamp(currentBusiness.id, id, selectedLocation?.id);
       setSuccess(result);
       setCustomer((prev) => (prev ? { ...prev, stamps: result.stamps } : null));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      if ((err as any)?.code === "MEMBER_PAUSED") {
+      const code = (err as any)?.code;
+      if (code === "MEMBER_PAUSED") {
         setIsPausedError(true);
+      } else if (code === "LOCATION_NOT_PERMITTED") {
+        setError(tLocation("errors.notPermitted"));
+      } else if (code === "LOCATION_REQUIRED" || code === "LOCATION_NOT_FOUND") {
+        setError(tLocation("errors.locationRequired"));
       } else {
         setError(err instanceof Error ? err.message : t("errors.stampFailed"));
       }
