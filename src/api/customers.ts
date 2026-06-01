@@ -7,26 +7,42 @@ export async function getCustomer(businessId: string, customerId: string): Promi
 
 export async function addStamp(
   businessId: string,
-  enrollmentId: string
+  enrollmentId: string,
+  locationId?: string | null
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${enrollmentId}`, {
-    method: "POST",
-    headers,
-  });
+  // Only send a body when we have a location to attribute. Single-location and
+  // non-Pro businesses omit it and the backend auto-assigns (or records NULL).
+  const init: RequestInit = { method: "POST", headers };
+  if (locationId) {
+    init.body = JSON.stringify({ location_id: locationId });
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/stamps/${businessId}/${enrollmentId}`,
+    init
+  );
 
   if (!response.ok) {
     if (response.status === 401) {
       throw new Error("Not authorized to add stamps");
     }
+    const body = await response.json().catch(() => ({}));
+    const code: string | undefined = body?.detail?.code;
+    // Re-raise backend codes the UI handles explicitly (member pause + location
+    // resolution failures). The screen maps these to localized messages.
+    if (
+      code === "MEMBER_PAUSED" ||
+      code === "LOCATION_REQUIRED" ||
+      code === "LOCATION_NOT_PERMITTED" ||
+      code === "LOCATION_NOT_FOUND"
+    ) {
+      const err = new Error(code);
+      (err as any).code = code;
+      throw err;
+    }
     if (response.status === 403) {
-      const body = await response.json().catch(() => ({}));
-      if (body?.detail?.code === "MEMBER_PAUSED") {
-        const err = new Error("MEMBER_PAUSED");
-        (err as any).code = "MEMBER_PAUSED";
-        throw err;
-      }
       throw new Error("You don't have access to this business");
     }
     if (response.status === 404) {

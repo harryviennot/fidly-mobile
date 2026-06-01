@@ -9,6 +9,7 @@ import enBusinesses from './en/businesses.json';
 import enLobby from './en/lobby.json';
 import enScanner from './en/scanner.json';
 import enStamp from './en/stamp.json';
+import enLocation from './en/location.json';
 
 // French translations
 import frCommon from './fr/common.json';
@@ -17,6 +18,7 @@ import frBusinesses from './fr/businesses.json';
 import frLobby from './fr/lobby.json';
 import frScanner from './fr/scanner.json';
 import frStamp from './fr/stamp.json';
+import frLocation from './fr/location.json';
 
 const resources = {
   en: {
@@ -26,6 +28,7 @@ const resources = {
     lobby: enLobby,
     scanner: enScanner,
     stamp: enStamp,
+    location: enLocation,
   },
   fr: {
     common: frCommon,
@@ -34,6 +37,7 @@ const resources = {
     lobby: frLobby,
     scanner: frScanner,
     stamp: frStamp,
+    location: frLocation,
   },
 };
 
@@ -56,7 +60,7 @@ i18n.use(initReactI18next).init({
   lng: initialLocale,
   fallbackLng: 'en',
   defaultNS: 'common',
-  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp'],
+  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location'],
   interpolation: {
     escapeValue: false, // React already escapes
   },

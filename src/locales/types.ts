@@ -5,6 +5,7 @@ import type enBusinesses from './en/businesses.json';
 import type enLobby from './en/lobby.json';
 import type enScanner from './en/scanner.json';
 import type enStamp from './en/stamp.json';
+import type enLocation from './en/location.json';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -16,6 +17,7 @@ declare module 'i18next' {
       lobby: typeof enLobby;
       scanner: typeof enScanner;
       stamp: typeof enStamp;
+      location: typeof enLocation;
     };
   }
 }
