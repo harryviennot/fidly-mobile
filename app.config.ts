@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: getAppName(),
   slug: "stampeo-scanner",
-  version: "1.1.0",
+  version: "1.2.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "stampeo-scanner",
@@ -82,6 +82,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     permissions: [
       "android.permission.RECORD_AUDIO",
       "android.permission.CAMERA",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION",
     ]
   },
   web: {
@@ -111,6 +113,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "expo-camera",
       {
         "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes."
+      }
+    ],
+    [
+      "expo-location",
+      {
+        "locationWhenInUsePermission": "Stampeo uses your location only on your device to confirm you're at the right store before stamping. It never leaves your phone, and we never receive, store, or share it."
       }
     ],
     "expo-apple-authentication",
