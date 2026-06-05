@@ -117,6 +117,10 @@ export function getAuthHeaders(): HeadersInit {
 
   return {
     "Content-Type": "application/json",
+    // Platform the scan came from (ios | android | web — the browser scanner is
+    // this same app's web build). The backend records it on each transaction and
+    // on the user's platforms_used list for adoption analytics + achievements.
+    "X-Client-Platform": Platform.OS,
     ...(_currentAccessToken && {
       Authorization: `Bearer ${_currentAccessToken}`,
     }),
