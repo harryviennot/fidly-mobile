@@ -4,6 +4,13 @@ export interface Customer {
   name: string;
   email: string;
   stamps: number;
+  /** Banked (earned, unredeemed) rewards — stackable rewards. */
+  rewards?: number;
+  /** Program config snapshot so the stamp screen can branch between the
+   *  classic redeem/skip flow and the stackable stamp+redeem flow. */
+  stackable_rewards?: boolean;
+  max_stacked_rewards?: number | null;
+  total_stamps?: number;
   pass_url?: string;
 }
 
@@ -11,6 +18,8 @@ export interface StampResponse {
   customer_id: string;
   name: string;
   stamps: number;
+  /** Banked rewards after the action. */
+  rewards?: number;
   message: string;
 }
 
