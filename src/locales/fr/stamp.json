@@ -18,8 +18,9 @@
     "collectAgain": "Il/Elle peut recommencer à collecter des tampons !",
     "rewardBanked": "Récompense mise de côté !",
     "rewardBankedFor": "{{name}} a complété sa carte. La récompense est mise de côté et sa carte continue.",
-    "rewardsWaiting": "{{count}} récompense(s) à utiliser.",
-    "progressKept": "{{name}} garde ses tampons."
+    "rewardsWaiting": "{{count}} récompenses à utiliser.",
+    "progressKept": "{{name}} garde ses tampons.",
+    "rewardsWaitingOne": "1 récompense à utiliser."
   },
   "reward": {
     "banner": "Récompense disponible !",
@@ -36,5 +37,6 @@
     "checkoutRequired": "Le propriétaire doit finaliser l'abonnement avant que vous puissiez ajouter des tampons.",
     "goHome": "Retour à l'accueil"
   },
-  "rewardsBadge": "{{count}} récompense(s) à utiliser"
+  "rewardsBadge": "{{count}} récompenses à utiliser",
+  "rewardsBadgeOne": "1 récompense à utiliser"
 }

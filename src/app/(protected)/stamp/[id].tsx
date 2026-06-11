@@ -52,6 +52,12 @@ export default function StampScreen() {
   // Stackable flow: stamping continues, banked rewards redeemable anytime.
   const hasBankedRewards = stackable && rewards > 0 && !isReadyForReward;
 
+  // Explicit singular/plural key selection: we know the count, so never
+  // show a "(s)" guess. (Done in JS rather than i18next suffixes because
+  // Hermes' Intl.PluralRules support is unreliable.)
+  const rewardsWaitingText = (count: number) =>
+    t(count === 1 ? "success.rewardsWaitingOne" : "success.rewardsWaiting", { count });
+
   const loadCustomer = useCallback(async () => {
     if (!currentBusiness?.id) {
       setError(t("errors.noBusinessSelected"));
@@ -356,7 +362,7 @@ export default function StampScreen() {
             : t("success.cardReset", { name: customer?.name })}
           {"\n"}
           {keptStamps && (success.rewards ?? 0) > 0
-            ? t("success.rewardsWaiting", { count: success.rewards })
+            ? rewardsWaitingText(success.rewards ?? 0)
             : t("success.collectAgain")}
         </Text>
 
@@ -401,7 +407,7 @@ export default function StampScreen() {
         <Text style={dynamicStyles.successTitle}>{t("success.rewardBanked")}</Text>
         <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
           {t("success.rewardBankedFor", { name: customer?.name })}{"\n"}
-          {t("success.rewardsWaiting", { count: success.rewards })}
+          {rewardsWaitingText(success.rewards ?? 0)}
         </Text>
 
         <View style={styles.stampsDisplay}>
@@ -635,7 +641,7 @@ export default function StampScreen() {
           <View style={styles.bankedBadge}>
             <Gift size={16} color="#b45309" weight="fill" />
             <Text style={styles.bankedBadgeText}>
-              {t("rewardsBadge", { count: rewards })}
+              {t(rewards === 1 ? "rewardsBadgeOne" : "rewardsBadge", { count: rewards })}
             </Text>
           </View>
         )}
