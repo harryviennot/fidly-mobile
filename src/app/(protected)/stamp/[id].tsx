@@ -118,7 +118,7 @@ export default function StampScreen() {
     try {
       setRedeeming(true);
       setError(null);
-      const result = await redeemReward(currentBusiness.id, id);
+      const result = await redeemReward(currentBusiness.id, id, selectedLocation?.id);
       // Banked redemptions keep stamp progress; only the classic full-card
       // redemption resets to 0. Trust the server's response either way.
       setCustomer((prev) =>
