@@ -29,6 +29,7 @@
     "redeemFailed": "Échec de l'utilisation de la récompense",
     "pausedTitle": "Scanner suspendu",
     "pausedMessage": "Votre accès au scanner a été suspendu par le propriétaire. Contactez-le pour le restaurer.",
+    "checkoutRequired": "Le propriétaire doit finaliser l'abonnement avant que vous puissiez ajouter des tampons.",
     "goHome": "Retour à l'accueil"
   }
 }

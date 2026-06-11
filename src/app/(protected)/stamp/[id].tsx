@@ -78,6 +78,8 @@ export default function StampScreen() {
       const code = (err as any)?.code;
       if (code === "MEMBER_PAUSED") {
         setIsPausedError(true);
+      } else if (code === "CHECKOUT_REQUIRED") {
+        setError(t("errors.checkoutRequired"));
       } else if (code === "LOCATION_NOT_PERMITTED") {
         setError(tLocation("errors.notPermitted"));
       } else if (code === "LOCATION_REQUIRED" || code === "LOCATION_NOT_FOUND") {
@@ -105,6 +107,8 @@ export default function StampScreen() {
     } catch (err) {
       if ((err as any)?.code === "MEMBER_PAUSED") {
         setIsPausedError(true);
+      } else if ((err as any)?.code === "CHECKOUT_REQUIRED") {
+        setError(t("errors.checkoutRequired"));
       } else {
         setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
       }
