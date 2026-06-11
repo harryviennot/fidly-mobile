@@ -29,6 +29,7 @@
     "redeemFailed": "Failed to redeem reward",
     "pausedTitle": "Scanning Paused",
     "pausedMessage": "Your scanning access has been paused by the business owner. Contact them to restore access.",
+    "checkoutRequired": "The owner needs to finish setting up the subscription before you can add stamps.",
     "goHome": "Go Home"
   }
 }
