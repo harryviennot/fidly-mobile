@@ -58,14 +58,22 @@ export async function addStamp(
 
 export async function redeemReward(
   businessId: string,
-  enrollmentId: string
+  enrollmentId: string,
+  locationId?: string | null
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${enrollmentId}/redeem`, {
-    method: "POST",
-    headers,
-  });
+  // Tag the redemption with the lobby-selected location (mirrors addStamp).
+  // Lenient server-side: omitting it records NULL instead of erroring.
+  const init: RequestInit = { method: "POST", headers };
+  if (locationId) {
+    init.body = JSON.stringify({ location_id: locationId });
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/stamps/${businessId}/${enrollmentId}/redeem`,
+    init
+  );
 
   if (!response.ok) {
     if (response.status === 401) {

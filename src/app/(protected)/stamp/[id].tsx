@@ -34,9 +34,29 @@ export default function StampScreen() {
   const [isPausedError, setIsPausedError] = useState(false);
   const [success, setSuccess] = useState<StampResponse | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
+  // Banked count before the last stamp — detects a rollover (stackable
+  // rewards: stamps reset below total but a reward was banked).
+  const [preStampRewards, setPreStampRewards] = useState(0);
 
-  const totalStamps = design?.total_stamps ?? 10;
-  const isReadyForReward = (customer?.stamps ?? 0) >= totalStamps;
+  // Program config is the source of truth for the goal; the design column
+  // is a deprecated synced copy kept as fallback.
+  const totalStamps = customer?.total_stamps ?? design?.total_stamps ?? 10;
+  const stackable = customer?.stackable_rewards ?? false;
+  const maxStack = customer?.max_stacked_rewards ?? null;
+  const rewards = customer?.rewards ?? 0;
+  const cardFull = (customer?.stamps ?? 0) >= totalStamps;
+  // Blocked at the stack cap: behaves exactly like the classic full card.
+  const atMaxStack = stackable && maxStack != null && rewards >= maxStack && cardFull;
+  // Classic redeem-or-skip screen: non-stackable full card, or capped stack.
+  const isReadyForReward = cardFull && (!stackable || atMaxStack);
+  // Stackable flow: stamping continues, banked rewards redeemable anytime.
+  const hasBankedRewards = stackable && rewards > 0 && !isReadyForReward;
+
+  // Explicit singular/plural key selection: we know the count, so never
+  // show a "(s)" guess. (Done in JS rather than i18next suffixes because
+  // Hermes' Intl.PluralRules support is unreliable.)
+  const rewardsWaitingText = (count: number) =>
+    t(count === 1 ? "success.rewardsWaitingOne" : "success.rewardsWaiting", { count });
 
   const loadCustomer = useCallback(async () => {
     if (!currentBusiness?.id) {
@@ -70,9 +90,14 @@ export default function StampScreen() {
       // an enrollment_id, which is the URL `id` here — send it directly
       // instead of round-tripping through customer.id. On Pro multi-location
       // businesses we attach the lobby-selected location for attribution.
+      setPreStampRewards(customer.rewards ?? 0);
       const result = await addStamp(currentBusiness.id, id, selectedLocation?.id);
       setSuccess(result);
-      setCustomer((prev) => (prev ? { ...prev, stamps: result.stamps } : null));
+      setCustomer((prev) =>
+        prev
+          ? { ...prev, stamps: result.stamps, rewards: result.rewards ?? prev.rewards }
+          : null
+      );
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       const code = (err as any)?.code;
@@ -99,8 +124,14 @@ export default function StampScreen() {
     try {
       setRedeeming(true);
       setError(null);
-      const result = await redeemReward(currentBusiness.id, id);
-      setCustomer((prev) => (prev ? { ...prev, stamps: 0 } : null));
+      const result = await redeemReward(currentBusiness.id, id, selectedLocation?.id);
+      // Banked redemptions keep stamp progress; only the classic full-card
+      // redemption resets to 0. Trust the server's response either way.
+      setCustomer((prev) =>
+        prev
+          ? { ...prev, stamps: result.stamps, rewards: result.rewards ?? 0 }
+          : null
+      );
       setRedeemSuccess(true);
       setSuccess(result);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -315,8 +346,10 @@ export default function StampScreen() {
     );
   }
 
-  // Reward redemption success state
+  // Reward redemption success state. A banked redemption (stackable
+  // rewards) keeps stamp progress; the classic full-card one resets it.
   if (redeemSuccess && success) {
+    const keptStamps = success.stamps > 0;
     return (
       <SafeAreaView style={dynamicStyles.container}>
         <View style={styles.rewardIcon}>
@@ -324,22 +357,100 @@ export default function StampScreen() {
         </View>
         <Text style={dynamicStyles.successTitle}>{t("success.rewardRedeemed")}</Text>
         <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-          {t("success.cardReset", { name: customer?.name })}{"\n"}
-          {t("success.collectAgain")}
+          {keptStamps
+            ? t("success.progressKept", { name: customer?.name })
+            : t("success.cardReset", { name: customer?.name })}
+          {"\n"}
+          {keptStamps && (success.rewards ?? 0) > 0
+            ? rewardsWaitingText(success.rewards ?? 0)
+            : t("success.collectAgain")}
         </Text>
 
         <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>{t("stampsReset")}</Text>
+          <Text style={dynamicStyles.stampsLabel}>
+            {keptStamps ? t("currentStamps") : t("stampsReset")}
+          </Text>
           <View style={styles.stampsRow}>
             {[...Array(totalStamps)].map((_, i) => (
-              <View key={i} style={dynamicStyles.stampDot} />
+              <View
+                key={i}
+                style={[
+                  dynamicStyles.stampDot,
+                  i < success.stamps && dynamicStyles.stampDotFilled,
+                ]}
+              />
             ))}
           </View>
-          <Text style={dynamicStyles.stampsCount}>{t("stampsCount", { current: 0, total: totalStamps })}</Text>
+          <Text style={dynamicStyles.stampsCount}>{t("stampsCount", { current: success.stamps, total: totalStamps })}</Text>
         </View>
 
         <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
           <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Success state: stackable rollover - the goal was reached, the reward is
+  // banked and the card already rolled into a fresh cycle.
+  if (
+    success &&
+    !redeemSuccess &&
+    success.stamps < totalStamps &&
+    (success.rewards ?? 0) > preStampRewards
+  ) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={styles.completedIcon}>
+          <Confetti size={56} color="#fff" weight="fill" />
+        </View>
+        <Text style={dynamicStyles.successTitle}>{t("success.rewardBanked")}</Text>
+        <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
+          {t("success.rewardBankedFor", { name: customer?.name })}{"\n"}
+          {rewardsWaitingText(success.rewards ?? 0)}
+        </Text>
+
+        <View style={styles.stampsDisplay}>
+          <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
+          <View style={styles.stampsRow}>
+            {[...Array(totalStamps)].map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  dynamicStyles.stampDot,
+                  i < success.stamps && dynamicStyles.stampDotFilled,
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={dynamicStyles.stampsCount}>
+            {t("stampsCount", { current: success.stamps, total: totalStamps })}
+          </Text>
+        </View>
+
+        {error && (
+          <View style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{error}</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
+          onPress={handleRedeemReward}
+          disabled={redeeming}
+        >
+          {redeeming ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Gift size={24} color="#fff" weight="bold" />
+              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+          <Text style={dynamicStyles.cancelButtonText}>{t("scanNext")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -526,6 +637,15 @@ export default function StampScreen() {
         <Text style={dynamicStyles.customerName}>{customer?.name}</Text>
         <Text style={dynamicStyles.customerEmail}>{customer?.email}</Text>
 
+        {hasBankedRewards && (
+          <View style={styles.bankedBadge}>
+            <Gift size={16} color="#b45309" weight="fill" />
+            <Text style={styles.bankedBadgeText}>
+              {t(rewards === 1 ? "rewardsBadgeOne" : "rewardsBadge", { count: rewards })}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.stampsDisplay}>
           <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
           <View style={styles.stampsRow}>
@@ -554,7 +674,7 @@ export default function StampScreen() {
       <TouchableOpacity
         style={[dynamicStyles.stampButton, stamping && styles.buttonDisabled]}
         onPress={handleAddStamp}
-        disabled={stamping}
+        disabled={stamping || redeeming}
       >
         {stamping ? (
           <ActivityIndicator color="#fff" />
@@ -562,6 +682,23 @@ export default function StampScreen() {
           <Text style={styles.stampButtonText}>{t("addStamp")}</Text>
         )}
       </TouchableOpacity>
+
+      {hasBankedRewards && (
+        <TouchableOpacity
+          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
+          onPress={handleRedeemReward}
+          disabled={stamping || redeeming}
+        >
+          {redeeming ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Gift size={24} color="#fff" weight="bold" />
+              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
         <Text style={dynamicStyles.cancelButtonText}>{tCommon("cancel")}</Text>
@@ -593,6 +730,21 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 36,
     fontWeight: "bold",
+  },
+  bankedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fef3c7",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 9999,
+    marginBottom: 16,
+  },
+  bankedBadgeText: {
+    color: "#b45309",
+    fontSize: 14,
+    fontWeight: "600",
   },
   stampsDisplay: {
     alignItems: "center",
