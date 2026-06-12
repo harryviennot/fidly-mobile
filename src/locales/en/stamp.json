@@ -15,7 +15,12 @@
     "stampAddedFor": "Stamp added for {{name}}.",
     "cardFull": "Their card is now full!",
     "cardReset": "{{name}}'s card has been reset.",
-    "collectAgain": "They can start collecting stamps again!"
+    "collectAgain": "They can start collecting stamps again!",
+    "rewardBanked": "Reward saved!",
+    "rewardBankedFor": "{{name}} completed their card. The reward is saved and their card keeps going.",
+    "rewardsWaiting": "{{count}} rewards waiting to be redeemed.",
+    "progressKept": "{{name}} keeps their stamps.",
+    "rewardsWaitingOne": "1 reward waiting to be redeemed."
   },
   "reward": {
     "banner": "Ready for Reward!",
@@ -29,6 +34,9 @@
     "redeemFailed": "Failed to redeem reward",
     "pausedTitle": "Scanning Paused",
     "pausedMessage": "Your scanning access has been paused by the business owner. Contact them to restore access.",
+    "checkoutRequired": "The owner needs to finish setting up the subscription before you can add stamps.",
     "goHome": "Go Home"
-  }
+  },
+  "rewardsBadge": "{{count}} rewards to redeem",
+  "rewardsBadgeOne": "1 reward to redeem"
 }

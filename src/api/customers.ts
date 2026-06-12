@@ -30,10 +30,12 @@ export async function addStamp(
     }
     const body = await response.json().catch(() => ({}));
     const code: string | undefined = body?.detail?.code;
-    // Re-raise backend codes the UI handles explicitly (member pause + location
-    // resolution failures). The screen maps these to localized messages.
+    // Re-raise backend codes the UI handles explicitly (member pause, location
+    // resolution failures, and the card-upfront checkout gate). The screen maps
+    // these to localized messages.
     if (
       code === "MEMBER_PAUSED" ||
+      code === "CHECKOUT_REQUIRED" ||
       code === "LOCATION_REQUIRED" ||
       code === "LOCATION_NOT_PERMITTED" ||
       code === "LOCATION_NOT_FOUND"
@@ -56,18 +58,36 @@ export async function addStamp(
 
 export async function redeemReward(
   businessId: string,
-  enrollmentId: string
+  enrollmentId: string,
+  locationId?: string | null
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  const response = await fetch(`${API_BASE_URL}/stamps/${businessId}/${enrollmentId}/redeem`, {
-    method: "POST",
-    headers,
-  });
+  // Tag the redemption with the lobby-selected location (mirrors addStamp).
+  // Lenient server-side: omitting it records NULL instead of erroring.
+  const init: RequestInit = { method: "POST", headers };
+  if (locationId) {
+    init.body = JSON.stringify({ location_id: locationId });
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/stamps/${businessId}/${enrollmentId}/redeem`,
+    init
+  );
 
   if (!response.ok) {
     if (response.status === 401) {
       throw new Error("Not authorized to redeem rewards");
+    }
+    // Card-upfront checkout gate (402): re-raise so the screen can explain the
+    // owner needs to finish setup.
+    if (response.status === 402) {
+      const body = await response.json().catch(() => ({}));
+      if (body?.detail?.code === "CHECKOUT_REQUIRED") {
+        const err = new Error("CHECKOUT_REQUIRED");
+        (err as any).code = "CHECKOUT_REQUIRED";
+        throw err;
+      }
     }
     if (response.status === 403) {
       const body = await response.json().catch(() => ({}));
