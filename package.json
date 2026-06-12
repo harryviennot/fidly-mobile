@@ -1,7 +1,7 @@
 {
   "name": "scanner-app2",
   "main": "expo-router/entry",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "scripts": {
     "start": "expo start",
     "dev": "APP_VARIANT=development npx expo start",
