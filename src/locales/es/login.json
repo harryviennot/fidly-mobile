@@ -1,0 +1,40 @@
+{
+  "title": "Nos alegra verte de nuevo",
+  "subtitle": "Inicia sesión para empezar a sellar",
+  "emailTitle": "Iniciar sesión con email",
+  "emailSubtitle": "Introduce tus datos para continuar",
+  "email": "Email",
+  "emailPlaceholder": "tu@email.com",
+  "password": "Contraseña",
+  "passwordPlaceholder": "Introduce tu contraseña",
+  "signIn": "Iniciar sesión",
+  "back": "Volver",
+  "signupPrompt": "¿No tienes cuenta?",
+  "getStarted": "Empezar",
+  "continueGoogle": "Continuar con Google",
+  "continueApple": "Continuar con Apple",
+  "continueEmail": "Continuar con email",
+  "oauth": {
+    "apple": "Continuar con Apple",
+    "google": "Continuar con Google",
+    "divider": "o",
+    "connecting": "Conectando…",
+    "lastUsed": "Última vez"
+  },
+  "errors": {
+    "required": "Introduce tu email y tu contraseña",
+    "unexpected": "Ha ocurrido un error inesperado",
+    "oauthFailed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
+    "invalidCredentials": "Email o contraseña incorrectos",
+    "tooManyRequests": "Demasiados intentos. Espera un momento.",
+    "userNotFound": "No hay ninguna cuenta con este email",
+    "networkError": "Error de red. Comprueba tu conexión.",
+    "generic": "Algo ha ido mal. Inténtalo de nuevo."
+  },
+  "noAccount": {
+    "title": "No se ha encontrado ninguna cuenta",
+    "message": "Este inicio de sesión todavía no está vinculado a ningún comercio. Crea uno en Stampeo o pídele a la persona responsable de tu comercio que te invite.",
+    "createBusiness": "Crear un comercio",
+    "backToLogin": "Volver al inicio de sesión"
+  }
+}
