@@ -1,0 +1,10 @@
+{
+  "qrUnavailable": "QR no disponible",
+  "qrLabel": "Los clientes escanean este código para obtener su tarjeta de fidelidad",
+  "startScanning": "Empezar a escanear",
+  "paused": {
+    "banner": "Tu acceso al escáner está suspendido",
+    "description": "El propietario del comercio ha suspendido tu acceso al escáner. Contacta con él para restablecerlo.",
+    "switchBusiness": "Cambiar de comercio"
+  }
+}

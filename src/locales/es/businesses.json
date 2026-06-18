@@ -1,0 +1,10 @@
+{
+  "loading": "Cargando comercios...",
+  "header": "Tus comercios",
+  "subtitle": "{{count}} comercios",
+  "empty": {
+    "title": "Sin comercios",
+    "message": "Todavía no te han añadido a ningún comercio.\nPonte en contacto con tu responsable para recibir una invitación."
+  },
+  "signOutLink": "Cerrar sesión"
+}

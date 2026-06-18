@@ -1,0 +1,18 @@
+{
+  "loading": "Cargando...",
+  "error": "Error",
+  "cancel": "Cancelar",
+  "retry": "Reintentar",
+  "goBack": "Volver",
+  "goHome": "Inicio",
+  "signOut": "Cerrar sesión",
+  "signOutConfirmTitle": "¿Seguro?",
+  "signOutConfirmMessage": "Vas a cerrar la sesión.",
+  "signOutConfirmNo": "No, quedarme",
+  "signOutConfirmYes": "Sí, cerrar sesión",
+  "roles": {
+    "owner": "Propietario",
+    "admin": "Administrador",
+    "scanner": "Escáner"
+  }
+}

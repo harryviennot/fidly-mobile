@@ -20,6 +20,15 @@ import frScanner from './fr/scanner.json';
 import frStamp from './fr/stamp.json';
 import frLocation from './fr/location.json';
 
+// Spanish translations
+import esCommon from './es/common.json';
+import esLogin from './es/login.json';
+import esBusinesses from './es/businesses.json';
+import esLobby from './es/lobby.json';
+import esScanner from './es/scanner.json';
+import esStamp from './es/stamp.json';
+import esLocation from './es/location.json';
+
 const resources = {
   en: {
     common: enCommon,
@@ -39,6 +48,15 @@ const resources = {
     stamp: frStamp,
     location: frLocation,
   },
+  es: {
+    common: esCommon,
+    login: esLogin,
+    businesses: esBusinesses,
+    lobby: esLobby,
+    scanner: esScanner,
+    stamp: esStamp,
+    location: esLocation,
+  },
 };
 
 // Get device locale safely
@@ -51,7 +69,7 @@ function getDeviceLocale(): string {
   }
 }
 
-const supportedLocales = ['en', 'fr'];
+const supportedLocales = ['en', 'fr', 'es'];
 const deviceLocale = getDeviceLocale();
 const initialLocale = supportedLocales.includes(deviceLocale) ? deviceLocale : 'en';
 
