@@ -1,0 +1,28 @@
+{
+  "pickerLabel": "Establecimiento",
+  "pickerTitle": "¿Dónde estás escaneando?",
+  "searchPlaceholder": "Buscar establecimiento",
+  "noMatches": "Ningún establecimiento coincide con tu búsqueda.",
+  "chooseLocationHint": "Elige un establecimiento antes de empezar a escanear.",
+  "scanningAt": "Estás escaneando en {{name}}",
+  "noneAssigned": {
+    "title": "Sin establecimiento asignado",
+    "body": "Todavía no estás asignado a ningún establecimiento. Pide al dueño del comercio que te asigne uno antes de escanear."
+  },
+  "permission": {
+    "title": "¿Usar tu ubicación?",
+    "body": "Tu ubicación se usa solo en tu dispositivo para confirmar que estás en el establecimiento correcto antes de añadir un sello. Nunca sale de tu teléfono: no la recibimos, no la guardamos y no la compartimos.",
+    "enable": "Usar mi ubicación",
+    "notNow": "Ahora no"
+  },
+  "proximity": {
+    "title": "¿Establecimiento equivocado?",
+    "body": "Parece que estás en {{name}}, a unos {{distance}}. ¿Quieres cambiar a este?",
+    "switch": "Cambiar a {{name}}",
+    "keep": "Quedarme en {{current}}"
+  },
+  "errors": {
+    "locationRequired": "Elige un establecimiento antes de añadir un sello.",
+    "notPermitted": "No estás asignado a este establecimiento. Elige uno al que sí estés asignado."
+  }
+}

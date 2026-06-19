@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -27,6 +27,7 @@ import { QRCodeSkeleton } from "@/components/skeleton";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
 import { getLocationQR } from "@/api/locations";
+import { maybeRequestReviewOnLobby } from "@/lib/app-rating";
 
 // Whether we've shown the location explainer this app session. Deliberately
 // in-memory (not persisted): if the user dismisses with "Not now" we don't nag
@@ -74,6 +75,14 @@ export default function LobbyScreen() {
   const handleStartScanning = () => {
     router.push("/scan");
   };
+
+  // Ask for an app rating once the employee is back on the lobby, calm and done
+  // scanning — never mid-flow. No-op unless a scan armed it (and only once ever).
+  useFocusEffect(
+    useCallback(() => {
+      void maybeRequestReviewOnLobby();
+    }, [])
+  );
 
   // GPS proximity check on lobby load. Only meaningful when the user has 2+
   // locations they can switch between (Pro multi-location) — `showLocationPicker`

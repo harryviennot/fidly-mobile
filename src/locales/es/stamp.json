@@ -1,0 +1,42 @@
+{
+  "loading": "Cargando cliente...",
+  "currentStamps": "Sellos actuales",
+  "stampsReset": "Sellos reiniciados",
+  "stampsCount": "{{current}} / {{total}}",
+  "stampsCountFull": "{{current}} / {{total}} - ¡Tarjeta completa!",
+  "addStamp": "Añadir sello",
+  "scanNext": "Escanear al siguiente cliente",
+  "skipForNow": "Omitir por ahora",
+  "redeemReward": "Canjear recompensa",
+  "success": {
+    "stampAdded": "¡Sello añadido!",
+    "cardComplete": "¡Tarjeta completa!",
+    "rewardRedeemed": "¡Recompensa canjeada!",
+    "stampAddedFor": "Sello añadido para {{name}}.",
+    "cardFull": "¡Su tarjeta ya está completa!",
+    "cardReset": "La tarjeta de {{name}} se ha reiniciado.",
+    "collectAgain": "¡Ya puede empezar a juntar sellos otra vez!",
+    "rewardBanked": "¡Recompensa guardada!",
+    "rewardBankedFor": "{{name}} ha completado su tarjeta. La recompensa queda guardada y su tarjeta sigue activa.",
+    "rewardsWaiting": "{{count}} recompensas pendientes de canjear.",
+    "progressKept": "{{name}} conserva sus sellos.",
+    "rewardsWaitingOne": "1 recompensa pendiente de canjear."
+  },
+  "reward": {
+    "banner": "¡Recompensa disponible!",
+    "prompt": "¿Quieres canjear su recompensa ahora?",
+    "entitled": "¡Este cliente tiene derecho a su recompensa!"
+  },
+  "errors": {
+    "noBusinessSelected": "Ningún comercio seleccionado",
+    "loadFailed": "No se ha podido cargar el cliente",
+    "stampFailed": "No se ha podido añadir el sello",
+    "redeemFailed": "No se ha podido canjear la recompensa",
+    "pausedTitle": "Escaneo en pausa",
+    "pausedMessage": "El propietario del comercio ha pausado tu acceso al escaneo. Contacta con él para restaurarlo.",
+    "checkoutRequired": "El propietario tiene que terminar de configurar la suscripción antes de que puedas añadir sellos.",
+    "goHome": "Volver al inicio"
+  },
+  "rewardsBadge": "{{count}} recompensas por canjear",
+  "rewardsBadgeOne": "1 recompensa por canjear"
+}

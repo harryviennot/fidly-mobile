@@ -130,6 +130,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     "expo-web-browser",
     [
+      // AppCheckCore (pulled in via GoogleSignIn) became a Swift pod and now requires
+      // its GoogleUtilities/RecaptchaInterop deps to emit module maps, otherwise CocoaPods
+      // refuses to integrate it as a static library and `pod install` fails on EAS.
+      // We don't commit Podfile.lock (ios/ is a generated, gitignored folder), so EAS
+      // re-resolves pods on every build — this keeps the fix across prebuilds.
+      "expo-build-properties",
+      {
+        ios: {
+          extraPods: [
+            { name: "GoogleUtilities", modular_headers: true },
+            { name: "RecaptchaInterop", modular_headers: true },
+          ],
+        },
+      },
+    ],
+    [
       "@sentry/react-native/expo",
       {
         organization: "stampeo",
