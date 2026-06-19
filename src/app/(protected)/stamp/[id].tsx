@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { WarningCircle, Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { getCustomer, addStamp, redeemReward } from "@/api/customers";
+import { markScanCompleted } from "@/lib/app-rating";
 import { useBusiness } from "@/contexts/business-context";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -99,6 +100,9 @@ export default function StampScreen() {
           : null
       );
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Arm the one-time rating prompt. It is NOT shown here — it fires when the
+      // employee next returns to the lobby, so it never interrupts scanning.
+      markScanCompleted();
     } catch (err) {
       const code = (err as any)?.code;
       if (code === "MEMBER_PAUSED") {
