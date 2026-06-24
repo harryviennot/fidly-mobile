@@ -59,15 +59,21 @@ export async function addStamp(
 export async function redeemReward(
   businessId: string,
   enrollmentId: string,
-  locationId?: string | null
+  locationId?: string | null,
+  rewardId?: string | null
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  // Tag the redemption with the lobby-selected location (mirrors addStamp).
-  // Lenient server-side: omitting it records NULL instead of erroring.
+  // Tag the redemption with the lobby-selected location (mirrors addStamp) and,
+  // for multi-reward programs (the points menu), the chosen reward_id. Lenient
+  // server-side: omitting location records NULL; omitting reward_id claims the
+  // natural default. Send a body whenever either is present.
   const init: RequestInit = { method: "POST", headers };
-  if (locationId) {
-    init.body = JSON.stringify({ location_id: locationId });
+  const reqBody: Record<string, unknown> = {};
+  if (locationId) reqBody.location_id = locationId;
+  if (rewardId) reqBody.reward_id = rewardId;
+  if (Object.keys(reqBody).length > 0) {
+    init.body = JSON.stringify(reqBody);
   }
 
   const response = await fetch(

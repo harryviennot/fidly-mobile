@@ -10,6 +10,7 @@ import enLobby from './en/lobby.json';
 import enScanner from './en/scanner.json';
 import enStamp from './en/stamp.json';
 import enLocation from './en/location.json';
+import enPoints from './en/points.json';
 
 // French translations
 import frCommon from './fr/common.json';
@@ -19,6 +20,7 @@ import frLobby from './fr/lobby.json';
 import frScanner from './fr/scanner.json';
 import frStamp from './fr/stamp.json';
 import frLocation from './fr/location.json';
+import frPoints from './fr/points.json';
 
 // Spanish translations
 import esCommon from './es/common.json';
@@ -28,6 +30,7 @@ import esLobby from './es/lobby.json';
 import esScanner from './es/scanner.json';
 import esStamp from './es/stamp.json';
 import esLocation from './es/location.json';
+import esPoints from './es/points.json';
 
 const resources = {
   en: {
@@ -38,6 +41,7 @@ const resources = {
     scanner: enScanner,
     stamp: enStamp,
     location: enLocation,
+    points: enPoints,
   },
   fr: {
     common: frCommon,
@@ -47,6 +51,7 @@ const resources = {
     scanner: frScanner,
     stamp: frStamp,
     location: frLocation,
+    points: frPoints,
   },
   es: {
     common: esCommon,
@@ -56,6 +61,7 @@ const resources = {
     scanner: esScanner,
     stamp: esStamp,
     location: esLocation,
+    points: esPoints,
   },
 };
 
@@ -78,7 +84,7 @@ i18n.use(initReactI18next).init({
   lng: initialLocale,
   fallbackLng: 'en',
   defaultNS: 'common',
-  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location'],
+  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location', 'points'],
   interpolation: {
     escapeValue: false, // React already escapes
   },

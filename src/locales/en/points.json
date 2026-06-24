@@ -1,0 +1,32 @@
+{
+  "balance": "{{count}} pts",
+  "unit": "pts",
+  "amountPreview": "≈ +{{points}} pts",
+  "addPoints": "Add Points",
+  "rewardsAvailable": "{{count}} rewards to redeem",
+  "rewardsAvailable_one": "1 reward to redeem",
+  "menu": {
+    "title": "Rewards",
+    "cost": "{{count}} pts",
+    "need": "{{count}} pts to go",
+    "redeem": "Redeem"
+  },
+  "success": {
+    "title": "Points Added!",
+    "scanNext": "Scan Next Customer",
+    "toNextReward": "{{count}} pts to {{reward}}",
+    "topReward": "Top reward reached!"
+  },
+  "reward": {
+    "unlocked": "Reward Unlocked!",
+    "redeemNow": "Redeem Now"
+  },
+  "redeem": {
+    "title": "Reward Redeemed!"
+  },
+  "errors": {
+    "amountRequired": "Enter the purchase amount to add points.",
+    "addFailed": "Couldn't add points. Please try again.",
+    "redeemFailed": "Couldn't redeem the reward. Please try again."
+  }
+}
