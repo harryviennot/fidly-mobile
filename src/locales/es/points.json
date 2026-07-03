@@ -13,6 +13,7 @@
   },
   "success": {
     "title": "¡Puntos añadidos!",
+    "earned": "+{{count}} pts",
     "scanNext": "Escanear al siguiente cliente",
     "toNextReward": "Solo {{count}} pts para {{reward}}",
     "topReward": "¡Recompensa máxima alcanzada!"

@@ -1,5 +1,6 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
@@ -9,9 +10,11 @@ import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
 import type { Customer, StampResponse } from "@/types/api";
+import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
 import { StampGrid } from "./StampGrid";
+import { BODY_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
 
 interface StampFlowProps {
   customer: Customer;
@@ -136,6 +139,25 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     router.replace("/lobby");
   }
 
+  // Shared redeem CTA (same look everywhere; press-scale + medium haptic).
+  const renderRedeemButton = (alsoDisabled = false) => (
+    <PressableScale
+      style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
+      haptic="medium"
+      onPress={handleRedeemReward}
+      disabled={redeeming || alsoDisabled}
+    >
+      {redeeming ? (
+        <ActivityIndicator color="#fff" />
+      ) : (
+        <>
+          <Gift size={24} color="#fff" weight="bold" />
+          <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
+        </>
+      )}
+    </PressableScale>
+  );
+
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -255,33 +277,35 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     const keptStamps = success.stamps > 0;
     return (
       <ConfirmationScaffold>
-        <View style={styles.rewardIcon}>
+        <Animated.View entering={ICON_ENTER} style={styles.rewardIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
-        </View>
-        <Text style={dynamicStyles.successTitle}>{t("success.rewardRedeemed")}</Text>
-        <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-          {keptStamps
-            ? t("success.progressKept", { name: customer.name })
-            : t("success.cardReset", { name: customer.name })}
-          {"\n"}
-          {keptStamps && (success.rewards ?? 0) > 0
-            ? rewardsWaitingText(success.rewards ?? 0)
-            : t("success.collectAgain")}
-        </Text>
-
-        <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>
-            {keptStamps ? t("currentStamps") : t("stampsReset")}
+        </Animated.View>
+        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
+          <Text style={dynamicStyles.successTitle}>{t("success.rewardRedeemed")}</Text>
+          <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
+            {keptStamps
+              ? t("success.progressKept", { name: customer.name })
+              : t("success.cardReset", { name: customer.name })}
+            {"\n"}
+            {keptStamps && (success.rewards ?? 0) > 0
+              ? rewardsWaitingText(success.rewards ?? 0)
+              : t("success.collectAgain")}
           </Text>
-          <StampGrid total={totalStamps} filled={success.stamps} />
-          <Text style={dynamicStyles.stampsCount}>
-            {t("stampsCount", { current: success.stamps, total: totalStamps })}
-          </Text>
-        </View>
 
-        <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
-          <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
-        </TouchableOpacity>
+          <View style={styles.stampsDisplay}>
+            <Text style={dynamicStyles.stampsLabel}>
+              {keptStamps ? t("currentStamps") : t("stampsReset")}
+            </Text>
+            <StampGrid total={totalStamps} filled={success.stamps} />
+            <Text style={dynamicStyles.stampsCount}>
+              {t("stampsCount", { current: success.stamps, total: totalStamps })}
+            </Text>
+          </View>
+
+          <PressableScale style={dynamicStyles.button} onPress={handleDone}>
+            <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
+          </PressableScale>
+        </Animated.View>
       </ConfirmationScaffold>
     );
   }
@@ -296,47 +320,36 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   ) {
     return (
       <ConfirmationScaffold>
-        <View style={styles.completedIcon}>
+        <Animated.View entering={ICON_ENTER} style={styles.completedIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
-        </View>
-        <Text style={dynamicStyles.successTitle}>{t("success.rewardBanked")}</Text>
-        <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-          {t("success.rewardBankedFor", { name: customer.name })}{"\n"}
-          {rewardsWaitingText(success.rewards ?? 0)}
-        </Text>
-
-        <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
-          <StampGrid total={totalStamps} filled={success.stamps} />
-          <Text style={dynamicStyles.stampsCount}>
-            {t("stampsCount", { current: success.stamps, total: totalStamps })}
+        </Animated.View>
+        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
+          <Text style={dynamicStyles.successTitle}>{t("success.rewardBanked")}</Text>
+          <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
+            {t("success.rewardBankedFor", { name: customer.name })}{"\n"}
+            {rewardsWaitingText(success.rewards ?? 0)}
           </Text>
-        </View>
 
-        {error && (
-          <View style={styles.inlineError}>
-            <Text style={styles.inlineErrorText}>{error}</Text>
+          <View style={styles.stampsDisplay}>
+            <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
+            <StampGrid total={totalStamps} filled={success.stamps} popLast />
+            <Text style={dynamicStyles.stampsCount}>
+              {t("stampsCount", { current: success.stamps, total: totalStamps })}
+            </Text>
           </View>
-        )}
 
-        <TouchableOpacity
-          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
-          onPress={handleRedeemReward}
-          disabled={redeeming}
-        >
-          {redeeming ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Gift size={24} color="#fff" weight="bold" />
-              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
-            </>
+          {error && (
+            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
+              <Text style={styles.inlineErrorText}>{error}</Text>
+            </Animated.View>
           )}
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
-          <Text style={dynamicStyles.cancelButtonText}>{t("scanNext")}</Text>
-        </TouchableOpacity>
+          {renderRedeemButton()}
+
+          <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+            <Text style={dynamicStyles.cancelButtonText}>{t("scanNext")}</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </ConfirmationScaffold>
     );
   }
@@ -345,48 +358,37 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   if (success && !redeemSuccess && success.stamps >= totalStamps) {
     return (
       <ConfirmationScaffold>
-        <View style={styles.completedIcon}>
+        <Animated.View entering={ICON_ENTER} style={styles.completedIcon}>
           <Confetti size={56} color="#fff" weight="fill" />
-        </View>
-        <Text style={dynamicStyles.successTitle}>{t("success.cardComplete")}</Text>
-        <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-          {t("success.stampAddedFor", { name: customer.name })}{"\n"}
-          {t("success.cardFull")}
-        </Text>
-
-        <View style={styles.stampsDisplay}>
-          <StampGrid total={totalStamps} filled={totalStamps} />
-          <Text style={dynamicStyles.stampsCount}>
-            {t("stampsCountFull", { current: success.stamps, total: totalStamps })}
+        </Animated.View>
+        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
+          <Text style={dynamicStyles.successTitle}>{t("success.cardComplete")}</Text>
+          <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
+            {t("success.stampAddedFor", { name: customer.name })}{"\n"}
+            {t("success.cardFull")}
           </Text>
-        </View>
 
-        {error && (
-          <View style={styles.inlineError}>
-            <Text style={styles.inlineErrorText}>{error}</Text>
+          <View style={styles.stampsDisplay}>
+            <StampGrid total={totalStamps} filled={totalStamps} popLast />
+            <Text style={dynamicStyles.stampsCount}>
+              {t("stampsCountFull", { current: success.stamps, total: totalStamps })}
+            </Text>
           </View>
-        )}
 
-        <Text style={dynamicStyles.rewardPrompt}>{t("reward.prompt")}</Text>
-
-        <TouchableOpacity
-          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
-          onPress={handleRedeemReward}
-          disabled={redeeming}
-        >
-          {redeeming ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Gift size={24} color="#fff" weight="bold" />
-              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
-            </>
+          {error && (
+            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
+              <Text style={styles.inlineErrorText}>{error}</Text>
+            </Animated.View>
           )}
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
-          <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
-        </TouchableOpacity>
+          <Text style={dynamicStyles.rewardPrompt}>{t("reward.prompt")}</Text>
+
+          {renderRedeemButton()}
+
+          <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+            <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </ConfirmationScaffold>
     );
   }
@@ -395,23 +397,25 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   if (success && !redeemSuccess) {
     return (
       <ConfirmationScaffold>
-        <View style={styles.successIcon}>
+        <Animated.View entering={ICON_ENTER} style={styles.successIcon}>
           <Check size={56} color="#fff" weight="bold" />
-        </View>
-        <Text style={dynamicStyles.successTitle}>{t("success.stampAdded")}</Text>
-        <Text style={dynamicStyles.successMessage}>{success.message}</Text>
+        </Animated.View>
+        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
+          <Text style={dynamicStyles.successTitle}>{t("success.stampAdded")}</Text>
+          <Text style={dynamicStyles.successMessage}>{success.message}</Text>
 
-        <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
-          <StampGrid total={totalStamps} filled={success.stamps} />
-          <Text style={dynamicStyles.stampsCount}>
-            {t("stampsCount", { current: success.stamps, total: totalStamps })}
-          </Text>
-        </View>
+          <View style={styles.stampsDisplay}>
+            <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
+            <StampGrid total={totalStamps} filled={success.stamps} popLast />
+            <Text style={dynamicStyles.stampsCount}>
+              {t("stampsCount", { current: success.stamps, total: totalStamps })}
+            </Text>
+          </View>
 
-        <TouchableOpacity style={dynamicStyles.button} onPress={handleDone}>
-          <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
-        </TouchableOpacity>
+          <PressableScale style={dynamicStyles.button} onPress={handleDone}>
+            <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
+          </PressableScale>
+        </Animated.View>
       </ConfirmationScaffold>
     );
   }
@@ -420,7 +424,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   if (isReadyForReward) {
     return (
       <ConfirmationScaffold>
-        <View style={dynamicStyles.card}>
+        <Animated.View entering={SOFT_ENTER} style={dynamicStyles.card}>
           <View style={styles.rewardBanner}>
             <Gift size={32} color="#fff" weight="fill" />
             <Text style={styles.rewardBannerText}>{t("reward.banner")}</Text>
@@ -445,24 +449,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               <Text style={styles.inlineErrorText}>{error}</Text>
             </View>
           )}
-        </View>
+        </Animated.View>
 
         <Text style={dynamicStyles.rewardPrompt}>{t("reward.entitled")}</Text>
 
-        <TouchableOpacity
-          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
-          onPress={handleRedeemReward}
-          disabled={redeeming}
-        >
-          {redeeming ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Gift size={24} color="#fff" weight="bold" />
-              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {renderRedeemButton()}
 
         <TouchableOpacity style={styles.skipButton} onPress={handleSkipReward} disabled={redeeming}>
           <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
@@ -474,7 +465,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   // Normal stamp state.
   return (
     <ConfirmationScaffold>
-      <View style={dynamicStyles.card}>
+      <Animated.View entering={SOFT_ENTER} style={dynamicStyles.card}>
         <View style={dynamicStyles.avatar}>
           <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
         </View>
@@ -500,14 +491,15 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         </View>
 
         {error && (
-          <View style={styles.inlineError}>
+          <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
             <Text style={styles.inlineErrorText}>{error}</Text>
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
 
-      <TouchableOpacity
+      <PressableScale
         style={[dynamicStyles.stampButton, stamping && styles.buttonDisabled]}
+        haptic="medium"
         onPress={handleAddStamp}
         disabled={stamping || redeeming}
       >
@@ -516,24 +508,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         ) : (
           <Text style={styles.stampButtonText}>{t("addStamp")}</Text>
         )}
-      </TouchableOpacity>
+      </PressableScale>
 
-      {hasBankedRewards && (
-        <TouchableOpacity
-          style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
-          onPress={handleRedeemReward}
-          disabled={stamping || redeeming}
-        >
-          {redeeming ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Gift size={24} color="#fff" weight="bold" />
-              <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      )}
+      {hasBankedRewards && renderRedeemButton(stamping)}
 
       <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
         <Text style={dynamicStyles.cancelButtonText}>{tCommon("cancel")}</Text>
@@ -584,6 +561,10 @@ const styles = StyleSheet.create({
   stampsDisplay: {
     alignItems: "center",
     width: "100%",
+  },
+  bodyWrap: {
+    width: "100%",
+    alignItems: "center",
   },
   stampButtonText: {
     color: "#fff",

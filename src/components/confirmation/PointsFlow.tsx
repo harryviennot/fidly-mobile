@@ -1,6 +1,6 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Check, Confetti, Gift, PauseCircle } from "phosphor-react-native";
@@ -18,7 +18,9 @@ import {
   parseAmount,
   previewPoints,
 } from "@/utils/money";
+import { blendColors } from "@/utils/colors";
 import { Keypad } from "@/components/Keypad";
+import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
 import { CustomerHeader } from "./CustomerHeader";
@@ -26,6 +28,7 @@ import { AmountDisplay } from "./AmountDisplay";
 import { AnimatedBalance } from "./AnimatedBalance";
 import { PointsProgress } from "./PointsProgress";
 import { RewardsMenu } from "./RewardsMenu";
+import { ACTION_ENTER, BODY_ENTER, DETAIL_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
 
 interface PointsFlowProps {
   /** May be null while the fetch is in flight — the keypad renders immediately. */
@@ -78,10 +81,11 @@ export function PointsFlow({
   const [redeemResult, setRedeemResult] = useState<StampResponse | null>(null);
   const [balanceBeforeAdd, setBalanceBeforeAdd] = useState(0);
   const [balanceBeforeRedeem, setBalanceBeforeRedeem] = useState(0);
+  const [redeemedRewardName, setRedeemedRewardName] = useState<string | null>(null);
   const [rewardsMenuOpen, setRewardsMenuOpen] = useState(false);
 
   const program = customer?.program ?? null;
-  const ladder = program?.rewards ?? [];
+  const ladder = useMemo(() => program?.rewards ?? [], [program]);
   const rate = program?.points_per_currency_unit ?? fallbackRate ?? null;
   const separator = getDecimalSeparator();
   const currency = getCurrencySymbol();
@@ -93,6 +97,14 @@ export function PointsFlow({
   const balance = redeemResult ? valueOf(redeemResult) : addResult ? valueOf(addResult) : program?.primary_value ?? 0;
   const affordableCount = ladder.filter((r) => r.threshold <= balance).length;
   const rewardReady = affordableCount > 0;
+
+  // The add CTA fades between enabled/disabled instead of jumping.
+  const canAdd = parsedAmount > 0;
+  const addOpacity = useSharedValue(canAdd ? 1 : 0.4);
+  useEffect(() => {
+    addOpacity.value = withTiming(canAdd ? 1 : 0.4, { duration: 160 });
+  }, [canAdd, addOpacity]);
+  const addOpacityStyle = useAnimatedStyle(() => ({ opacity: addOpacity.value }));
 
   function handleKey(key: string) {
     setAmount((a) => applyKeypadInput(a, key, separator));
@@ -158,6 +170,7 @@ export function PointsFlow({
       setRedeemingRewardId(rewardId);
       setError(null);
       setBalanceBeforeRedeem(balance);
+      setRedeemedRewardName(ladder.find((r) => r.id === rewardId)?.name ?? null);
       const result = await redeemReward(businessId, enrollmentId, selectedLocation?.id, rewardId);
       setRedeemResult(result);
       setRewardsMenuOpen(false);
@@ -187,14 +200,14 @@ export function PointsFlow({
         chip: {
           flexDirection: "row",
           alignItems: "center",
-          alignSelf: "flex-start",
           gap: 6,
           paddingVertical: 8,
           paddingHorizontal: 14,
           borderRadius: 9999,
-          backgroundColor: theme.stampEmpty,
+          backgroundColor: blendColors(theme.primary, theme.background, 0.86),
         },
-        chipText: { color: theme.text, fontSize: 14, fontWeight: "600" },
+        chipWrap: { alignSelf: "flex-start" },
+        chipText: { color: theme.primary, fontSize: 14, fontWeight: "700" },
         middle: { flex: 1, justifyContent: "center" },
         bottomGroup: { gap: 12 },
         addButton: {
@@ -204,24 +217,46 @@ export function PointsFlow({
           alignItems: "center",
           justifyContent: "center",
         },
-        addButtonDisabled: { opacity: 0.4 },
         addButtonText: { color: theme.primaryText, fontSize: 20, fontWeight: "bold" },
         cancelButton: { padding: 12, alignItems: "center" },
         cancelText: { color: theme.textSecondary, fontSize: 16 },
-        // Success states
+        // Success states — full-height: header on top, balance hero centered in
+        // the remaining space, actions anchored at the bottom (where the thumb
+        // already is after tapping "Add points").
+        successRoot: { flex: 1, width: "100%", alignItems: "center" },
+        successHeader: { alignItems: "center", paddingTop: 8 },
+        successHeaderText: { alignItems: "center" },
         successIcon: {
-          width: 100,
-          height: 100,
-          borderRadius: 50,
+          width: 96,
+          height: 96,
+          borderRadius: 48,
           justifyContent: "center",
           alignItems: "center",
-          marginBottom: 24,
+          marginBottom: 20,
         },
-        successBody: { width: "100%", alignItems: "center" },
-        successTitle: { fontSize: 28, fontWeight: "bold", color: theme.text, marginBottom: 8, textAlign: "center" },
-        balanceRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 8 },
-        balanceBig: { fontSize: 44, fontWeight: "800", color: theme.text, lineHeight: 48 },
-        balanceUnit: { fontSize: 22, fontWeight: "700", color: theme.textSecondary, marginLeft: 6, marginBottom: 4 },
+        successTitle: { fontSize: 28, fontWeight: "bold", color: theme.text, marginBottom: 6, textAlign: "center" },
+        successName: { fontSize: 16, color: theme.textSecondary, textAlign: "center" },
+        successHero: {
+          flex: 1,
+          width: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 18,
+        },
+        earnedPill: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          backgroundColor: "rgba(34, 197, 94, 0.12)",
+          paddingVertical: 8,
+          paddingHorizontal: 18,
+          borderRadius: 9999,
+        },
+        earnedText: { color: "#16a34a", fontSize: 17, fontWeight: "700" },
+        balanceRow: { flexDirection: "row", alignItems: "flex-end" },
+        balanceBig: { fontSize: 68, fontWeight: "800", color: theme.text, lineHeight: 72 },
+        balanceUnit: { fontSize: 26, fontWeight: "700", color: theme.textSecondary, marginLeft: 8, marginBottom: 9 },
+        successActions: { width: "100%", gap: 2 },
         inlineError: {
           backgroundColor: "#fef2f2",
           padding: 12,
@@ -232,28 +267,25 @@ export function PointsFlow({
         inlineErrorText: { color: "#dc2626", textAlign: "center" },
         primaryButton: {
           backgroundColor: theme.primary,
-          paddingVertical: 16,
-          paddingHorizontal: 32,
+          paddingVertical: 18,
           borderRadius: 9999,
-          marginTop: 24,
           alignItems: "center",
-          minWidth: 200,
+          justifyContent: "center",
+          width: "100%",
         },
-        primaryButtonText: { color: theme.primaryText, fontSize: 18, fontWeight: "700" },
+        primaryButtonText: { color: theme.primaryText, fontSize: 20, fontWeight: "bold" },
         redeemNowButton: {
           flexDirection: "row",
           gap: 10,
           backgroundColor: "#22c55e",
-          paddingVertical: 16,
-          paddingHorizontal: 32,
+          paddingVertical: 18,
           borderRadius: 9999,
-          marginTop: 24,
           alignItems: "center",
           justifyContent: "center",
-          minWidth: 200,
+          width: "100%",
         },
-        redeemNowText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-        skipButton: { marginTop: 12, padding: 12, alignItems: "center" },
+        redeemNowText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+        skipButton: { padding: 14, alignItems: "center" },
       }),
     [theme]
   );
@@ -271,31 +303,57 @@ export function PointsFlow({
     );
   }
 
-  // Redeem success: reward claimed, balance spent down.
+  // Redeem success: reward claimed, balance spent down. Full-height layout:
+  // what happened on top, the new balance as the hero, actions at the bottom.
   if (redeemResult) {
     const after = valueOf(redeemResult);
     const next = nextReward(ladder, after);
     return (
       <ConfirmationScaffold>
-        <Animated.View
-          entering={ZoomIn.springify().damping(13)}
-          style={[styles.successIcon, { backgroundColor: "#22c55e" }]}
-        >
-          <Confetti size={56} color="#fff" weight="fill" />
-        </Animated.View>
-        <Animated.View entering={FadeIn.duration(220)} style={styles.successBody}>
-          <Text style={styles.successTitle}>{t("redeem.title")}</Text>
-          <View style={styles.balanceRow}>
-            <AnimatedBalance from={balanceBeforeRedeem} to={after} style={styles.balanceBig} />
-            <Text style={styles.balanceUnit}>{t("unit")}</Text>
+        <View style={styles.successRoot}>
+          <View style={styles.successHeader}>
+            <Animated.View
+              entering={ICON_ENTER}
+              style={[styles.successIcon, { backgroundColor: "#22c55e" }]}
+            >
+              <Confetti size={52} color="#fff" weight="fill" />
+            </Animated.View>
+            <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
+              <Text style={styles.successTitle}>{t("redeem.title")}</Text>
+              <Text style={styles.successName} numberOfLines={1}>
+                {customer?.name ?? ""}
+              </Text>
+            </Animated.View>
           </View>
-          {ladder.length > 0 && (
-            <PointsProgress value={after} nextThreshold={next?.threshold ?? null} nextRewardName={next?.name} />
-          )}
-          <TouchableOpacity style={styles.primaryButton} onPress={handleDone}>
-            <Text style={styles.primaryButtonText}>{t("success.scanNext")}</Text>
-          </TouchableOpacity>
-        </Animated.View>
+
+          <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {redeemedRewardName && (
+              <View style={styles.earnedPill}>
+                <Gift size={18} color="#16a34a" weight="fill" />
+                <Text style={styles.earnedText} numberOfLines={1}>
+                  {redeemedRewardName}
+                </Text>
+              </View>
+            )}
+            <View style={styles.balanceRow}>
+              <AnimatedBalance from={balanceBeforeRedeem} to={after} style={styles.balanceBig} />
+              <Text style={styles.balanceUnit}>{t("unit")}</Text>
+            </View>
+            {ladder.length > 0 && (
+              <PointsProgress
+                value={after}
+                nextThreshold={next?.threshold ?? null}
+                nextRewardName={next?.name}
+              />
+            )}
+          </Animated.View>
+
+          <Animated.View entering={ACTION_ENTER} style={styles.successActions}>
+            <PressableScale style={styles.primaryButton} onPress={handleDone}>
+              <Text style={styles.primaryButtonText}>{t("success.scanNext")}</Text>
+            </PressableScale>
+          </Animated.View>
+        </View>
       </ConfirmationScaffold>
     );
   }
@@ -303,49 +361,76 @@ export function PointsFlow({
   // Add success: points credited.
   if (addResult) {
     const after = valueOf(addResult);
+    const earned = Math.max(0, after - balanceBeforeAdd);
     const justCrossed = ladder.some((r) => balanceBeforeAdd < r.threshold && r.threshold <= after);
     const canRedeem = ladder.some((r) => r.threshold <= after);
     const next = nextReward(ladder, after);
     return (
       <ConfirmationScaffold>
-        <Animated.View
-          entering={ZoomIn.springify().damping(13)}
-          style={[styles.successIcon, { backgroundColor: justCrossed ? "#f59e0b" : "#22c55e" }]}
-        >
-          {justCrossed ? (
-            <Confetti size={56} color="#fff" weight="fill" />
-          ) : (
-            <Check size={56} color="#fff" weight="bold" />
-          )}
-        </Animated.View>
-        <Animated.View entering={FadeIn.duration(220)} style={styles.successBody}>
-          <Text style={styles.successTitle}>
-            {justCrossed ? t("reward.unlocked") : t("success.title")}
-          </Text>
-          <View style={styles.balanceRow}>
-            <AnimatedBalance from={balanceBeforeAdd} to={after} style={styles.balanceBig} />
-            <Text style={styles.balanceUnit}>{t("unit")}</Text>
+        <View style={styles.successRoot}>
+          <View style={styles.successHeader}>
+            <Animated.View
+              entering={ICON_ENTER}
+              style={[styles.successIcon, { backgroundColor: justCrossed ? "#f59e0b" : "#22c55e" }]}
+            >
+              {justCrossed ? (
+                <Confetti size={52} color="#fff" weight="fill" />
+              ) : (
+                <Check size={52} color="#fff" weight="bold" />
+              )}
+            </Animated.View>
+            <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
+              <Text style={styles.successTitle}>
+                {justCrossed ? t("reward.unlocked") : t("success.title")}
+              </Text>
+              <Text style={styles.successName} numberOfLines={1}>
+                {customer?.name ?? ""}
+              </Text>
+            </Animated.View>
           </View>
-          {ladder.length > 0 && (
-            <PointsProgress value={after} nextThreshold={next?.threshold ?? null} nextRewardName={next?.name} />
-          )}
 
-          {canRedeem ? (
-            <TouchableOpacity style={styles.redeemNowButton} onPress={() => setRewardsMenuOpen(true)}>
-              <Gift size={22} color="#fff" weight="bold" />
-              <Text style={styles.redeemNowText}>{t("reward.redeemNow")}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.primaryButton} onPress={handleDone}>
-              <Text style={styles.primaryButtonText}>{t("success.scanNext")}</Text>
-            </TouchableOpacity>
-          )}
-          {canRedeem && (
-            <TouchableOpacity style={styles.skipButton} onPress={handleDone}>
-              <Text style={styles.cancelText}>{t("success.scanNext")}</Text>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
+          <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {earned > 0 && (
+              <View style={styles.earnedPill}>
+                <Text style={styles.earnedText}>{t("success.earned", { count: earned })}</Text>
+              </View>
+            )}
+            <View style={styles.balanceRow}>
+              <AnimatedBalance from={balanceBeforeAdd} to={after} style={styles.balanceBig} />
+              <Text style={styles.balanceUnit}>{t("unit")}</Text>
+            </View>
+            {ladder.length > 0 && (
+              <PointsProgress
+                value={after}
+                nextThreshold={next?.threshold ?? null}
+                nextRewardName={next?.name}
+                previousValue={balanceBeforeAdd}
+              />
+            )}
+          </Animated.View>
+
+          <Animated.View entering={ACTION_ENTER} style={styles.successActions}>
+            {canRedeem ? (
+              <PressableScale
+                style={styles.redeemNowButton}
+                haptic="medium"
+                onPress={() => setRewardsMenuOpen(true)}
+              >
+                <Gift size={22} color="#fff" weight="bold" />
+                <Text style={styles.redeemNowText}>{t("reward.redeemNow")}</Text>
+              </PressableScale>
+            ) : (
+              <PressableScale style={styles.primaryButton} onPress={handleDone}>
+                <Text style={styles.primaryButtonText}>{t("success.scanNext")}</Text>
+              </PressableScale>
+            )}
+            {canRedeem && (
+              <TouchableOpacity style={styles.skipButton} onPress={handleDone}>
+                <Text style={styles.cancelText}>{t("success.scanNext")}</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        </View>
 
         <RewardsMenu
           visible={rewardsMenuOpen}
@@ -359,8 +444,17 @@ export function PointsFlow({
     );
   }
 
-  // Entry: keypad-first.
-  const balanceLabel = program ? t("balance", { count: program.primary_value }) : null;
+  // Entry: keypad-first. The header line packs the glanceable facts: balance
+  // plus how far the next reward is, so the employee can say it out loud.
+  const entryNext = program ? nextReward(ladder, program.primary_value) : null;
+  const balanceLabel = program
+    ? entryNext
+      ? `${t("balance", { count: program.primary_value })} · ${t("success.toNextReward", {
+          count: entryNext.threshold - program.primary_value,
+          reward: entryNext.name,
+        })}`
+      : t("balance", { count: program.primary_value })
+    : null;
 
   return (
     <ConfirmationScaffold>
@@ -368,40 +462,48 @@ export function PointsFlow({
         <View style={styles.topGroup}>
           <CustomerHeader name={customer?.name ?? null} balance={balanceLabel} loading={loading} />
           {rewardReady && (
-            <TouchableOpacity style={styles.chip} onPress={() => setRewardsMenuOpen(true)} activeOpacity={0.7}>
-              <Gift size={16} color={theme.primary} weight="fill" />
-              <Text style={styles.chipText}>
-                {t(affordableCount === 1 ? "rewardsAvailable_one" : "rewardsAvailable", {
-                  count: affordableCount,
-                })}
-              </Text>
-            </TouchableOpacity>
+            <Animated.View entering={SOFT_ENTER} style={styles.chipWrap}>
+              <PressableScale
+                style={styles.chip}
+                scaleTo={0.95}
+                onPress={() => setRewardsMenuOpen(true)}
+              >
+                <Gift size={16} color={theme.primary} weight="fill" />
+                <Text style={styles.chipText}>
+                  {t(affordableCount === 1 ? "rewardsAvailable_one" : "rewardsAvailable", {
+                    count: affordableCount,
+                  })}
+                </Text>
+              </PressableScale>
+            </Animated.View>
           )}
         </View>
 
         <View style={styles.middle}>
           <AmountDisplay amount={amount} currencySymbol={currency} pointsPreview={pointsPreview} />
           {error && (
-            <View style={styles.inlineError}>
+            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
               <Text style={styles.inlineErrorText}>{error}</Text>
-            </View>
+            </Animated.View>
           )}
         </View>
 
         <View style={styles.bottomGroup}>
           <Keypad onKeyPress={handleKey} separator={separator} disabled={adding} />
-          <TouchableOpacity
-            style={[styles.addButton, !(parsedAmount > 0) && styles.addButtonDisabled]}
-            onPress={handleAdd}
-            disabled={adding || !(parsedAmount > 0)}
-            activeOpacity={0.85}
-          >
-            {adding ? (
-              <ActivityIndicator color={theme.primaryText} />
-            ) : (
-              <Text style={styles.addButtonText}>{t("addPoints")}</Text>
-            )}
-          </TouchableOpacity>
+          <Animated.View style={addOpacityStyle}>
+            <PressableScale
+              style={styles.addButton}
+              haptic="medium"
+              onPress={handleAdd}
+              disabled={adding || !canAdd}
+            >
+              {adding ? (
+                <ActivityIndicator color={theme.primaryText} />
+              ) : (
+                <Text style={styles.addButtonText}>{t("addPoints")}</Text>
+              )}
+            </PressableScale>
+          </Animated.View>
           <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
             <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
           </TouchableOpacity>

@@ -59,7 +59,11 @@ export function CustomerHeader({ name, balance, loading }: CustomerHeaderProps) 
         <Text style={styles.name} numberOfLines={1}>
           {name ?? ""}
         </Text>
-        {balance != null && <Text style={styles.balance}>{balance}</Text>}
+        {balance != null && (
+          <Text style={styles.balance} numberOfLines={1}>
+            {balance}
+          </Text>
+        )}
       </View>
     </View>
   );
