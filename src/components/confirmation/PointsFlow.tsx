@@ -43,6 +43,14 @@ interface PointsFlowProps {
 
 const valueOf = (r: StampResponse) => r.value_after ?? r.stamps;
 
+// Success palette: soft tinted circles with a colored glyph instead of solid
+// saturated discs — the screen shows up dozens of times a day, so the only
+// fully saturated element is the action button.
+const SUCCESS_GREEN = "#16a34a";
+const SUCCESS_TINT = "rgba(34, 197, 94, 0.14)";
+const UNLOCK_AMBER = "#d97706";
+const UNLOCK_TINT = "rgba(245, 158, 11, 0.16)";
+
 /** Smallest reward threshold strictly above `value`, with its name. */
 function nextReward(ladder: ProgramReward[], value: number): ProgramReward | null {
   return (
@@ -227,35 +235,27 @@ export function PointsFlow({
         successHeader: { alignItems: "center", paddingTop: 8 },
         successHeaderText: { alignItems: "center" },
         successIcon: {
-          width: 96,
-          height: 96,
-          borderRadius: 48,
+          width: 72,
+          height: 72,
+          borderRadius: 36,
           justifyContent: "center",
           alignItems: "center",
-          marginBottom: 20,
+          marginBottom: 16,
         },
-        successTitle: { fontSize: 28, fontWeight: "bold", color: theme.text, marginBottom: 6, textAlign: "center" },
-        successName: { fontSize: 16, color: theme.textSecondary, textAlign: "center" },
+        successTitle: { fontSize: 24, fontWeight: "700", color: theme.text, marginBottom: 4, textAlign: "center" },
+        successName: { fontSize: 15, color: theme.textSecondary, textAlign: "center" },
         successHero: {
           flex: 1,
           width: "100%",
           alignItems: "center",
           justifyContent: "center",
-          gap: 18,
+          gap: 16,
         },
-        earnedPill: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          backgroundColor: "rgba(34, 197, 94, 0.12)",
-          paddingVertical: 8,
-          paddingHorizontal: 18,
-          borderRadius: 9999,
-        },
-        earnedText: { color: "#16a34a", fontSize: 17, fontWeight: "700" },
+        earnedRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+        earnedText: { color: SUCCESS_GREEN, fontSize: 17, fontWeight: "600" },
         balanceRow: { flexDirection: "row", alignItems: "flex-end" },
-        balanceBig: { fontSize: 68, fontWeight: "800", color: theme.text, lineHeight: 72 },
-        balanceUnit: { fontSize: 26, fontWeight: "700", color: theme.textSecondary, marginLeft: 8, marginBottom: 9 },
+        balanceBig: { fontSize: 62, fontWeight: "700", color: theme.text, lineHeight: 66 },
+        balanceUnit: { fontSize: 24, fontWeight: "600", color: theme.textSecondary, marginLeft: 7, marginBottom: 8 },
         successActions: { width: "100%", gap: 2 },
         inlineError: {
           backgroundColor: "#fef2f2",
@@ -314,9 +314,9 @@ export function PointsFlow({
           <View style={styles.successHeader}>
             <Animated.View
               entering={ICON_ENTER}
-              style={[styles.successIcon, { backgroundColor: "#22c55e" }]}
+              style={[styles.successIcon, { backgroundColor: SUCCESS_TINT }]}
             >
-              <Confetti size={52} color="#fff" weight="fill" />
+              <Confetti size={36} color={SUCCESS_GREEN} weight="fill" />
             </Animated.View>
             <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
               <Text style={styles.successTitle}>{t("redeem.title")}</Text>
@@ -328,8 +328,8 @@ export function PointsFlow({
 
           <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
             {redeemedRewardName && (
-              <View style={styles.earnedPill}>
-                <Gift size={18} color="#16a34a" weight="fill" />
+              <View style={styles.earnedRow}>
+                <Gift size={16} color={SUCCESS_GREEN} weight="fill" />
                 <Text style={styles.earnedText} numberOfLines={1}>
                   {redeemedRewardName}
                 </Text>
@@ -371,12 +371,12 @@ export function PointsFlow({
           <View style={styles.successHeader}>
             <Animated.View
               entering={ICON_ENTER}
-              style={[styles.successIcon, { backgroundColor: justCrossed ? "#f59e0b" : "#22c55e" }]}
+              style={[styles.successIcon, { backgroundColor: justCrossed ? UNLOCK_TINT : SUCCESS_TINT }]}
             >
               {justCrossed ? (
-                <Confetti size={52} color="#fff" weight="fill" />
+                <Confetti size={36} color={UNLOCK_AMBER} weight="fill" />
               ) : (
-                <Check size={52} color="#fff" weight="bold" />
+                <Check size={36} color={SUCCESS_GREEN} weight="bold" />
               )}
             </Animated.View>
             <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
@@ -391,9 +391,7 @@ export function PointsFlow({
 
           <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
             {earned > 0 && (
-              <View style={styles.earnedPill}>
-                <Text style={styles.earnedText}>{t("success.earned", { count: earned })}</Text>
-              </View>
+              <Text style={styles.earnedText}>{t("success.earned", { count: earned })}</Text>
             )}
             <View style={styles.balanceRow}>
               <AnimatedBalance from={balanceBeforeAdd} to={after} style={styles.balanceBig} />
