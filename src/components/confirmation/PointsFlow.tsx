@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "rea
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Check, Confetti, Gift, PauseCircle } from "phosphor-react-native";
+import { CaretRight, Check, Confetti, Gift, PauseCircle } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { addPoints } from "@/api/points";
 import { redeemReward } from "@/api/customers";
@@ -18,7 +18,6 @@ import {
   parseAmount,
   previewPoints,
 } from "@/utils/money";
-import { blendColors } from "@/utils/colors";
 import { Keypad } from "@/components/Keypad";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -209,17 +208,21 @@ export function PointsFlow({
       StyleSheet.create({
         root: { flex: 1, width: "100%" },
         topGroup: { gap: 12 },
+        // Solid filled pill so it reads as a tappable button and stays legible
+        // for ANY brand color. The previous pale-tint-on-tint version vanished
+        // for light `primary` palettes (text color == background). primaryText is
+        // the design's guaranteed-contrast foreground on primary.
         chip: {
           flexDirection: "row",
           alignItems: "center",
-          gap: 6,
-          paddingVertical: 8,
-          paddingHorizontal: 14,
+          gap: 8,
+          paddingVertical: 11,
+          paddingHorizontal: 16,
           borderRadius: 9999,
-          backgroundColor: blendColors(theme.primary, theme.background, 0.86),
+          backgroundColor: theme.primary,
         },
         chipWrap: { alignSelf: "flex-start" },
-        chipText: { color: theme.primary, fontSize: 14, fontWeight: "700" },
+        chipText: { color: theme.primaryText, fontSize: 15, fontWeight: "700" },
         middle: { flex: 1, justifyContent: "center" },
         bottomGroup: { gap: 12 },
         addButton: {
@@ -470,12 +473,13 @@ export function PointsFlow({
                 scaleTo={0.95}
                 onPress={() => setRewardsMenuOpen(true)}
               >
-                <Gift size={16} color={theme.primary} weight="fill" />
+                <Gift size={18} color={theme.primaryText} weight="fill" />
                 <Text style={styles.chipText}>
                   {t(affordableCount === 1 ? "rewardsAvailable_one" : "rewardsAvailable", {
                     count: affordableCount,
                   })}
                 </Text>
+                <CaretRight size={16} color={theme.primaryText} weight="bold" />
               </PressableScale>
             </Animated.View>
           )}

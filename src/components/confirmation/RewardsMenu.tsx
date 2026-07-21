@@ -7,7 +7,7 @@ import { Gift, LockSimple } from "phosphor-react-native";
 import { useTheme } from "@/contexts/theme-context";
 import { BottomSheet } from "@/components/BottomSheet";
 import { PressableScale } from "@/components/PressableScale";
-import { blendColors } from "@/utils/colors";
+import { blendColors, getContrastingTextColor } from "@/utils/colors";
 import type { ProgramReward } from "@/types/api";
 
 interface RewardsMenuProps {
@@ -44,9 +44,11 @@ export function RewardsMenu({
   );
   const busy = redeemingRewardId != null;
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
+  const styles = useMemo(() => {
+    // Pale brand-tint badge, but with a contrast-safe label: raw `theme.primary`
+    // as text on this tint disappears for light brand colors.
+    const balancePillBg = blendColors(theme.primary, theme.background, 0.86);
+    return StyleSheet.create({
         sheet: {
           backgroundColor: theme.surface,
           borderTopLeftRadius: 24,
@@ -68,9 +70,9 @@ export function RewardsMenu({
           paddingVertical: 6,
           paddingHorizontal: 14,
           borderRadius: 9999,
-          backgroundColor: blendColors(theme.primary, theme.background, 0.86),
+          backgroundColor: balancePillBg,
         },
-        balanceText: { fontSize: 14, fontWeight: "700", color: theme.primary },
+        balanceText: { fontSize: 14, fontWeight: "700", color: getContrastingTextColor(balancePillBg) },
         row: {
           flexDirection: "row",
           alignItems: "center",
@@ -103,9 +105,8 @@ export function RewardsMenu({
           alignItems: "center",
         },
         redeemText: { color: theme.primaryText, fontWeight: "700", fontSize: 14 },
-      }),
-    [theme, windowHeight, insets.bottom]
-  );
+      });
+  }, [theme, windowHeight, insets.bottom]);
 
   return (
     <BottomSheet visible={visible} onClose={onClose} sheetStyle={styles.sheet}>
