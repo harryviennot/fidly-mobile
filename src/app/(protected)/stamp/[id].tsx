@@ -14,9 +14,13 @@ import type { Customer } from "@/types/api";
 
 /**
  * Confirmation screen dispatcher. Resolves the scanned QR to a customer, then
- * routes to the stamp or points flow. Program type is read from the cached
- * active design's `card_type` (instant — known before the customer loads) with
- * a fallback to the per-customer program snapshot, else stamp (legacy default).
+ * routes to the stamp or points flow. While the customer is loading, the
+ * cached active design's `card_type` drives optimistic routing (the points
+ * keypad opens instantly); once the customer snapshot arrives, ITS program
+ * type is authoritative — the design cache lives 24h and goes stale when a
+ * business converts its program type, and trusting it would silently run the
+ * wrong flow (a ticket price becoming +1 stamp). A detected mismatch also
+ * force-refreshes the cached design so the very next scan is clean.
  *
  * Owns the single customer fetch + the shared loading skeleton and load-error
  * screen, so each flow receives a loaded customer (points renders its keypad
@@ -27,7 +31,7 @@ export default function StampScreen() {
   const { t } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
   const { currentBusiness } = useBusiness();
-  const { theme, design } = useTheme();
+  const { theme, design, refreshTheme } = useTheme();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +66,20 @@ export default function StampScreen() {
     router.back();
   }
 
-  // Program type: cached design first (instant — known before the customer
-  // loads), then the per-customer snapshot. Drives keypad-first routing.
-  const programType = design?.card_type ?? customer?.program?.type;
+  // Program type: the fresh per-customer snapshot is authoritative; the
+  // cached design only covers the gap while the customer loads (keypad-first).
+  const programType = customer?.program?.type ?? design?.card_type;
+
+  // Stale-cache self-heal: the business converted its program type since the
+  // design was cached — force-refetch the active design (new card_type, new
+  // theme, new points rate) so subsequent scans route correctly on open.
+  const freshType = customer?.program?.type;
+  const cachedType = design?.card_type;
+  useEffect(() => {
+    if (freshType && cachedType && freshType !== cachedType) {
+      refreshTheme(true);
+    }
+  }, [freshType, cachedType, refreshTheme]);
 
   // Fatal load error (no customer to show).
   if (error && !customer) {

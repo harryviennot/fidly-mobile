@@ -35,7 +35,8 @@
     "pausedTitle": "Scanner suspendu",
     "pausedMessage": "Votre accès au scanner a été suspendu par le propriétaire. Contactez-le pour le restaurer.",
     "checkoutRequired": "Le propriétaire doit finaliser l'abonnement avant que vous puissiez ajouter des tampons.",
-    "goHome": "Retour à l'accueil"
+    "goHome": "Retour à l'accueil",
+    "programNowPoints": "Ce programme est passé aux points. Scannez à nouveau la carte pour saisir le montant."
   },
   "rewardsBadge": "{{count}} récompenses à utiliser",
   "rewardsBadgeOne": "1 récompense à utiliser"

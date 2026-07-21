@@ -9,6 +9,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
 import { AppState, Platform } from "react-native";
+import Constants from "expo-constants";
 import { LargeSecureStore } from "./large-secure-store";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -121,6 +122,9 @@ export function getAuthHeaders(): HeadersInit {
     // this same app's web build). The backend records it on each transaction and
     // on the user's platforms_used list for adoption analytics + achievements.
     "X-Client-Platform": Platform.OS,
+    // Installed app version, so the backend force-update gate (GET
+    // /public/app-gate) can compare it against the per-platform minimum.
+    "X-App-Version": Constants.expoConfig?.version ?? "0.0.0",
     ...(_currentAccessToken && {
       Authorization: `Bearer ${_currentAccessToken}`,
     }),

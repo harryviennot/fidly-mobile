@@ -106,8 +106,12 @@ export function PointsFlow({
   const affordableCount = ladder.filter((r) => r.threshold <= balance).length;
   const rewardReady = affordableCount > 0;
 
-  // The add CTA fades between enabled/disabled instead of jumping.
-  const canAdd = parsedAmount > 0;
+  // The add CTA fades between enabled/disabled instead of jumping. Gated on
+  // the customer snapshot having arrived: the keypad opens optimistically from
+  // the cached design type, and if the program was converted underneath the
+  // cache the dispatcher reroutes on load — submitting before that would let a
+  // ticket price silently land as +1 stamp on a now-stamp program.
+  const canAdd = parsedAmount > 0 && !loading;
   const addOpacity = useSharedValue(canAdd ? 1 : 0.4);
   useEffect(() => {
     addOpacity.value = withTiming(canAdd ? 1 : 0.4, { duration: 160 });

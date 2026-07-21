@@ -33,7 +33,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
   const { selectedLocation } = useLocation();
-  const { theme, design } = useTheme();
+  const { theme, design, refreshTheme } = useTheme();
 
   const [stamping, setStamping] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
@@ -90,6 +90,12 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         setError(tLocation("errors.notPermitted"));
       } else if (code === "LOCATION_REQUIRED" || code === "LOCATION_NOT_FOUND") {
         setError(tLocation("errors.locationRequired"));
+      } else if (code === "AMOUNT_REQUIRED") {
+        // The program converted to points between our customer fetch and this
+        // tap. Explain, and force-refresh the cached design so the next scan
+        // opens the points keypad directly.
+        setError(t("errors.programNowPoints"));
+        refreshTheme(true);
       } else {
         setError(err instanceof Error ? err.message : t("errors.stampFailed"));
       }

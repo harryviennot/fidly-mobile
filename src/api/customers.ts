@@ -31,14 +31,16 @@ export async function addStamp(
     const body = await response.json().catch(() => ({}));
     const code: string | undefined = body?.detail?.code;
     // Re-raise backend codes the UI handles explicitly (member pause, location
-    // resolution failures, and the card-upfront checkout gate). The screen maps
-    // these to localized messages.
+    // resolution failures, the card-upfront checkout gate, and AMOUNT_REQUIRED
+    // — a bodiless stamp call hitting a program that converted to points). The
+    // screen maps these to localized messages.
     if (
       code === "MEMBER_PAUSED" ||
       code === "CHECKOUT_REQUIRED" ||
       code === "LOCATION_REQUIRED" ||
       code === "LOCATION_NOT_PERMITTED" ||
-      code === "LOCATION_NOT_FOUND"
+      code === "LOCATION_NOT_FOUND" ||
+      code === "AMOUNT_REQUIRED"
     ) {
       const err = new Error(code);
       (err as any).code = code;

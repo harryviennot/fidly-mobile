@@ -7,6 +7,7 @@ import type enScanner from './en/scanner.json';
 import type enStamp from './en/stamp.json';
 import type enLocation from './en/location.json';
 import type enPoints from './en/points.json';
+import type enUpdate from './en/update.json';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -20,6 +21,7 @@ declare module 'i18next' {
       stamp: typeof enStamp;
       location: typeof enLocation;
       points: typeof enPoints;
+      update: typeof enUpdate;
     };
   }
 }
