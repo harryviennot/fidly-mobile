@@ -11,7 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
-import { blendColors } from "@/utils/colors";
+import { blendColors, getContrastingTextColor } from "@/utils/colors";
 
 interface AmountDisplayProps {
   /** Raw keypad string in the locale separator (e.g. "12,50"). */
@@ -45,9 +45,11 @@ export function AmountDisplay({ amount, currencySymbol, pointsPreview }: AmountD
   }, [amount, pop]);
   const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
+  const styles = useMemo(() => {
+    // Pale brand-tint pill: the label must be contrast-derived from that tint,
+    // not raw `theme.primary` (which vanishes on it for light brand colors).
+    const previewPillBg = blendColors(theme.primary, theme.background, 0.86);
+    return StyleSheet.create({
         wrap: { alignItems: "center", width: "100%" },
         amountRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center" },
         amount: {
@@ -68,16 +70,15 @@ export function AmountDisplay({ amount, currencySymbol, pointsPreview }: AmountD
           paddingVertical: 5,
           paddingHorizontal: 14,
           borderRadius: 9999,
-          backgroundColor: blendColors(theme.primary, theme.background, 0.86),
+          backgroundColor: previewPillBg,
         },
         preview: {
           fontSize: 16,
           fontWeight: "600",
-          color: theme.primary,
+          color: getContrastingTextColor(previewPillBg),
         },
-      }),
-    [theme, amount]
-  );
+      });
+  }, [theme, amount]);
 
   const showPreview = pointsPreview != null && pointsPreview > 0;
 

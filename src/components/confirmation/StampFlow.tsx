@@ -437,7 +437,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           </View>
 
           <View style={dynamicStyles.avatar}>
-            <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
+            <Text style={[styles.avatarText, { color: theme.primaryText }]}>{customer.name.charAt(0).toUpperCase()}</Text>
           </View>
 
           <Text style={dynamicStyles.customerName}>{customer.name}</Text>
@@ -473,7 +473,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     <ConfirmationScaffold>
       <Animated.View entering={SOFT_ENTER} style={dynamicStyles.card}>
         <View style={dynamicStyles.avatar}>
-          <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
+          <Text style={[styles.avatarText, { color: theme.primaryText }]}>{customer.name.charAt(0).toUpperCase()}</Text>
         </View>
 
         <Text style={dynamicStyles.customerName}>{customer.name}</Text>

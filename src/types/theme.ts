@@ -12,6 +12,7 @@ export interface ScannerTheme {
   // Primary brand colors (from card design)
   primary: string; // background_color - main brand color
   primaryText: string; // foreground_color - text on primary
+  primaryOnSurface: string; // brand color, kept legible as an accent on light surfaces
   accent: string; // stamp_filled_color - highlight color
 
   // UI colors (derived)
@@ -36,6 +37,7 @@ export interface ScannerTheme {
 export const DEFAULT_THEME: ScannerTheme = {
   primary: "rgb(249, 115, 22)", // #f97316
   primaryText: "rgb(255, 255, 255)",
+  primaryOnSurface: "rgb(249, 115, 22)", // orange reads fine on the light surface as-is
   accent: "rgb(249, 115, 22)",
   background: "rgb(240, 239, 233)", // #f0efe9
   surface: "rgb(250, 249, 246)", // #faf9f6
@@ -74,6 +76,13 @@ export function createThemeFromDesign(design: CardDesign): ScannerTheme {
   // Border is a subtle version of the primary
   const border = blendColors(primary, "rgb(200, 200, 200)", 0.7);
 
+  // Brand color used as an ACCENT (icons, small marks) on the near-white
+  // surface/background. A light brand color is invisible there, so darken it
+  // toward black until it reads while keeping its hue. Dark brands pass through.
+  const primaryOnSurface = isLightColor(primary)
+    ? blendColors(primary, "rgb(0, 0, 0)", 0.5)
+    : primary;
+
   // Text colors based on background luminance
   const text = getContrastingTextColor(surface);
   const textSecondary = isLightColor(surface)
@@ -83,6 +92,7 @@ export function createThemeFromDesign(design: CardDesign): ScannerTheme {
   return {
     primary,
     primaryText,
+    primaryOnSurface,
     accent: stampFilled,
     background,
     surface,

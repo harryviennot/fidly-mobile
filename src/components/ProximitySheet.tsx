@@ -97,7 +97,7 @@ export function ProximitySheet({
       {loc && (
         <View style={s.content}>
           <View style={s.iconWrap}>
-            <MapPinIcon size={28} color={theme.primary} weight="fill" />
+            <MapPinIcon size={28} color={theme.primaryOnSurface} weight="fill" />
           </View>
           <Text style={s.title}>{t("proximity.title")}</Text>
           <Text style={s.body}>
