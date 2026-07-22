@@ -27,7 +27,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.99.1",
     "aes-js": "^3.1.2",
-    "expo": "~54.0.35",
+    "expo": "~54.0.36",
     "expo-apple-authentication": "~8.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
