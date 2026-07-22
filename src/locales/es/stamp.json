@@ -35,7 +35,8 @@
     "pausedTitle": "Escaneo en pausa",
     "pausedMessage": "El propietario del comercio ha pausado tu acceso al escaneo. Contacta con él para restaurarlo.",
     "checkoutRequired": "El propietario tiene que terminar de configurar la suscripción antes de que puedas añadir sellos.",
-    "goHome": "Volver al inicio"
+    "goHome": "Volver al inicio",
+    "programNowPoints": "Este programa ahora funciona con puntos. Vuelve a escanear la tarjeta para introducir el importe."
   },
   "rewardsBadge": "{{count}} recompensas por canjear",
   "rewardsBadgeOne": "1 recompensa por canjear"
