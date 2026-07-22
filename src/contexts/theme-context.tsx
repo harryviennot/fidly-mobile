@@ -32,7 +32,9 @@ interface ThemeContextType {
   theme: ScannerTheme;
   design: CardDesign | null;
   loading: boolean;
-  refreshTheme: () => Promise<void>;
+  /** `force` bypasses the 24h cache — used to self-heal after a program-type
+   * conversion is detected mid-scan (cached card_type no longer matches). */
+  refreshTheme: (force?: boolean) => Promise<void>;
   // QR code caching
   signupQR: SignupQRResponse | null;
   qrLoading: boolean;
@@ -90,7 +92,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [signupQR, setSignupQR] = useState<SignupQRResponse | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
 
-  const refreshTheme = useCallback(async () => {
+  const refreshTheme = useCallback(async (force?: boolean) => {
     if (!currentBusiness?.id) {
       setTheme(DEFAULT_THEME);
       setDesign(null);
@@ -99,13 +101,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     try {
-      // Check cache first
-      const cached = await getCache<CardDesign>(THEME_CACHE_KEY);
-      if (isCacheValid(cached, currentBusiness.id)) {
-        setDesign(cached.data);
-        setTheme(createThemeFromDesign(cached.data));
-        setLoading(false);
-        return;
+      // Check cache first (skipped when forced — stale-type self-heal)
+      if (!force) {
+        const cached = await getCache<CardDesign>(THEME_CACHE_KEY);
+        if (isCacheValid(cached, currentBusiness.id)) {
+          setDesign(cached.data);
+          setTheme(createThemeFromDesign(cached.data));
+          setLoading(false);
+          return;
+        }
       }
 
       // Fetch fresh data

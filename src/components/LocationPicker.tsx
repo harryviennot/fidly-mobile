@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
 import { BottomSheet } from "@/components/BottomSheet";
+import { withOpacity } from "@/utils/colors";
 import type { ScannerLocation } from "@/types/api";
 
 interface LocationPickerProps {
@@ -149,7 +150,7 @@ export function LocationPicker({
           <Text style={s.name}>{item.name}</Text>
           {item.address ? <Text style={s.address}>{item.address}</Text> : null}
         </View>
-        {isSelected && <CheckIcon size={20} color={theme.primary} weight="bold" />}
+        {isSelected && <CheckIcon size={20} color={theme.primaryOnSurface} weight="bold" />}
       </TouchableOpacity>
     );
   };
@@ -157,15 +158,15 @@ export function LocationPicker({
   return (
     <>
       <TouchableOpacity
-        style={styles.trigger}
+        style={[styles.trigger, { backgroundColor: withOpacity(theme.primaryText, 0.18) }]}
         onPress={() => setOpen(true)}
         activeOpacity={0.7}
       >
-        <MapPinIcon size={14} color="rgba(255, 255, 255, 0.9)" weight="fill" />
-        <Text style={styles.triggerText} numberOfLines={1}>
+        <MapPinIcon size={14} color={theme.primaryText} weight="fill" />
+        <Text style={[styles.triggerText, { color: theme.primaryText }]} numberOfLines={1}>
           {selectedLocation?.name ?? t("pickerLabel")}
         </Text>
-        <CaretDownIcon size={14} color="rgba(255, 255, 255, 0.9)" weight="bold" />
+        <CaretDownIcon size={14} color={theme.primaryText} weight="bold" />
       </TouchableOpacity>
 
       <BottomSheet

@@ -1,0 +1,33 @@
+{
+  "balance": "{{count}} pts",
+  "unit": "pts",
+  "amountPreview": "≈ +{{points}} pts",
+  "addPoints": "Ajouter des points",
+  "rewardsAvailable": "{{count}} récompenses à utiliser",
+  "rewardsAvailable_one": "1 récompense à utiliser",
+  "menu": {
+    "title": "Récompenses",
+    "cost": "{{count}} pts",
+    "need": "Encore {{count}} pts",
+    "redeem": "Utiliser"
+  },
+  "success": {
+    "title": "Points ajoutés !",
+    "earned": "+{{count}} pts",
+    "scanNext": "Scanner le prochain client",
+    "toNextReward": "Plus que {{count}} pts avant {{reward}}",
+    "topReward": "Récompense maximale atteinte !"
+  },
+  "reward": {
+    "unlocked": "Récompense débloquée !",
+    "redeemNow": "Utiliser maintenant"
+  },
+  "redeem": {
+    "title": "Récompense utilisée !"
+  },
+  "errors": {
+    "amountRequired": "Saisissez le montant de l'achat pour ajouter des points.",
+    "addFailed": "Impossible d'ajouter les points. Réessayez.",
+    "redeemFailed": "Impossible d'utiliser la récompense. Réessayez."
+  }
+}

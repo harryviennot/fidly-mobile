@@ -1,0 +1,33 @@
+{
+  "balance": "{{count}} pts",
+  "unit": "pts",
+  "amountPreview": "≈ +{{points}} pts",
+  "addPoints": "Añadir puntos",
+  "rewardsAvailable": "{{count}} recompensas por canjear",
+  "rewardsAvailable_one": "1 recompensa por canjear",
+  "menu": {
+    "title": "Recompensas",
+    "cost": "{{count}} pts",
+    "need": "Faltan {{count}} pts",
+    "redeem": "Canjear"
+  },
+  "success": {
+    "title": "¡Puntos añadidos!",
+    "earned": "+{{count}} pts",
+    "scanNext": "Escanear al siguiente cliente",
+    "toNextReward": "Solo {{count}} pts para {{reward}}",
+    "topReward": "¡Recompensa máxima alcanzada!"
+  },
+  "reward": {
+    "unlocked": "¡Recompensa desbloqueada!",
+    "redeemNow": "Canjear ahora"
+  },
+  "redeem": {
+    "title": "¡Recompensa canjeada!"
+  },
+  "errors": {
+    "amountRequired": "Introduce el importe de la compra para añadir puntos.",
+    "addFailed": "No se han podido añadir los puntos. Inténtalo de nuevo.",
+    "redeemFailed": "No se ha podido canjear la recompensa. Inténtalo de nuevo."
+  }
+}

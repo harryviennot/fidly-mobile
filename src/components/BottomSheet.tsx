@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  type LayoutChangeEvent,
   type ViewStyle,
 } from "react-native";
 
@@ -28,10 +29,12 @@ interface BottomSheetProps {
   fullSheetDrag?: boolean;
 }
 
-const OPEN_DURATION = 240;
+const BACKDROP_DURATION = 220;
 const CLOSE_DURATION = 200;
 // Pan-to-close is mobile-only — PanResponder drags are unreliable on web.
 const ENABLE_PAN = Platform.OS !== "web";
+// The native driver runs the slide on the UI thread; unsupported on web.
+const USE_NATIVE = Platform.OS !== "web";
 // Drag distance / velocity past which a downward swipe dismisses the sheet.
 const DISMISS_DISTANCE = 110;
 const DISMISS_VELOCITY = 0.6;
@@ -39,10 +42,14 @@ const DISMISS_VELOCITY = 0.6;
 /**
  * Cross-platform bottom sheet: RN Modal + Animated. Used on every platform
  * instead of @gorhom/bottom-sheet (which would not reliably present on the
- * native New-Architecture build). The backdrop opacity fades as the sheet
- * slides, derived from a single translateY value. On mobile, dragging down
- * dismisses it (whole sheet when `fullSheetDrag`, otherwise the handle only so
- * it never competes with a scrollable list in the body).
+ * native New-Architecture build).
+ *
+ * The slide travels the sheet's own measured height (not the screen height, so
+ * short sheets don't teleport in from a mostly off-screen start) and runs on
+ * the native driver with a near-critically-damped spring. The backdrop fades
+ * as its own parallel animation, so it is correct for any sheet height. On
+ * mobile, dragging down dismisses (whole sheet when `fullSheetDrag`, otherwise
+ * the handle only so it never competes with a scrollable list in the body).
  */
 export function BottomSheet({
   visible,
@@ -55,36 +62,91 @@ export function BottomSheet({
   // Keep the Modal mounted through the close animation, then unmount.
   const [mounted, setMounted] = useState(visible);
   const screenHeight = Dimensions.get("window").height;
-  // translateY: 0 = fully open, screenHeight = fully closed (off-screen).
+  // translateY: 0 = fully open, sheetHeight = fully closed (just off-screen).
   const translateY = useRef(new Animated.Value(screenHeight)).current;
+  const backdrop = useRef(new Animated.Value(0)).current;
+  // Measured on first layout; until then assume worst case (full screen).
+  const sheetHeight = useRef(screenHeight);
+  const hasMeasured = useRef(false);
+  // Set when an open is requested before the sheet has been measured — the
+  // open animation then starts from onLayout, once the real height is known.
+  const pendingOpen = useRef(false);
 
   // Keep the latest onClose without rebuilding the PanResponder.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  function animateOpen() {
+    translateY.setValue(sheetHeight.current);
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: 0,
+        damping: 26,
+        stiffness: 280,
+        mass: 0.9,
+        useNativeDriver: USE_NATIVE,
+      }),
+      Animated.timing(backdrop, {
+        toValue: 1,
+        duration: BACKDROP_DURATION,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: USE_NATIVE,
+      }),
+    ]).start();
+  }
+
+  function handleLayout(e: LayoutChangeEvent) {
+    sheetHeight.current = Math.min(e.nativeEvent.layout.height, screenHeight);
+    if (!hasMeasured.current) {
+      hasMeasured.current = true;
+      if (pendingOpen.current) {
+        pendingOpen.current = false;
+        animateOpen();
+      }
+    }
+  }
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: OPEN_DURATION,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
+      if (!mounted) {
+        // Fresh mount: children re-layout, so wait for the measurement.
+        hasMeasured.current = false;
+        pendingOpen.current = true;
+        setMounted(true);
+      } else if (hasMeasured.current) {
+        animateOpen();
+      } else {
+        pendingOpen.current = true;
+      }
       return;
     }
     if (!mounted) return;
-    Animated.timing(translateY, {
-      toValue: screenHeight,
-      duration: CLOSE_DURATION,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+    pendingOpen.current = false;
+    Animated.parallel([
+      Animated.timing(translateY, {
+        // +24 clears any shadow/overshoot at the top edge of the sheet.
+        toValue: sheetHeight.current + 24,
+        duration: CLOSE_DURATION,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: USE_NATIVE,
+      }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: CLOSE_DURATION,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: USE_NATIVE,
+      }),
+    ]).start();
     // Unmount on a timer rather than the animation's `finished` callback: if the
     // close animation is interrupted (e.g. a rapid reopen), the callback never
     // fires and the Modal would stay mounted with a transparent backdrop that
     // swallows all touches — a full-screen freeze. The timer always unmounts.
-    const id = setTimeout(() => setMounted(false), CLOSE_DURATION + 60);
+    // Park the sheet fully off-screen so a remount with taller content can't
+    // flash before its first layout.
+    const id = setTimeout(() => {
+      setMounted(false);
+      translateY.setValue(screenHeight);
+    }, CLOSE_DURATION + 60);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -106,8 +168,10 @@ export function BottomSheet({
         } else {
           Animated.spring(translateY, {
             toValue: 0,
-            useNativeDriver: false,
-            bounciness: 0,
+            damping: 24,
+            stiffness: 300,
+            mass: 0.9,
+            useNativeDriver: USE_NATIVE,
           }).start();
         }
       },
@@ -117,12 +181,6 @@ export function BottomSheet({
 
   if (!mounted) return null;
 
-  const backdropOpacity = translateY.interpolate({
-    inputRange: [0, screenHeight],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
   // Whole-sheet drag attaches the handlers to the surface; otherwise only the
   // handle zone is draggable.
   const sheetPan = ENABLE_PAN && fullSheetDrag ? panResponder.panHandlers : {};
@@ -130,14 +188,14 @@ export function BottomSheet({
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+      <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
       <Animated.View
         style={[styles.wrap, { transform: [{ translateY }] }]}
         pointerEvents="box-none"
       >
-        <View style={sheetStyle} {...sheetPan}>
+        <View style={sheetStyle} onLayout={handleLayout} {...sheetPan}>
           <View style={styles.dragZone} {...handlePan}>
             <View style={[styles.grabber, { backgroundColor: handleColor }]} />
           </View>

@@ -35,7 +35,8 @@
     "pausedTitle": "Scanning Paused",
     "pausedMessage": "Your scanning access has been paused by the business owner. Contact them to restore access.",
     "checkoutRequired": "The owner needs to finish setting up the subscription before you can add stamps.",
-    "goHome": "Go Home"
+    "goHome": "Go Home",
+    "programNowPoints": "This program switched to points. Scan the card again to enter the amount."
   },
   "rewardsBadge": "{{count}} rewards to redeem",
   "rewardsBadgeOne": "1 reward to redeem"

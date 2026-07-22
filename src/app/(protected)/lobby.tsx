@@ -315,7 +315,7 @@ export default function LobbyScreen() {
             </View>
           ) : (
             <View style={dynamicStyles.logoPlaceholder}>
-              <Text style={styles.logoPlaceholderText}>
+              <Text style={[styles.logoPlaceholderText, { color: theme.primaryText }]}>
                 {currentBusiness.name.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -352,9 +352,9 @@ export default function LobbyScreen() {
       )}
       {showLocationLabel && (
         <View style={styles.locationHeader}>
-          <View style={styles.locationLabel}>
-            <MapPinIcon size={14} color="rgba(255, 255, 255, 0.9)" weight="fill" />
-            <Text style={styles.locationLabelText} numberOfLines={1}>
+          <View style={[styles.locationLabel, { backgroundColor: withOpacity(theme.primaryText, 0.18) }]}>
+            <MapPinIcon size={14} color={theme.primaryText} weight="fill" />
+            <Text style={[styles.locationLabelText, { color: theme.primaryText }]} numberOfLines={1}>
               {selectedLocation?.name}
             </Text>
           </View>

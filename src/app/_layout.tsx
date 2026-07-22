@@ -13,6 +13,8 @@ import { BusinessProvider } from "@/contexts/business-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AlertProvider } from "@/contexts/alert-context";
 import { LocationProvider } from "@/contexts/location-context";
+import { UpdateGateProvider, useUpdateGate } from "@/contexts/update-gate-context";
+import { ForceUpdateScreen } from "@/components/ForceUpdateScreen";
 
 const sentryDsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
 const appVariant = (Constants.expoConfig?.extra?.appVariant as string) ?? "production";
@@ -56,11 +58,25 @@ if (sentryDsn) {
 
 function RootNavigator() {
   const { user, loading: authLoading } = useAuth();
+  const { status: updateStatus, storeUrl } = useUpdateGate();
+
+  // Force-update gate. Rendered as an always-mounted native modal so it can slide
+  // up from the bottom over whatever is showing (auth spinner or the app itself)
+  // the moment the backend reports this build is below the minimum. It's
+  // undismissable. "ok"/"unknown" (initial or failed check) keep it hidden, so
+  // the gate never blocks or delays login.
+  const forceUpdateGate = (
+    <ForceUpdateScreen
+      visible={updateStatus === "update_required"}
+      storeUrl={storeUrl}
+    />
+  );
 
   if (authLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f97316" />
+        {forceUpdateGate}
       </View>
     );
   }
@@ -79,6 +95,7 @@ function RootNavigator() {
         </Stack.Protected>
         <Stack.Screen name="index" options={{ animation: "none" }} />
       </Stack>
+      {forceUpdateGate}
     </>
   );
 }
@@ -95,15 +112,17 @@ function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <BusinessProvider>
-          <ThemeProvider>
-            <AlertProvider>
-              <LocationProvider>
-                <RootNavigator />
-              </LocationProvider>
-            </AlertProvider>
-          </ThemeProvider>
-        </BusinessProvider>
+        <UpdateGateProvider>
+          <BusinessProvider>
+            <ThemeProvider>
+              <AlertProvider>
+                <LocationProvider>
+                  <RootNavigator />
+                </LocationProvider>
+              </AlertProvider>
+            </ThemeProvider>
+          </BusinessProvider>
+        </UpdateGateProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

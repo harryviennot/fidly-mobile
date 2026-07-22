@@ -1,3 +1,43 @@
+/** One reward on the program ladder (stamp checkpoint or points-priced item). */
+export interface ProgramReward {
+  id: string;
+  /** Stamps to reach (stamp) or point price (points). */
+  threshold: number;
+  name: string;
+  /** True when primary_value already reached this threshold. */
+  reached: boolean;
+}
+
+/**
+ * Type-aware view of an enrollment's standing (backend `ProgramSnapshot`,
+ * attached to GET /customers by get_customer_info). The scanner reads this to
+ * render the points keypad (rate + live preview) and the reward picker without
+ * branching on the stamp-named `stamps` field.
+ */
+export interface ProgramSnapshot {
+  type: "stamp" | "points";
+  /** Stamp count OR points balance. */
+  primary_value: number;
+  /** "7 / 10" | "130 pts". */
+  display: string;
+  /** Can redeem ≥1 reward right now. */
+  reward_ready: boolean;
+  is_complete: boolean;
+  /** Next reward target above primary_value, or null when all reached. */
+  next_threshold: number | null;
+  threshold_after: number | null;
+  /** Points balance cap (config.max_balance), or null. */
+  max_limit: number | null;
+  /** Lifetime points total (points only), else null. */
+  lifetime: number | null;
+  /** Banked unredeemed rewards (stamps only). */
+  rewards_banked: number;
+  /** The ladder, sorted ascending — the redeem menu / milestone list. */
+  rewards: ProgramReward[];
+  /** Ticket-price → points rate (points only), for the live keypad preview. */
+  points_per_currency_unit: number | null;
+}
+
 export interface Customer {
   id: string;
   business_id: string;
@@ -11,16 +51,26 @@ export interface Customer {
   stackable_rewards?: boolean;
   max_stacked_rewards?: number | null;
   total_stamps?: number;
+  /** Type-aware snapshot (points balance, rewards ladder, rate). Present when
+   *  the QR resolved to an enrollment with a program. */
+  program?: ProgramSnapshot;
   pass_url?: string;
 }
 
 export interface StampResponse {
   customer_id: string;
   name: string;
+  /** Legacy primary counter: stamp count OR points balance (== value_after). */
   stamps: number;
+  /** Unambiguous type-aware primary value after the action. */
+  value_after?: number;
+  program_type?: "stamp" | "points";
   /** Banked rewards after the action. */
   rewards?: number;
   message: string;
+  transaction_id?: string;
+  location_id?: string | null;
+  location_name?: string | null;
 }
 
 export interface Business {
@@ -82,6 +132,13 @@ export interface CardDesign {
   name: string;
   is_active: boolean;
   total_stamps: number;
+  /** Program type signal — lets the scanner route to the points keypad
+   *  instantly (the active design is cached per-business). */
+  card_type?: "stamp" | "points";
+  /** Ticket-price → points rate, set on the active-design response for points
+   *  programs. Optional convenience for an instant preview before the
+   *  per-customer snapshot lands. */
+  points_per_currency_unit?: number | null;
   // Color fields (RGB strings like "rgb(139, 90, 43)")
   background_color?: string;
   foreground_color?: string;

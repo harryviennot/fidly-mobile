@@ -7,6 +7,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "22.19.0",
       "env": {
         "APP_VARIANT": "development",
         "EXPO_PUBLIC_API_URL": "http://localhost:8000"
@@ -24,6 +25,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "node": "22.19.0",
       "env": {
         "APP_VARIANT": "preview",
         "EXPO_PUBLIC_API_URL": "https://api.stampeo.app"
@@ -31,6 +33,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "node": "22.19.0",
       "env": {
         "APP_VARIANT": "production",
         "EXPO_PUBLIC_API_URL": "https://api.stampeo.app"
