@@ -36,7 +36,9 @@
     "pausedMessage": "Votre accès au scanner a été suspendu par le propriétaire. Contactez-le pour le restaurer.",
     "checkoutRequired": "Le propriétaire doit finaliser l'abonnement avant que vous puissiez ajouter des tampons.",
     "goHome": "Retour à l'accueil",
-    "programNowPoints": "Ce programme est passé aux points. Scannez à nouveau la carte pour saisir le montant."
+    "programNowPoints": "Ce programme est passé aux points. Scannez à nouveau la carte pour saisir le montant.",
+    "billingRequired": "L'abonnement de ce commerce est en pause. Le responsable doit mettre à jour le moyen de paiement avant que vous puissiez scanner.",
+    "accessDenied": "Vous n'avez pas accès à ce commerce. Demandez au responsable de vérifier votre invitation."
   },
   "rewardsBadge": "{{count}} récompenses à utiliser",
   "rewardsBadgeOne": "1 récompense à utiliser"

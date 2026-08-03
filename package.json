@@ -14,7 +14,8 @@
     "ios:dev": "APP_VARIANT=development npx expo run:ios --device",
     "android:dev": "APP_VARIANT=development npx expo run:android --device",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "bun test src"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

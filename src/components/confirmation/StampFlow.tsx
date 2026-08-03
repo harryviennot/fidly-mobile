@@ -86,6 +86,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         setIsPausedError(true);
       } else if (code === "CHECKOUT_REQUIRED") {
         setError(t("errors.checkoutRequired"));
+      } else if (code === "BILLING_REQUIRED") {
+        setError(t("errors.billingRequired"));
+      } else if (code === "ACCESS_DENIED") {
+        setError(t("errors.accessDenied"));
       } else if (code === "LOCATION_NOT_PERMITTED") {
         setError(tLocation("errors.notPermitted"));
       } else if (code === "LOCATION_REQUIRED" || code === "LOCATION_NOT_FOUND") {
@@ -124,6 +128,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         setIsPausedError(true);
       } else if ((err as any)?.code === "CHECKOUT_REQUIRED") {
         setError(t("errors.checkoutRequired"));
+      } else if ((err as any)?.code === "BILLING_REQUIRED") {
+        setError(t("errors.billingRequired"));
+      } else if ((err as any)?.code === "ACCESS_DENIED") {
+        setError(t("errors.accessDenied"));
       } else {
         setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
       }

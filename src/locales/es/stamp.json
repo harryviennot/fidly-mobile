@@ -36,7 +36,9 @@
     "pausedMessage": "El propietario del comercio ha pausado tu acceso al escaneo. Contacta con él para restaurarlo.",
     "checkoutRequired": "El propietario tiene que terminar de configurar la suscripción antes de que puedas añadir sellos.",
     "goHome": "Volver al inicio",
-    "programNowPoints": "Este programa ahora funciona con puntos. Vuelve a escanear la tarjeta para introducir el importe."
+    "programNowPoints": "Este programa ahora funciona con puntos. Vuelve a escanear la tarjeta para introducir el importe.",
+    "billingRequired": "La suscripción de este comercio está en pausa. El responsable tiene que actualizar el método de pago antes de que puedas escanear.",
+    "accessDenied": "No tienes acceso a este comercio. Pide al responsable que revise tu invitación."
   },
   "rewardsBadge": "{{count}} recompensas por canjear",
   "rewardsBadgeOne": "1 recompensa por canjear"

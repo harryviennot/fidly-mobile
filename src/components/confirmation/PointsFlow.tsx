@@ -135,6 +135,10 @@ export function PointsFlow({
       setIsPausedError(true);
     } else if (code === "CHECKOUT_REQUIRED") {
       setError(tStamp("errors.checkoutRequired"));
+    } else if (code === "BILLING_REQUIRED") {
+      setError(tStamp("errors.billingRequired"));
+    } else if (code === "ACCESS_DENIED") {
+      setError(tStamp("errors.accessDenied"));
     } else if (code === "AMOUNT_REQUIRED") {
       setError(t("errors.amountRequired"));
     } else if (code === "LOCATION_NOT_PERMITTED") {

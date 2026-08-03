@@ -38,6 +38,7 @@ export async function addPoints(
       code === "AMOUNT_REQUIRED" ||
       code === "MEMBER_PAUSED" ||
       code === "CHECKOUT_REQUIRED" ||
+      code === "BILLING_REQUIRED" ||
       code === "LOCATION_REQUIRED" ||
       code === "LOCATION_NOT_PERMITTED" ||
       code === "LOCATION_NOT_FOUND"
@@ -47,7 +48,11 @@ export async function addPoints(
       throw err;
     }
     if (response.status === 403) {
-      throw new Error("You don't have access to this business");
+      // Not a billing pause: a real permissions problem. Coded so the screen
+      // can localize it rather than showing this English fallback.
+      const err = new Error("ACCESS_DENIED");
+      (err as any).code = "ACCESS_DENIED";
+      throw err;
     }
     if (response.status === 404) {
       throw new Error("Enrollment not found");
