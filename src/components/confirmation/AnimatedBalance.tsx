@@ -9,9 +9,10 @@ interface AnimatedBalanceProps {
 }
 
 /**
- * The big points balance that counts up (or down, on redeem) to its new value.
- * A component, not a hook call, so PointsFlow can use it inside conditional
- * success branches without breaking the rules of hooks.
+ * The big headline counter (points balance, stamp count) tweening to its new
+ * value — up on a scan, down on a redeem. A component, not a hook call, so the
+ * flows can use it inside conditional success branches without breaking the
+ * rules of hooks.
  */
 export function AnimatedBalance({ from, to, style }: AnimatedBalanceProps) {
   const value = useCountUp(to, { from });

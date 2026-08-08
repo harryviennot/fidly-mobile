@@ -6,12 +6,12 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
 import { blendColors, getContrastingTextColor } from "@/utils/colors";
+import { EASE_OUT } from "@/constants/motion";
 
 interface AmountDisplayProps {
   /** Raw keypad string in the locale separator (e.g. "12,50"). */
@@ -31,7 +31,8 @@ export function AmountDisplay({ amount, currencySymbol, pointsPreview }: AmountD
   const { t } = useTranslation("points");
   const { theme } = useTheme();
 
-  // Keystroke pop: a quick 3% scale-up that springs back.
+  // Keystroke pop: a quick 3% scale-up that eases straight back down. Timed
+  // rather than sprung so fast typing never stacks up into a wobble.
   const pop = useSharedValue(1);
   const prevAmount = useRef(amount);
   useEffect(() => {
@@ -39,7 +40,7 @@ export function AmountDisplay({ amount, currencySymbol, pointsPreview }: AmountD
       prevAmount.current = amount;
       pop.value = withSequence(
         withTiming(1.03, { duration: 60 }),
-        withSpring(1, { damping: 16, stiffness: 380 })
+        withTiming(1, { duration: 140, easing: EASE_OUT })
       );
     }
   }, [amount, pop]);
@@ -91,7 +92,7 @@ export function AmountDisplay({ amount, currencySymbol, pointsPreview }: AmountD
       <View style={styles.previewRow}>
         {showPreview && (
           <Animated.View
-            entering={ZoomIn.springify().damping(18).stiffness(260)}
+            entering={ZoomIn.duration(200).easing(EASE_OUT)}
             exiting={FadeOut.duration(120)}
             style={styles.previewPill}
           >
