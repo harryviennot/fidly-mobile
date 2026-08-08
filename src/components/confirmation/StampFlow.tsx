@@ -1,6 +1,6 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
@@ -9,12 +9,17 @@ import { addStamp, redeemReward } from "@/api/customers";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
+import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
 import type { Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
 import { StampGrid } from "./StampGrid";
-import { BODY_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
+import { StampStepper } from "./StampStepper";
+import { CustomerHeader } from "./CustomerHeader";
+import { AnimatedBalance } from "./AnimatedBalance";
+import { ACTION_ENTER, BODY_ENTER, DETAIL_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
+import { SUCCESS_GREEN, SUCCESS_TINT, UNLOCK_AMBER, UNLOCK_TINT } from "./palette";
 
 interface StampFlowProps {
   customer: Customer;
@@ -24,9 +29,15 @@ interface StampFlowProps {
 }
 
 /**
- * Stamp-program confirmation flow. Lifted from the original stamp/[id].tsx with
- * behavior unchanged — the dispatcher now owns the customer fetch, loading
- * skeleton and load-error screen, so this always receives a loaded customer.
+ * Stamp-program confirmation flow.
+ *
+ * One scan can be worth several stamps: the stepper sets the quantity, the card
+ * previews it as ghost dots, and a single request credits the lot (one
+ * transaction, one wallet push, one banner for the customer) instead of the
+ * employee pressing the button five times.
+ *
+ * Laid out like the points keypad screen: facts on top, the card in the middle,
+ * the controls anchored at the bottom where the thumb already is.
  */
 export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: StampFlowProps) {
   const { t } = useTranslation("stamp");
@@ -41,9 +52,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const [isPausedError, setIsPausedError] = useState(false);
   const [success, setSuccess] = useState<StampResponse | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
-  // Banked count before the last stamp — detects a rollover (stackable
-  // rewards: stamps reset below total but a reward was banked).
+  // Card state before the last stamp — detects a rollover (stackable rewards:
+  // stamps reset below the goal but a reward was banked) and drives the
+  // count-up + the stagger on the dots that were just added.
   const [preStampRewards, setPreStampRewards] = useState(0);
+  const [preStampStamps, setPreStampStamps] = useState(0);
 
   // Program config is the source of truth for the goal; the design column
   // is a deprecated synced copy kept as fallback.
@@ -51,7 +64,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const stackable = customer.stackable_rewards ?? false;
   const maxStack = customer.max_stacked_rewards ?? null;
   const rewards = customer.rewards ?? 0;
-  const cardFull = (customer.stamps ?? 0) >= totalStamps;
+  const currentStamps = customer.stamps || 0;
+  const cardFull = currentStamps >= totalStamps;
   // Blocked at the stack cap: behaves exactly like the classic full card.
   const atMaxStack = stackable && maxStack != null && rewards >= maxStack && cardFull;
   // Classic redeem-or-skip screen: non-stackable full card, or capped stack.
@@ -59,24 +73,62 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   // Stackable flow: stamping continues, banked rewards redeemable anytime.
   const hasBankedRewards = stackable && rewards > 0 && !isReadyForReward;
 
+  // How many stamps this scan is worth. Capped at what the card can absorb, so
+  // the stepper never promises stamps the server would drop.
+  const [quantity, setQuantity] = useState(1);
+  const maxQuantity = useMemo(
+    () => maxStampQuantity({ totalStamps, currentStamps, stackable }),
+    [totalStamps, currentStamps, stackable]
+  );
+  // The ceiling moves when the customer snapshot refreshes (a concurrent scan on
+  // another device); pull the quantity back in rather than sending a stale one.
+  useEffect(() => {
+    setQuantity((q) => clampStampQuantity(q, maxQuantity));
+  }, [maxQuantity]);
+
+  const willCompleteCard = currentStamps + quantity >= totalStamps;
+
   // Explicit singular/plural key selection: we know the count, so never
   // show a "(s)" guess. (Done in JS rather than i18next suffixes because
   // Hermes' Intl.PluralRules support is unreliable.)
   const rewardsWaitingText = (count: number) =>
     t(count === 1 ? "success.rewardsWaitingOne" : "success.rewardsWaiting", { count });
 
+  /**
+   * The payoff. A success notification, then one light tick per stamp so a
+   * 5-stamp scan is *felt* as five, capped so a big batch doesn't buzz forever.
+   * A heavier tap lands last when the scan earned a reward.
+   */
+  async function celebrate(stampsAdded: number, earnedReward: boolean) {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const ticks = Math.min(stampsAdded, 5);
+    for (let i = 1; i < ticks; i++) {
+      setTimeout(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }, i * 55);
+    }
+    if (earnedReward) {
+      setTimeout(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      }, ticks * 55 + 80);
+    }
+  }
+
   async function handleAddStamp() {
     if (stamping) return;
     try {
       setStamping(true);
       setError(null);
-      setPreStampRewards(customer.rewards ?? 0);
-      const result = await addStamp(businessId, enrollmentId, selectedLocation?.id);
+      setPreStampRewards(rewards);
+      setPreStampStamps(currentStamps);
+      const result = await addStamp(businessId, enrollmentId, selectedLocation?.id, quantity);
       setSuccess(result);
       setCustomer((prev) =>
         prev ? { ...prev, stamps: result.stamps, rewards: result.rewards ?? prev.rewards } : null
       );
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const added = result.delta ?? Math.max(0, result.stamps - currentStamps);
+      const earned = result.stamps >= totalStamps || (result.rewards ?? 0) > rewards;
+      await celebrate(added, earned);
       // Arm the one-time rating prompt. It is NOT shown here — it fires when the
       // employee next returns to the lobby, so it never interrupts scanning.
       markScanCompleted();
@@ -145,13 +197,119 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     router.back();
   }
 
-  function handleSkipReward() {
-    router.back();
-  }
-
   function handleGoHome() {
     router.replace("/lobby");
   }
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        root: { flex: 1, width: "100%" },
+        topGroup: { gap: 12 },
+        chip: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          paddingVertical: 11,
+          paddingHorizontal: 16,
+          borderRadius: 9999,
+          backgroundColor: "#f59e0b",
+          alignSelf: "flex-start",
+        },
+        chipText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+        // The card sits in the flexible middle, vertically centered like the
+        // points amount, so the controls below never move between screens.
+        middle: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+        countRow: { flexDirection: "row", alignItems: "flex-end" },
+        countBig: { fontSize: 56, fontWeight: "700", color: theme.text, lineHeight: 60 },
+        countTotal: {
+          fontSize: 22,
+          fontWeight: "600",
+          color: theme.textSecondary,
+          marginLeft: 6,
+          marginBottom: 8,
+        },
+        // Fixed height: the pending line appears and disappears as the quantity
+        // changes and must not shove the card up and down.
+        pendingRow: { height: 26, justifyContent: "center" },
+        pendingText: { fontSize: 17, fontWeight: "700", color: theme.primaryOnSurface },
+        completeText: { fontSize: 17, fontWeight: "700", color: UNLOCK_AMBER },
+        bottomGroup: { gap: 12 },
+        stampButton: {
+          backgroundColor: theme.primary,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 18,
+          borderRadius: 9999,
+          width: "100%",
+          gap: 12,
+        },
+        stampButtonText: { color: theme.primaryText, fontSize: 20, fontWeight: "bold" },
+        buttonDisabled: { opacity: 0.7 },
+        redeemButton: {
+          backgroundColor: "#22c55e",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 18,
+          borderRadius: 9999,
+          width: "100%",
+          gap: 12,
+        },
+        redeemButtonText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+        cancelButton: { padding: 12, alignItems: "center" },
+        cancelText: { color: theme.textSecondary, fontSize: 16 },
+        skipButton: { padding: 14, alignItems: "center" },
+        inlineError: {
+          backgroundColor: "#fef2f2",
+          padding: 12,
+          borderRadius: 8,
+          width: "100%",
+        },
+        inlineErrorText: { color: "#dc2626", textAlign: "center" },
+        // Success states: header on top, the card as the centered hero, actions
+        // anchored at the bottom.
+        successRoot: { flex: 1, width: "100%", alignItems: "center" },
+        successHeader: { alignItems: "center", paddingTop: 8 },
+        successIcon: {
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 16,
+        },
+        successTitle: {
+          fontSize: 24,
+          fontWeight: "700",
+          color: theme.text,
+          marginBottom: 4,
+          textAlign: "center",
+        },
+        successName: { fontSize: 15, color: theme.textSecondary, textAlign: "center" },
+        successHero: {
+          flex: 1,
+          width: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 14,
+        },
+        successNote: {
+          fontSize: 16,
+          color: theme.textSecondary,
+          textAlign: "center",
+          lineHeight: 24,
+        },
+        successActions: { width: "100%", gap: 2 },
+        rewardPrompt: {
+          fontSize: 16,
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
+      }),
+    [theme]
+  );
 
   // Shared redeem CTA (same look everywhere; press-scale + medium haptic).
   const renderRedeemButton = (alsoDisabled = false) => (
@@ -172,104 +330,15 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     </PressableScale>
   );
 
-  const dynamicStyles = useMemo(
-    () =>
-      StyleSheet.create({
-        card: {
-          backgroundColor: theme.surface,
-          borderRadius: 16,
-          padding: 24,
-          width: "100%",
-          alignItems: "center",
-          shadowColor: theme.text,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 4,
-          overflow: "hidden",
-        },
-        avatar: {
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: theme.primary,
-          justifyContent: "center",
-          alignItems: "center",
-          marginBottom: 16,
-          marginTop: 48,
-        },
-        customerName: {
-          fontSize: 24,
-          fontWeight: "bold",
-          color: theme.text,
-          marginBottom: 4,
-        },
-        customerEmail: {
-          fontSize: 14,
-          color: theme.textSecondary,
-          marginBottom: 24,
-        },
-        stampsLabel: {
-          fontSize: 12,
-          color: theme.textSecondary,
-          marginBottom: 12,
-          textTransform: "uppercase",
-          letterSpacing: 1,
-        },
-        stampsCount: {
-          fontSize: 18,
-          fontWeight: "600",
-          color: theme.text,
-        },
-        rewardPrompt: {
-          fontSize: 16,
-          color: theme.textSecondary,
-          textAlign: "center",
-          marginTop: 16,
-          marginBottom: 8,
-        },
-        button: {
-          backgroundColor: theme.primary,
-          paddingVertical: 16,
-          paddingHorizontal: 32,
-          borderRadius: 9999,
-          marginTop: 24,
-        },
-        buttonText: {
-          color: theme.primaryText,
-          fontSize: 16,
-          fontWeight: "600",
-        },
-        stampButton: {
-          backgroundColor: "#000000",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingVertical: 18,
-          paddingHorizontal: 40,
-          borderRadius: 9999,
-          marginTop: 24,
-          width: "100%",
-          gap: 12,
-        },
-        cancelButtonText: {
-          color: theme.textSecondary,
-          fontSize: 16,
-        },
-        successTitle: {
-          fontSize: 28,
-          fontWeight: "bold",
-          color: theme.text,
-          marginBottom: 8,
-        },
-        successMessage: {
-          fontSize: 16,
-          color: theme.textSecondary,
-          textAlign: "center",
-          marginBottom: 32,
-        },
-      }),
-    [theme]
+  /** The count-up counter + the card, shared by every success state. */
+  const renderHeroCard = (from: number, to: number, popCount: number) => (
+    <>
+      <View style={styles.countRow}>
+        <AnimatedBalance from={from} to={to} style={styles.countBig} />
+        <Text style={styles.countTotal}>/ {totalStamps}</Text>
+      </View>
+      <StampGrid total={totalStamps} filled={to} popCount={popCount} />
+    </>
   );
 
   // Paused member error — dedicated screen with Go Home action.
@@ -285,370 +354,245 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     );
   }
 
-  // Reward redemption success state. A banked redemption (stackable rewards)
-  // keeps stamp progress; the classic full-card one resets it.
+  // Reward redemption success. A banked redemption (stackable rewards) keeps
+  // stamp progress; the classic full-card one resets it.
   if (redeemSuccess && success) {
     const keptStamps = success.stamps > 0;
     return (
       <ConfirmationScaffold>
-        <Animated.View entering={ICON_ENTER} style={styles.rewardIcon}>
-          <Confetti size={56} color="#fff" weight="fill" />
-        </Animated.View>
-        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
-          <Text style={dynamicStyles.successTitle}>{t("success.rewardRedeemed")}</Text>
-          <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-            {keptStamps
-              ? t("success.progressKept", { name: customer.name })
-              : t("success.cardReset", { name: customer.name })}
-            {"\n"}
-            {keptStamps && (success.rewards ?? 0) > 0
-              ? rewardsWaitingText(success.rewards ?? 0)
-              : t("success.collectAgain")}
-          </Text>
-
-          <View style={styles.stampsDisplay}>
-            <Text style={dynamicStyles.stampsLabel}>
-              {keptStamps ? t("currentStamps") : t("stampsReset")}
-            </Text>
-            <StampGrid total={totalStamps} filled={success.stamps} />
-            <Text style={dynamicStyles.stampsCount}>
-              {t("stampsCount", { current: success.stamps, total: totalStamps })}
-            </Text>
-          </View>
-
-          <PressableScale style={dynamicStyles.button} onPress={handleDone}>
-            <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
-          </PressableScale>
-        </Animated.View>
-      </ConfirmationScaffold>
-    );
-  }
-
-  // Success state: stackable rollover - goal reached, reward banked, the card
-  // already rolled into a fresh cycle.
-  if (
-    success &&
-    !redeemSuccess &&
-    success.stamps < totalStamps &&
-    (success.rewards ?? 0) > preStampRewards
-  ) {
-    return (
-      <ConfirmationScaffold>
-        <Animated.View entering={ICON_ENTER} style={styles.completedIcon}>
-          <Confetti size={56} color="#fff" weight="fill" />
-        </Animated.View>
-        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
-          <Text style={dynamicStyles.successTitle}>{t("success.rewardBanked")}</Text>
-          <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-            {t("success.rewardBankedFor", { name: customer.name })}{"\n"}
-            {rewardsWaitingText(success.rewards ?? 0)}
-          </Text>
-
-          <View style={styles.stampsDisplay}>
-            <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
-            <StampGrid total={totalStamps} filled={success.stamps} popLast />
-            <Text style={dynamicStyles.stampsCount}>
-              {t("stampsCount", { current: success.stamps, total: totalStamps })}
-            </Text>
-          </View>
-
-          {error && (
-            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
-              <Text style={styles.inlineErrorText}>{error}</Text>
+        <View style={styles.successRoot}>
+          <View style={styles.successHeader}>
+            <Animated.View
+              entering={ICON_ENTER}
+              style={[styles.successIcon, { backgroundColor: SUCCESS_TINT }]}
+            >
+              <Confetti size={36} color={SUCCESS_GREEN} weight="fill" />
             </Animated.View>
-          )}
-
-          {renderRedeemButton()}
-
-          <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
-            <Text style={dynamicStyles.cancelButtonText}>{t("scanNext")}</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </ConfirmationScaffold>
-    );
-  }
-
-  // Success state: stamp added AND card is now complete - show redeem option.
-  if (success && !redeemSuccess && success.stamps >= totalStamps) {
-    return (
-      <ConfirmationScaffold>
-        <Animated.View entering={ICON_ENTER} style={styles.completedIcon}>
-          <Confetti size={56} color="#fff" weight="fill" />
-        </Animated.View>
-        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
-          <Text style={dynamicStyles.successTitle}>{t("success.cardComplete")}</Text>
-          <Text style={[dynamicStyles.successMessage, { lineHeight: 24 }]}>
-            {t("success.stampAddedFor", { name: customer.name })}{"\n"}
-            {t("success.cardFull")}
-          </Text>
-
-          <View style={styles.stampsDisplay}>
-            <StampGrid total={totalStamps} filled={totalStamps} popLast />
-            <Text style={dynamicStyles.stampsCount}>
-              {t("stampsCountFull", { current: success.stamps, total: totalStamps })}
-            </Text>
+            <Animated.View entering={BODY_ENTER}>
+              <Text style={styles.successTitle}>{t("success.rewardRedeemed")}</Text>
+              <Text style={styles.successName} numberOfLines={1}>
+                {customer.name}
+              </Text>
+            </Animated.View>
           </View>
 
-          {error && (
-            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
-              <Text style={styles.inlineErrorText}>{error}</Text>
-            </Animated.View>
-          )}
+          <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {renderHeroCard(customer.stamps || 0, success.stamps, 0)}
+            <Text style={styles.successNote}>
+              {keptStamps ? t("success.progressKept", { name: customer.name }) : t("success.collectAgain")}
+              {keptStamps && (success.rewards ?? 0) > 0
+                ? `\n${rewardsWaitingText(success.rewards ?? 0)}`
+                : ""}
+            </Text>
+          </Animated.View>
 
-          <Text style={dynamicStyles.rewardPrompt}>{t("reward.prompt")}</Text>
-
-          {renderRedeemButton()}
-
-          <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
-            <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
-          </TouchableOpacity>
-        </Animated.View>
+          <Animated.View entering={ACTION_ENTER} style={styles.successActions}>
+            <PressableScale style={styles.stampButton} onPress={handleDone}>
+              <Text style={styles.stampButtonText}>{t("scanNext")}</Text>
+            </PressableScale>
+          </Animated.View>
+        </View>
       </ConfirmationScaffold>
     );
   }
 
-  // Regular success state (stamp added, card not complete).
+  // Stamp-added success states. All three share the header/hero/actions shape;
+  // only the icon, title and the actions differ.
   if (success && !redeemSuccess) {
+    const added = success.delta ?? Math.max(0, success.stamps - preStampStamps);
+    const rolledOver = success.stamps < totalStamps && (success.rewards ?? 0) > preStampRewards;
+    const completed = success.stamps >= totalStamps;
+    const earnedReward = rolledOver || completed;
+    // After a rollover the counter restarted, so the count-up runs from 0 in the
+    // fresh cycle instead of dropping from the old (higher) number.
+    const countFrom = rolledOver ? 0 : preStampStamps;
+    const title = rolledOver
+      ? t("success.rewardBanked")
+      : completed
+        ? t("success.cardComplete")
+        : added > 1
+          ? t("success.stampsAdded", { count: added })
+          : t("success.stampAdded");
+
     return (
       <ConfirmationScaffold>
-        <Animated.View entering={ICON_ENTER} style={styles.successIcon}>
-          <Check size={56} color="#fff" weight="bold" />
-        </Animated.View>
-        <Animated.View entering={BODY_ENTER} style={styles.bodyWrap}>
-          <Text style={dynamicStyles.successTitle}>{t("success.stampAdded")}</Text>
-          <Text style={dynamicStyles.successMessage}>{success.message}</Text>
-
-          <View style={styles.stampsDisplay}>
-            <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
-            <StampGrid total={totalStamps} filled={success.stamps} popLast />
-            <Text style={dynamicStyles.stampsCount}>
-              {t("stampsCount", { current: success.stamps, total: totalStamps })}
-            </Text>
+        <View style={styles.successRoot}>
+          <View style={styles.successHeader}>
+            <Animated.View
+              entering={ICON_ENTER}
+              style={[
+                styles.successIcon,
+                { backgroundColor: earnedReward ? UNLOCK_TINT : SUCCESS_TINT },
+              ]}
+            >
+              {earnedReward ? (
+                <Confetti size={36} color={UNLOCK_AMBER} weight="fill" />
+              ) : (
+                <Check size={36} color={SUCCESS_GREEN} weight="bold" />
+              )}
+            </Animated.View>
+            <Animated.View entering={BODY_ENTER}>
+              <Text style={styles.successTitle}>{title}</Text>
+              <Text style={styles.successName} numberOfLines={1}>
+                {customer.name}
+              </Text>
+            </Animated.View>
           </View>
 
-          <PressableScale style={dynamicStyles.button} onPress={handleDone}>
-            <Text style={dynamicStyles.buttonText}>{t("scanNext")}</Text>
-          </PressableScale>
-        </Animated.View>
+          <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {renderHeroCard(countFrom, success.stamps, added)}
+            {rolledOver && (
+              <Text style={styles.successNote}>
+                {t("success.rewardBankedFor", { name: customer.name })}
+                {"\n"}
+                {rewardsWaitingText(success.rewards ?? 0)}
+              </Text>
+            )}
+            {completed && <Text style={styles.successNote}>{t("success.cardFull")}</Text>}
+          </Animated.View>
+
+          {error && (
+            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
+              <Text style={styles.inlineErrorText}>{error}</Text>
+            </Animated.View>
+          )}
+
+          <Animated.View entering={ACTION_ENTER} style={styles.successActions}>
+            {completed && <Text style={styles.rewardPrompt}>{t("reward.prompt")}</Text>}
+            {earnedReward ? (
+              <>
+                {renderRedeemButton()}
+                <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+                  <Text style={styles.cancelText}>
+                    {completed ? t("skipForNow") : t("scanNext")}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <PressableScale style={styles.stampButton} onPress={handleDone}>
+                <Text style={styles.stampButtonText}>{t("scanNext")}</Text>
+              </PressableScale>
+            )}
+          </Animated.View>
+        </View>
       </ConfirmationScaffold>
     );
   }
 
-  // Reward entitlement UI when at max stamps.
+  // Card is full and waiting on a redemption: no stamps can be added, so the
+  // stepper is replaced by the redeem/skip choice.
   if (isReadyForReward) {
     return (
       <ConfirmationScaffold>
-        <Animated.View entering={SOFT_ENTER} style={dynamicStyles.card}>
-          <View style={styles.rewardBanner}>
-            <Gift size={32} color="#fff" weight="fill" />
-            <Text style={styles.rewardBannerText}>{t("reward.banner")}</Text>
+        <View style={styles.successRoot}>
+          <View style={styles.successHeader}>
+            <Animated.View
+              entering={ICON_ENTER}
+              style={[styles.successIcon, { backgroundColor: UNLOCK_TINT }]}
+            >
+              <Gift size={36} color={UNLOCK_AMBER} weight="fill" />
+            </Animated.View>
+            <Animated.View entering={BODY_ENTER}>
+              <Text style={styles.successTitle}>{t("reward.banner")}</Text>
+              <Text style={styles.successName} numberOfLines={1}>
+                {customer.name}
+              </Text>
+            </Animated.View>
           </View>
 
-          <View style={dynamicStyles.avatar}>
-            <Text style={[styles.avatarText, { color: theme.primaryText }]}>{customer.name.charAt(0).toUpperCase()}</Text>
-          </View>
+          <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {renderHeroCard(currentStamps, currentStamps, 0)}
+            <Text style={styles.successNote}>{t("reward.entitled")}</Text>
+            {error && (
+              <View style={styles.inlineError}>
+                <Text style={styles.inlineErrorText}>{error}</Text>
+              </View>
+            )}
+          </Animated.View>
 
-          <Text style={dynamicStyles.customerName}>{customer.name}</Text>
-          <Text style={dynamicStyles.customerEmail}>{customer.email}</Text>
-
-          <View style={styles.stampsDisplay}>
-            <StampGrid total={totalStamps} filled={totalStamps} />
-            <Text style={dynamicStyles.stampsCount}>
-              {t("stampsCountFull", { current: customer.stamps, total: totalStamps })}
-            </Text>
-          </View>
-
-          {error && (
-            <View style={styles.inlineError}>
-              <Text style={styles.inlineErrorText}>{error}</Text>
-            </View>
-          )}
-        </Animated.View>
-
-        <Text style={dynamicStyles.rewardPrompt}>{t("reward.entitled")}</Text>
-
-        {renderRedeemButton()}
-
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkipReward} disabled={redeeming}>
-          <Text style={dynamicStyles.cancelButtonText}>{t("skipForNow")}</Text>
-        </TouchableOpacity>
+          <Animated.View entering={ACTION_ENTER} style={styles.successActions}>
+            {renderRedeemButton()}
+            <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+              <Text style={styles.cancelText}>{t("skipForNow")}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       </ConfirmationScaffold>
     );
   }
 
-  // Normal stamp state.
+  // Entry state: set the quantity, watch the card fill, commit in one press.
   return (
     <ConfirmationScaffold>
-      <Animated.View entering={SOFT_ENTER} style={dynamicStyles.card}>
-        <View style={dynamicStyles.avatar}>
-          <Text style={[styles.avatarText, { color: theme.primaryText }]}>{customer.name.charAt(0).toUpperCase()}</Text>
+      <View style={styles.root}>
+        <View style={styles.topGroup}>
+          <CustomerHeader
+            name={customer.name}
+            balance={t("stampsCount", { current: currentStamps, total: totalStamps })}
+            loading={false}
+          />
+          {hasBankedRewards && (
+            <Animated.View entering={SOFT_ENTER} style={styles.chip}>
+              <Gift size={18} color="#fff" weight="fill" />
+              <Text style={styles.chipText}>
+                {t(rewards === 1 ? "rewardsBadgeOne" : "rewardsBadge", { count: rewards })}
+              </Text>
+            </Animated.View>
+          )}
         </View>
 
-        <Text style={dynamicStyles.customerName}>{customer.name}</Text>
-        <Text style={dynamicStyles.customerEmail}>{customer.email}</Text>
-
-        {hasBankedRewards && (
-          <View style={styles.bankedBadge}>
-            <Gift size={16} color="#b45309" weight="fill" />
-            <Text style={styles.bankedBadgeText}>
-              {t(rewards === 1 ? "rewardsBadgeOne" : "rewardsBadge", { count: rewards })}
-            </Text>
+        <View style={styles.middle}>
+          <StampGrid total={totalStamps} filled={currentStamps} pending={quantity} />
+          <View style={styles.pendingRow}>
+            {/* Keyed so the line re-animates as the promise changes, and the
+                "completes the card" beat lands the moment it becomes true. */}
+            <Animated.Text
+              key={willCompleteCard ? "complete" : `pending-${quantity}`}
+              entering={FadeIn.duration(160)}
+              style={willCompleteCard ? styles.completeText : styles.pendingText}
+            >
+              {willCompleteCard
+                ? t("quantity.completesCard")
+                : t(quantity === 1 ? "quantity.pendingOne" : "quantity.pending", { count: quantity })}
+            </Animated.Text>
           </View>
-        )}
-
-        <View style={styles.stampsDisplay}>
-          <Text style={dynamicStyles.stampsLabel}>{t("currentStamps")}</Text>
-          <StampGrid total={totalStamps} filled={customer.stamps || 0} />
-          <Text style={dynamicStyles.stampsCount}>
-            {t("stampsCount", { current: customer.stamps || 0, total: totalStamps })}
-          </Text>
+          {error && (
+            <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
+              <Text style={styles.inlineErrorText}>{error}</Text>
+            </Animated.View>
+          )}
         </View>
 
-        {error && (
-          <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
-            <Text style={styles.inlineErrorText}>{error}</Text>
-          </Animated.View>
-        )}
-      </Animated.View>
+        <View style={styles.bottomGroup}>
+          <StampStepper
+            value={quantity}
+            max={maxQuantity}
+            onChange={setQuantity}
+            disabled={stamping || redeeming}
+          />
 
-      <PressableScale
-        style={[dynamicStyles.stampButton, stamping && styles.buttonDisabled]}
-        haptic="medium"
-        onPress={handleAddStamp}
-        disabled={stamping || redeeming}
-      >
-        {stamping ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.stampButtonText}>{t("addStamp")}</Text>
-        )}
-      </PressableScale>
+          <PressableScale
+            style={[styles.stampButton, stamping && styles.buttonDisabled]}
+            haptic="medium"
+            onPress={handleAddStamp}
+            disabled={stamping || redeeming}
+          >
+            {stamping ? (
+              <ActivityIndicator color={theme.primaryText} />
+            ) : (
+              <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
+                {quantity === 1 ? t("addStamp") : t("addStampMany", { count: quantity })}
+              </Animated.Text>
+            )}
+          </PressableScale>
 
-      {hasBankedRewards && renderRedeemButton(stamping)}
+          {hasBankedRewards && renderRedeemButton(stamping)}
 
-      <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-        <Text style={dynamicStyles.cancelButtonText}>{tCommon("cancel")}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
+            <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </ConfirmationScaffold>
   );
 }
-
-// Static styles that don't depend on theme (lifted verbatim from the screen).
-const styles = StyleSheet.create({
-  rewardBanner: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#f59e0b",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    gap: 8,
-  },
-  rewardBannerText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  avatarText: {
-    color: "#fff",
-    fontSize: 36,
-    fontWeight: "bold",
-  },
-  bankedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#fef3c7",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 9999,
-    marginBottom: 16,
-  },
-  bankedBadgeText: {
-    color: "#b45309",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  stampsDisplay: {
-    alignItems: "center",
-    width: "100%",
-  },
-  bodyWrap: {
-    width: "100%",
-    alignItems: "center",
-  },
-  stampButtonText: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  redeemButton: {
-    backgroundColor: "#22c55e",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 40,
-    borderRadius: 9999,
-    marginTop: 16,
-    width: "100%",
-    gap: 12,
-  },
-  redeemButtonText: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  skipButton: {
-    marginTop: 12,
-    padding: 16,
-  },
-  cancelButton: {
-    marginTop: 16,
-    padding: 12,
-  },
-  inlineError: {
-    backgroundColor: "#fef2f2",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 16,
-    width: "100%",
-  },
-  inlineErrorText: {
-    color: "#dc2626",
-    textAlign: "center",
-  },
-  successIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#22c55e",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  rewardIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#f59e0b",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  completedIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#8b5cf6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-});

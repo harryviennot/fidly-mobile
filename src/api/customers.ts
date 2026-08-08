@@ -8,15 +8,22 @@ export async function getCustomer(businessId: string, customerId: string): Promi
 export async function addStamp(
   businessId: string,
   enrollmentId: string,
-  locationId?: string | null
+  locationId?: string | null,
+  /** Stamps this one scan is worth (the stepper). Omitted when 1. */
+  quantity?: number
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  // Only send a body when we have a location to attribute. Single-location and
-  // non-Pro businesses omit it and the backend auto-assigns (or records NULL).
+  // Only send a body when there's something to say. Single-location and non-Pro
+  // businesses omit the location and the backend auto-assigns (or records
+  // NULL); quantity is omitted at 1 so a plain single stamp stays byte-identical
+  // on the wire to what every previous build sent.
   const init: RequestInit = { method: "POST", headers };
-  if (locationId) {
-    init.body = JSON.stringify({ location_id: locationId });
+  const reqBody: Record<string, unknown> = {};
+  if (locationId) reqBody.location_id = locationId;
+  if (quantity != null && quantity > 1) reqBody.quantity = quantity;
+  if (Object.keys(reqBody).length > 0) {
+    init.body = JSON.stringify(reqBody);
   }
 
   const response = await fetch(

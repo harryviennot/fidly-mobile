@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -9,6 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
+import { EASE_OUT } from "@/constants/motion";
 
 interface PointsProgressProps {
   /** Current points balance. */
@@ -45,7 +45,7 @@ export function PointsProgress({
     // Small delay so the sweep lands after the screen's entering animations.
     progress.value = withDelay(
       250,
-      withTiming(fillPct, { duration: 650, easing: Easing.out(Easing.cubic) })
+      withTiming(fillPct, { duration: 650, easing: EASE_OUT })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fillPct]);

@@ -1,20 +1,21 @@
 {
-  "loading": "Cargando cliente...",
-  "currentStamps": "Sellos actuales",
-  "stampsReset": "Sellos reiniciados",
   "stampsCount": "{{current}} / {{total}}",
-  "stampsCountFull": "{{current}} / {{total}} - ¡Tarjeta completa!",
   "addStamp": "Añadir sello",
+  "addStampMany": "Añadir {{count}} sellos",
+  "quantity": {
+    "pending": "+{{count}} sellos",
+    "pendingOne": "+1 sello",
+    "completesCard": "Con esto la tarjeta se completa"
+  },
   "scanNext": "Escanear al siguiente cliente",
   "skipForNow": "Omitir por ahora",
   "redeemReward": "Canjear recompensa",
   "success": {
     "stampAdded": "¡Sello añadido!",
+    "stampsAdded": "¡{{count}} sellos añadidos!",
     "cardComplete": "¡Tarjeta completa!",
     "rewardRedeemed": "¡Recompensa canjeada!",
-    "stampAddedFor": "Sello añadido para {{name}}.",
     "cardFull": "¡Su tarjeta ya está completa!",
-    "cardReset": "La tarjeta de {{name}} se ha reiniciado.",
     "collectAgain": "¡Ya puede empezar a juntar sellos otra vez!",
     "rewardBanked": "¡Recompensa guardada!",
     "rewardBankedFor": "{{name}} ha completado su tarjeta. La recompensa queda guardada y su tarjeta sigue activa.",

@@ -9,6 +9,7 @@ import Animated, {
 import { Backspace } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/contexts/theme-context";
+import { SETTLE_SPRING } from "@/constants/motion";
 
 interface KeypadProps {
   /** Emits a digit "0"–"9", the decimal separator, or "backspace". */
@@ -47,7 +48,7 @@ function KeypadKey({ label, onPress, disabled, hapticStyle, highlightColor, chil
         Haptics.impactAsync(hapticStyle).catch(() => {});
       }}
       onPressOut={() => {
-        scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+        scale.value = withSpring(1, SETTLE_SPRING);
         highlight.value = withTiming(0, { duration: 220 });
       }}
       onPress={onPress}
