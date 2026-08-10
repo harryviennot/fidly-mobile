@@ -3,6 +3,7 @@ import type { GestureResponderEvent, PressableProps, StyleProp, ViewStyle } from
 import { Pressable } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { SETTLE_SPRING } from "@/constants/motion";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -19,7 +20,7 @@ interface PressableScaleProps extends Omit<PressableProps, "style" | "children">
 
 /**
  * Pressable with the standard CTA press feel: a quick scale-down on touch, a
- * soft spring back on release, and an optional impact haptic. Used for the
+ * clean settle back on release, and an optional impact haptic. Used for the
  * primary actions in the scan flows so every button responds the same way.
  */
 export function PressableScale({
@@ -50,7 +51,7 @@ export function PressableScale({
         onPressIn?.(e);
       }}
       onPressOut={(e: GestureResponderEvent) => {
-        scale.value = withSpring(1, { damping: 20, stiffness: 350 });
+        scale.value = withSpring(1, SETTLE_SPRING);
         onPressOut?.(e);
       }}
     >

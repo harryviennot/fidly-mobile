@@ -1,20 +1,21 @@
 {
-  "loading": "Loading customer...",
-  "currentStamps": "Current Stamps",
-  "stampsReset": "Stamps Reset",
   "stampsCount": "{{current}} / {{total}}",
-  "stampsCountFull": "{{current}} / {{total}} - Card Full!",
   "addStamp": "Add Stamp",
+  "addStampMany": "Add {{count}} stamps",
+  "quantity": {
+    "pending": "+{{count}} stamps",
+    "pendingOne": "+1 stamp",
+    "completesCard": "This completes the card"
+  },
   "scanNext": "Scan Next Customer",
   "skipForNow": "Skip for Now",
   "redeemReward": "Redeem Reward",
   "success": {
     "stampAdded": "Stamp Added!",
+    "stampsAdded": "{{count}} stamps added!",
     "cardComplete": "Card Complete!",
     "rewardRedeemed": "Reward Redeemed!",
-    "stampAddedFor": "Stamp added for {{name}}.",
     "cardFull": "Their card is now full!",
-    "cardReset": "{{name}}'s card has been reset.",
     "collectAgain": "They can start collecting stamps again!",
     "rewardBanked": "Reward saved!",
     "rewardBankedFor": "{{name}} completed their card. The reward is saved and their card keeps going.",
@@ -36,7 +37,9 @@
     "pausedMessage": "Your scanning access has been paused by the business owner. Contact them to restore access.",
     "checkoutRequired": "The owner needs to finish setting up the subscription before you can add stamps.",
     "goHome": "Go Home",
-    "programNowPoints": "This program switched to points. Scan the card again to enter the amount."
+    "programNowPoints": "This program switched to points. Scan the card again to enter the amount.",
+    "billingRequired": "This business's subscription is paused. The owner needs to update the payment method before you can scan.",
+    "accessDenied": "You do not have access to this business. Ask the owner to check your invitation."
   },
   "rewardsBadge": "{{count}} rewards to redeem",
   "rewardsBadgeOne": "1 reward to redeem"

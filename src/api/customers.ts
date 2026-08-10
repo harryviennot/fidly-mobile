@@ -8,15 +8,22 @@ export async function getCustomer(businessId: string, customerId: string): Promi
 export async function addStamp(
   businessId: string,
   enrollmentId: string,
-  locationId?: string | null
+  locationId?: string | null,
+  /** Stamps this one scan is worth (the stepper). Omitted when 1. */
+  quantity?: number
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
-  // Only send a body when we have a location to attribute. Single-location and
-  // non-Pro businesses omit it and the backend auto-assigns (or records NULL).
+  // Only send a body when there's something to say. Single-location and non-Pro
+  // businesses omit the location and the backend auto-assigns (or records
+  // NULL); quantity is omitted at 1 so a plain single stamp stays byte-identical
+  // on the wire to what every previous build sent.
   const init: RequestInit = { method: "POST", headers };
-  if (locationId) {
-    init.body = JSON.stringify({ location_id: locationId });
+  const reqBody: Record<string, unknown> = {};
+  if (locationId) reqBody.location_id = locationId;
+  if (quantity != null && quantity > 1) reqBody.quantity = quantity;
+  if (Object.keys(reqBody).length > 0) {
+    init.body = JSON.stringify(reqBody);
   }
 
   const response = await fetch(
@@ -30,13 +37,14 @@ export async function addStamp(
     }
     const body = await response.json().catch(() => ({}));
     const code: string | undefined = body?.detail?.code;
-    // Re-raise backend codes the UI handles explicitly (member pause, location
-    // resolution failures, the card-upfront checkout gate, and AMOUNT_REQUIRED
-    // — a bodiless stamp call hitting a program that converted to points). The
-    // screen maps these to localized messages.
+    // Re-raise backend codes the UI handles explicitly (member pause, billing
+    // pause, location resolution failures, the card-upfront checkout gate, and
+    // AMOUNT_REQUIRED, a bodiless stamp call hitting a program that converted
+    // to points). The screen maps these to localized messages.
     if (
       code === "MEMBER_PAUSED" ||
       code === "CHECKOUT_REQUIRED" ||
+      code === "BILLING_REQUIRED" ||
       code === "LOCATION_REQUIRED" ||
       code === "LOCATION_NOT_PERMITTED" ||
       code === "LOCATION_NOT_FOUND" ||
@@ -47,7 +55,11 @@ export async function addStamp(
       throw err;
     }
     if (response.status === 403) {
-      throw new Error("You don't have access to this business");
+      // Not a billing pause: a real permissions problem. Coded so the screen
+      // can localize it rather than showing this English fallback.
+      const err = new Error("ACCESS_DENIED");
+      (err as any).code = "ACCESS_DENIED";
+      throw err;
     }
     if (response.status === 404) {
       throw new Error("Enrollment not found");
@@ -87,24 +99,25 @@ export async function redeemReward(
     if (response.status === 401) {
       throw new Error("Not authorized to redeem rewards");
     }
-    // Card-upfront checkout gate (402): re-raise so the screen can explain the
-    // owner needs to finish setup.
-    if (response.status === 402) {
+    // Card-upfront checkout gate (402) and billing pause (403): re-raise so the
+    // screen can explain what the owner needs to do.
+    if (response.status === 402 || response.status === 403) {
       const body = await response.json().catch(() => ({}));
-      if (body?.detail?.code === "CHECKOUT_REQUIRED") {
-        const err = new Error("CHECKOUT_REQUIRED");
-        (err as any).code = "CHECKOUT_REQUIRED";
+      const code: string | undefined = body?.detail?.code;
+      if (
+        code === "CHECKOUT_REQUIRED" ||
+        code === "BILLING_REQUIRED" ||
+        code === "MEMBER_PAUSED"
+      ) {
+        const err = new Error(code);
+        (err as any).code = code;
         throw err;
       }
-    }
-    if (response.status === 403) {
-      const body = await response.json().catch(() => ({}));
-      if (body?.detail?.code === "MEMBER_PAUSED") {
-        const err = new Error("MEMBER_PAUSED");
-        (err as any).code = "MEMBER_PAUSED";
+      if (response.status === 403) {
+        const err = new Error("ACCESS_DENIED");
+        (err as any).code = "ACCESS_DENIED";
         throw err;
       }
-      throw new Error("You don't have access to this business");
     }
     if (response.status === 404) {
       throw new Error("Enrollment not found");

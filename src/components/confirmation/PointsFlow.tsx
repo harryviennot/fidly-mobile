@@ -28,6 +28,7 @@ import { AnimatedBalance } from "./AnimatedBalance";
 import { PointsProgress } from "./PointsProgress";
 import { RewardsMenu } from "./RewardsMenu";
 import { ACTION_ENTER, BODY_ENTER, DETAIL_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
+import { SUCCESS_GREEN, SUCCESS_TINT, UNLOCK_AMBER, UNLOCK_TINT } from "./palette";
 
 interface PointsFlowProps {
   /** May be null while the fetch is in flight — the keypad renders immediately. */
@@ -41,14 +42,6 @@ interface PointsFlowProps {
 }
 
 const valueOf = (r: StampResponse) => r.value_after ?? r.stamps;
-
-// Success palette: soft tinted circles with a colored glyph instead of solid
-// saturated discs — the screen shows up dozens of times a day, so the only
-// fully saturated element is the action button.
-const SUCCESS_GREEN = "#16a34a";
-const SUCCESS_TINT = "rgba(34, 197, 94, 0.14)";
-const UNLOCK_AMBER = "#d97706";
-const UNLOCK_TINT = "rgba(245, 158, 11, 0.16)";
 
 /** Smallest reward threshold strictly above `value`, with its name. */
 function nextReward(ladder: ProgramReward[], value: number): ProgramReward | null {
@@ -135,6 +128,10 @@ export function PointsFlow({
       setIsPausedError(true);
     } else if (code === "CHECKOUT_REQUIRED") {
       setError(tStamp("errors.checkoutRequired"));
+    } else if (code === "BILLING_REQUIRED") {
+      setError(tStamp("errors.billingRequired"));
+    } else if (code === "ACCESS_DENIED") {
+      setError(tStamp("errors.accessDenied"));
     } else if (code === "AMOUNT_REQUIRED") {
       setError(t("errors.amountRequired"));
     } else if (code === "LOCATION_NOT_PERMITTED") {

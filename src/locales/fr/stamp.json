@@ -1,20 +1,21 @@
 {
-  "loading": "Chargement du client...",
-  "currentStamps": "Tampons actuels",
-  "stampsReset": "Tampons réinitialisés",
   "stampsCount": "{{current}} / {{total}}",
-  "stampsCountFull": "{{current}} / {{total}} - Carte complète !",
   "addStamp": "Ajouter un tampon",
+  "addStampMany": "Ajouter {{count}} tampons",
+  "quantity": {
+    "pending": "+{{count}} tampons",
+    "pendingOne": "+1 tampon",
+    "completesCard": "La carte sera complète"
+  },
   "scanNext": "Scanner le prochain client",
   "skipForNow": "Passer pour l'instant",
   "redeemReward": "Utiliser la récompense",
   "success": {
     "stampAdded": "Tampon ajouté !",
+    "stampsAdded": "{{count}} tampons ajoutés !",
     "cardComplete": "Carte complète !",
     "rewardRedeemed": "Récompense utilisée !",
-    "stampAddedFor": "Tampon ajouté pour {{name}}.",
     "cardFull": "Sa carte est maintenant complète !",
-    "cardReset": "La carte de {{name}} a été réinitialisée.",
     "collectAgain": "Il/Elle peut recommencer à collecter des tampons !",
     "rewardBanked": "Récompense mise de côté !",
     "rewardBankedFor": "{{name}} a complété sa carte. La récompense est mise de côté et sa carte continue.",
@@ -36,7 +37,9 @@
     "pausedMessage": "Votre accès au scanner a été suspendu par le propriétaire. Contactez-le pour le restaurer.",
     "checkoutRequired": "Le propriétaire doit finaliser l'abonnement avant que vous puissiez ajouter des tampons.",
     "goHome": "Retour à l'accueil",
-    "programNowPoints": "Ce programme est passé aux points. Scannez à nouveau la carte pour saisir le montant."
+    "programNowPoints": "Ce programme est passé aux points. Scannez à nouveau la carte pour saisir le montant.",
+    "billingRequired": "L'abonnement de ce commerce est en pause. Le responsable doit mettre à jour le moyen de paiement avant que vous puissiez scanner.",
+    "accessDenied": "Vous n'avez pas accès à ce commerce. Demandez au responsable de vérifier votre invitation."
   },
   "rewardsBadge": "{{count}} récompenses à utiliser",
   "rewardsBadgeOne": "1 récompense à utiliser"

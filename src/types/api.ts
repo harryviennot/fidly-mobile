@@ -64,6 +64,12 @@ export interface StampResponse {
   stamps: number;
   /** Unambiguous type-aware primary value after the action. */
   value_after?: number;
+  /**
+   * Stamps/points this action actually credited. Not derivable from
+   * `value_after`: a multi-stamp scan that rolls the card over ends BELOW where
+   * it started. Drives the "N stamps added" copy + the staggered dot animation.
+   */
+  delta?: number;
   program_type?: "stamp" | "points";
   /** Banked rewards after the action. */
   rewards?: number;

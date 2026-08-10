@@ -1,4 +1,5 @@
 import { getAuthHeaders, supabase } from "../lib/supabase";
+import { toApiError } from "./errors";
 
 // Use environment variable — validated at request time, not module load
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
@@ -40,7 +41,7 @@ export async function apiFetch<T>(
       if (error || !data.session) {
         console.warn(`[API] session refresh failed: ${error?.message || "no session"}`);
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.detail || "Not authenticated");
+        throw toApiError(body, response.status, "Not authenticated");
       }
       console.log(`[API] session refreshed, retrying ${endpoint}`);
 
@@ -58,8 +59,8 @@ export async function apiFetch<T>(
         });
 
         if (!retryResponse.ok) {
-          const error = await retryResponse.json().catch(() => ({}));
-          throw new Error(error.detail || `API error: ${retryResponse.status}`);
+          const body = await retryResponse.json().catch(() => ({}));
+          throw toApiError(body, retryResponse.status, `API error: ${retryResponse.status}`);
         }
 
         return retryResponse.json();
@@ -69,8 +70,8 @@ export async function apiFetch<T>(
     }
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || `API error: ${response.status}`);
+      const body = await response.json().catch(() => ({}));
+      throw toApiError(body, response.status, `API error: ${response.status}`);
     }
 
     return response.json();
