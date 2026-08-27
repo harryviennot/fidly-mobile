@@ -42,5 +42,24 @@
     "accessDenied": "No tienes acceso a este comercio. Pide al responsable que revise tu invitación."
   },
   "rewardsBadge": "{{count}} recompensas por canjear",
-  "rewardsBadgeOne": "1 recompensa por canjear"
+  "rewardsBadgeOne": "1 recompensa por canjear",
+  "cap": {
+    "blockedTitleDay": "Límite diario alcanzado",
+    "blockedTitleWeek": "Límite semanal alcanzado",
+    "blockedMessageDay": "Tu programa limita a cada cliente a {{limit}} por día.",
+    "blockedMessageWeek": "Tu programa limita a cada cliente a {{limit}} por semana.",
+    "contactManager": "Pregunta a un responsable si este cliente puede recibir más.",
+    "overrideHint": "Puedes dejar pasar a este cliente.",
+    "overrideButton": "Añadir de todos modos",
+    "overrideConfirmTitle": "¿Saltarse el límite?",
+    "overrideConfirmMessage": "Este cliente ha alcanzado el límite que fija tu programa. Si lo añades igualmente, quedará registrado a tu nombre.",
+    "overrideConfirm": "Añadir de todos modos",
+    "overrideCancel": "Cancelar",
+    "overrideActiveNotice": "Límite levantado para esta visita",
+    "overrideNotAllowed": "Solo los propietarios y administradores pueden saltarse el límite.",
+    "done": "Siguiente cliente",
+    "partialTitle": "Límite alcanzado",
+    "partialDay": "{{added}} de {{requested}} añadidos. Es todo lo que este cliente puede conseguir hoy.",
+    "partialWeek": "{{added}} de {{requested}} añadidos. Es todo lo que este cliente puede conseguir esta semana."
+  }
 }

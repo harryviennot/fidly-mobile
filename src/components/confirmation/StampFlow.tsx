@@ -16,6 +16,7 @@ import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
 import { StampGrid } from "./StampGrid";
 import { StampStepper } from "./StampStepper";
+import { CapBlockedScreen } from "./CapBlockedScreen";
 import { CustomerHeader } from "./CustomerHeader";
 import { AnimatedBalance } from "./AnimatedBalance";
 import { ACTION_ENTER, BODY_ENTER, DETAIL_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
@@ -57,6 +58,17 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   // count-up + the stagger on the dots that were just added.
   const [preStampRewards, setPreStampRewards] = useState(0);
   const [preStampStamps, setPreStampStamps] = useState(0);
+  // Manager decided to push this customer past their earning limit. Lives for
+  // one scan; the request carries it and the server re-checks the role.
+  const [capOverride, setCapOverride] = useState(false);
+  // Cap standing the LAST request reported, when it beat the snapshot (another
+  // device scanned this customer while this screen was open).
+  const [capError, setCapError] = useState<{
+    scope: "day" | "week";
+    limit: number;
+    resets_at: string;
+    can_override?: boolean;
+  } | null>(null);
 
   // Program config is the source of truth for the goal; the design column
   // is a deprecated synced copy kept as fallback.
@@ -76,9 +88,18 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   // How many stamps this scan is worth. Capped at what the card can absorb, so
   // the stepper never promises stamps the server would drop.
   const [quantity, setQuantity] = useState(1);
+  const earningCap = customer.program?.earning_cap ?? null;
   const maxQuantity = useMemo(
-    () => maxStampQuantity({ totalStamps, currentStamps, stackable }),
-    [totalStamps, currentStamps, stackable]
+    () =>
+      maxStampQuantity({
+        totalStamps,
+        currentStamps,
+        stackable,
+        // An override lifts the cap for this scan, so the stepper goes back to
+        // what the card can hold.
+        capRemaining: capOverride ? null : earningCap?.remaining ?? null,
+      }),
+    [totalStamps, currentStamps, stackable, earningCap?.remaining, capOverride]
   );
   // The ceiling moves when the customer snapshot refreshes (a concurrent scan on
   // another device); pull the quantity back in rather than sending a stale one.
@@ -121,7 +142,13 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       setError(null);
       setPreStampRewards(rewards);
       setPreStampStamps(currentStamps);
-      const result = await addStamp(businessId, enrollmentId, selectedLocation?.id, quantity);
+      const result = await addStamp(
+        businessId,
+        enrollmentId,
+        selectedLocation?.id,
+        quantity,
+        capOverride
+      );
       setSuccess(result);
       setCustomer((prev) =>
         prev ? { ...prev, stamps: result.stamps, rewards: result.rewards ?? prev.rewards } : null
@@ -136,6 +163,19 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       const code = (err as any)?.code;
       if (code === "MEMBER_PAUSED") {
         setIsPausedError(true);
+      } else if (code === "EARNING_CAP_REACHED") {
+        // The snapshot said there was room, but another device used it first.
+        // Show the same blocked screen rather than a bare error line.
+        const detail = (err as any)?.detail ?? {};
+        setCapError({
+          scope: detail.scope === "week" ? "week" : "day",
+          limit: detail.limit ?? 0,
+          resets_at: detail.resets_at ?? "",
+          can_override: detail.can_override ?? false,
+        });
+      } else if (code === "CAP_OVERRIDE_NOT_ALLOWED") {
+        setCapOverride(false);
+        setError(t("cap.overrideNotAllowed"));
       } else if (code === "CHECKOUT_REQUIRED") {
         setError(t("errors.checkoutRequired"));
       } else if (code === "BILLING_REQUIRED") {
@@ -261,6 +301,29 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         cancelButton: { padding: 12, alignItems: "center" },
         cancelText: { color: theme.textSecondary, fontSize: 16 },
         skipButton: { padding: 14, alignItems: "center" },
+        // A scan the earning limit truncated, and the banner saying so while
+        // an override is armed. Amber, not red: nothing went wrong.
+        capNote: {
+          marginTop: 10,
+          fontSize: 13.5,
+          lineHeight: 19,
+          fontWeight: "600",
+          color: UNLOCK_AMBER,
+          textAlign: "center",
+        },
+        overrideNotice: {
+          marginTop: 12,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: 10,
+          backgroundColor: UNLOCK_TINT,
+        },
+        overrideNoticeText: {
+          fontSize: 13,
+          fontWeight: "600",
+          color: UNLOCK_AMBER,
+          textAlign: "center",
+        },
         inlineError: {
           backgroundColor: "#fef2f2",
           padding: 12,
@@ -410,9 +473,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       ? t("success.rewardBanked")
       : completed
         ? t("success.cardComplete")
-        : added > 1
-          ? t("success.stampsAdded", { count: added })
-          : t("success.stampAdded");
+        : success.cap_applied
+          ? t("cap.partialTitle")
+          : added > 1
+            ? t("success.stampsAdded", { count: added })
+            : t("success.stampAdded");
 
     return (
       <ConfirmationScaffold>
@@ -449,6 +514,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               </Text>
             )}
             {completed && <Text style={styles.successNote}>{t("success.cardFull")}</Text>}
+            {success.cap_applied && (
+              <Text style={styles.capNote}>
+                {t(success.cap_scope === "week" ? "cap.partialWeek" : "cap.partialDay", {
+                  added,
+                  requested: success.cap_requested ?? added,
+                })}
+              </Text>
+            )}
           </Animated.View>
 
           {error && (
@@ -481,6 +554,33 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   // Card is full and waiting on a redemption: no stamps can be added, so the
   // stepper is replaced by the redeem/skip choice.
+  // Earning limit reached. Either the snapshot said so before the employee
+  // pressed anything, or the request came back 409. Reward-ready wins: a
+  // customer with a full card should be offered their reward first.
+  const blockingCap =
+    capError ??
+    (!capOverride && earningCap && earningCap.remaining <= 0
+      ? { ...earningCap, can_override: undefined }
+      : null);
+  if (blockingCap && !isReadyForReward && !success) {
+    return (
+      <CapBlockedScreen
+        customerName={customer.name}
+        cap={blockingCap}
+        serverAllowsOverride={blockingCap.can_override}
+        onOverride={() => {
+          // Lift the cap for the next request only, and clear the stale 409 so
+          // the entry screen comes back with its stepper.
+          setCapOverride(true);
+          setCapError(null);
+          setError(null);
+        }}
+        onDone={handleDone}
+        renderRedeemButton={hasBankedRewards ? renderRedeemButton : undefined}
+      />
+    );
+  }
+
   if (isReadyForReward) {
     return (
       <ConfirmationScaffold>
@@ -556,6 +656,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
                 : t(quantity === 1 ? "quantity.pendingOne" : "quantity.pending", { count: quantity })}
             </Animated.Text>
           </View>
+          {capOverride && (
+            <Animated.View entering={SOFT_ENTER} style={styles.overrideNotice}>
+              <Text style={styles.overrideNoticeText}>{t("cap.overrideActiveNotice")}</Text>
+            </Animated.View>
+          )}
           {error && (
             <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
               <Text style={styles.inlineErrorText}>{error}</Text>

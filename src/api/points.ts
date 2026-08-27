@@ -15,12 +15,15 @@ export async function addPoints(
   businessId: string,
   enrollmentId: string,
   amount: number,
-  locationId?: string | null
+  locationId?: string | null,
+  /** Owner/admin decision to push past a reached earning cap. Omitted unless true. */
+  capOverride?: boolean
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
   const body: Record<string, unknown> = { amount };
   if (locationId) body.location_id = locationId;
+  if (capOverride) body.cap_override = true;
 
   const response = await fetch(
     `${API_BASE_URL}/stamps/${businessId}/${enrollmentId}`,
@@ -41,10 +44,15 @@ export async function addPoints(
       code === "BILLING_REQUIRED" ||
       code === "LOCATION_REQUIRED" ||
       code === "LOCATION_NOT_PERMITTED" ||
-      code === "LOCATION_NOT_FOUND"
+      code === "LOCATION_NOT_FOUND" ||
+      code === "EARNING_CAP_REACHED" ||
+      code === "CAP_OVERRIDE_NOT_ALLOWED"
     ) {
       const err = new Error(code);
       (err as any).code = code;
+      // The cap payload carries which window is full, when it frees up, and
+      // whether this user may override — the screen needs all three.
+      (err as any).detail = payload?.detail;
       throw err;
     }
     if (response.status === 403) {
