@@ -43,6 +43,22 @@ export interface ProgramSnapshot {
    * tries one.
    */
   earning_cap: EarningCapSnapshot | null;
+  /**
+   * Basket boosters (points only): the spend thresholds that earn extra
+   * points, already clamped by the backend to what the merchant's plan
+   * applies. null when no boost is configured. Lets the keypad preview the
+   * boosted total live and name the threshold still to come.
+   */
+  basket_boost?: { tiers: BoostTier[] } | null;
+}
+
+/** One rung of a basket booster, as the scanner receives it. */
+export interface BoostTier {
+  /** Basket amount, in the business currency, that unlocks this tier. */
+  threshold: number;
+  kind: "multiplier" | "flat";
+  /** The multiplier (2 = double) or the flat bonus in points (100). */
+  value: number;
 }
 
 /** Per-customer earning cap: what is left, and when it frees up. */
@@ -109,6 +125,18 @@ export interface StampResponse {
   cap_requested?: number;
   cap_remaining?: number;
   cap_resets_at?: string;
+  /**
+   * True when a basket booster paid out on this scan, so the screen can show
+   * the bonus broken out instead of a silently bigger number. base/bonus are
+   * PRE-clamp: an earning cap can still hold part of it back, and `delta` is
+   * what actually landed.
+   */
+  boost_applied?: boolean;
+  boost_kind?: "multiplier" | "flat";
+  boost_threshold?: number;
+  boost_value?: number;
+  boost_base?: number;
+  boost_bonus?: number;
 }
 
 export interface Business {

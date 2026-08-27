@@ -33,5 +33,10 @@
   "cap": {
     "previewClamped": "Only {{count}} of these will count toward the limit.",
     "blockedKeypad": "This customer has reached their limit."
+  },
+  "boost": {
+    "upcoming": "Boost from {{amount}}{{currency}}",
+    "active": "Boost on: +{{count}} pts",
+    "successNote": "{{base}} pts + {{bonus}} boost"
   }
 }

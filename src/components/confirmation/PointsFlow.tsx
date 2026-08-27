@@ -16,8 +16,8 @@ import {
   getCurrencySymbol,
   getDecimalSeparator,
   parseAmount,
-  previewPoints,
 } from "@/utils/money";
+import { formatThreshold, previewBoost } from "@/utils/boost";
 import { Keypad } from "@/components/Keypad";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -92,7 +92,12 @@ export function PointsFlow({
   const currency = getCurrencySymbol();
 
   const parsedAmount = parseAmount(amount, separator);
-  const pointsPreview = rate != null ? previewPoints(parsedAmount, rate) : null;
+  // Basket boosters change what this ticket is worth, so the keypad previews
+  // the boosted total (and names the threshold still to come) rather than a
+  // base figure the scan would immediately contradict.
+  const boostTiers = program?.basket_boost?.tiers ?? null;
+  const boostPreview = previewBoost(parsedAmount, rate, boostTiers);
+  const pointsPreview = rate != null ? boostPreview.total : null;
 
   // Live balance: after an action use its result, else the snapshot.
   const balance = redeemResult ? valueOf(redeemResult) : addResult ? valueOf(addResult) : program?.primary_value ?? 0;
@@ -313,6 +318,27 @@ export function PointsFlow({
           color: UNLOCK_AMBER,
           textAlign: "center",
         },
+        boostUpcoming: {
+          marginTop: 12,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: 10,
+          backgroundColor: "rgba(0,0,0,0.04)",
+        },
+        boostUpcomingText: {
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
+        boostNoteText: {
+          marginTop: 8,
+          fontSize: 13.5,
+          lineHeight: 19,
+          fontWeight: "600",
+          color: UNLOCK_AMBER,
+          textAlign: "center",
+        },
         capNoteText: {
           marginTop: 8,
           fontSize: 13.5,
@@ -484,6 +510,17 @@ export function PointsFlow({
             {earned > 0 && (
               <Text style={styles.earnedText}>{t("success.earned", { count: earned })}</Text>
             )}
+            {/* What the boost added, broken out from the base. Hidden when the
+                cap clamped the scan: the pre-clamp bonus never fully landed,
+                and the cap note below is the honest line. */}
+            {addResult.boost_applied && !addResult.cap_applied && (addResult.boost_bonus ?? 0) > 0 && (
+              <Text style={styles.boostNoteText}>
+                {t("boost.successNote", {
+                  base: addResult.boost_base ?? 0,
+                  bonus: addResult.boost_bonus ?? 0,
+                })}
+              </Text>
+            )}
             {/* Never let a clamped scan read as a clean success. */}
             {addResult.cap_applied && (
               <Text style={styles.capNoteText}>
@@ -583,6 +620,26 @@ export function PointsFlow({
           {capOverride && (
             <Animated.View entering={SOFT_ENTER} style={styles.capNotice}>
               <Text style={styles.capNoticeText}>{tStamp("cap.overrideActiveNotice")}</Text>
+            </Animated.View>
+          )}
+          {/* Say the boost out loud BEFORE the press, so the employee can tell
+              the customer "add a little and it doubles" rather than the bonus
+              landing as an unexplained number. */}
+          {boostPreview.tier && !willClamp && (
+            <Animated.View entering={SOFT_ENTER} style={styles.capNotice}>
+              <Text style={styles.capNoticeText}>
+                {t("boost.active", { count: boostPreview.bonus })}
+              </Text>
+            </Animated.View>
+          )}
+          {!boostPreview.tier && boostPreview.nextTier && parsedAmount > 0 && (
+            <Animated.View entering={SOFT_ENTER} style={styles.boostUpcoming}>
+              <Text style={styles.boostUpcomingText}>
+                {t("boost.upcoming", {
+                  amount: formatThreshold(boostPreview.nextTier.threshold),
+                  currency,
+                })}
+              </Text>
             </Animated.View>
           )}
           {/* Warn BEFORE the press: this ticket is worth more than the limit
