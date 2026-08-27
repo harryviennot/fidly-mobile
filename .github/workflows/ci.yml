@@ -5,6 +5,18 @@ on:
   pull_request:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      # Runs the repo's own `test` script rather than a bare `bun test`, so
+      # CI and local stay one source of truth. Note it is path-scoped
+      # (bun test src) — a test added outside that path will not run here until
+      # the script is widened.
+      - run: bun run test
+
   lint-and-build:
     runs-on: ubuntu-latest
     steps:
