@@ -42,5 +42,24 @@
     "accessDenied": "Vous n'avez pas accès à ce commerce. Demandez au responsable de vérifier votre invitation."
   },
   "rewardsBadge": "{{count}} récompenses à utiliser",
-  "rewardsBadgeOne": "1 récompense à utiliser"
+  "rewardsBadgeOne": "1 récompense à utiliser",
+  "cap": {
+    "blockedTitleDay": "Limite du jour atteinte",
+    "blockedTitleWeek": "Limite de la semaine atteinte",
+    "blockedMessageDay": "Votre programme limite chaque client à {{limit}} par jour.",
+    "blockedMessageWeek": "Votre programme limite chaque client à {{limit}} par semaine.",
+    "contactManager": "Demandez à un responsable si ce client peut en recevoir plus.",
+    "overrideHint": "Vous pouvez laisser passer ce client.",
+    "overrideButton": "Ajouter quand même",
+    "overrideConfirmTitle": "Dépasser la limite ?",
+    "overrideConfirmMessage": "Ce client a atteint la limite fixée par votre programme. L'ajout sera enregistré à votre nom.",
+    "overrideConfirm": "Ajouter quand même",
+    "overrideCancel": "Annuler",
+    "overrideActiveNotice": "Limite levée pour ce passage",
+    "overrideNotAllowed": "Seuls les propriétaires et les administrateurs peuvent dépasser la limite.",
+    "done": "Client suivant",
+    "partialTitle": "Limite atteinte",
+    "partialDay": "{{added}} sur {{requested}} ajoutés. C'est tout ce que ce client peut collecter aujourd'hui.",
+    "partialWeek": "{{added}} sur {{requested}} ajoutés. C'est tout ce que ce client peut collecter cette semaine."
+  }
 }

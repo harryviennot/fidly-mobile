@@ -24,6 +24,12 @@ interface StampQuantityInput {
    * stamps left to the goal, because the counter rolls over.
    */
   stackable: boolean;
+  /**
+   * Stamps this customer may still earn in the binding cap window, from the
+   * pre-scan snapshot. `null`/undefined when the merchant set no cap (or the
+   * plan isn't entitled). 0 is handled by the blocked screen, not here.
+   */
+  capRemaining?: number | null;
 }
 
 /**
@@ -32,17 +38,24 @@ interface StampQuantityInput {
  * Reset cards cap at the goal, so anything past "stamps remaining" is thrown
  * away server-side. Stacking cards roll over instead, so a full card's worth is
  * a sane, generous limit: one scan can complete the card and start the next.
+ * `capRemaining` narrows it further when the merchant caps per-customer earning.
  */
 export function maxStampQuantity({
   totalStamps,
   currentStamps,
   stackable,
+  capRemaining,
 }: StampQuantityInput): number {
   // Defend against a missing or nonsense goal rather than rendering a broken stepper.
   const total = Number.isFinite(totalStamps) && totalStamps > 0 ? Math.floor(totalStamps) : 10;
   const current = Number.isFinite(currentStamps) && currentStamps > 0 ? Math.floor(currentStamps) : 0;
 
-  const room = stackable ? total : total - current;
+  let room = stackable ? total : total - current;
+  // A per-customer earning cap is a second ceiling: offering "+" past what the
+  // customer may still earn promises stamps the server will clamp away.
+  if (typeof capRemaining === "number" && Number.isFinite(capRemaining)) {
+    room = Math.min(room, Math.floor(capRemaining));
+  }
   return Math.min(Math.max(1, room), MAX_STAMPS_PER_SCAN);
 }
 

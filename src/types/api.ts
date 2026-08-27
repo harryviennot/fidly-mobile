@@ -36,6 +36,28 @@ export interface ProgramSnapshot {
   rewards: ProgramReward[];
   /** Ticket-price → points rate (points only), for the live keypad preview. */
   points_per_currency_unit: number | null;
+  /**
+   * The merchant's per-customer earning cap standing for THIS customer, or
+   * null when no cap is configured (or the plan isn't entitled). Lets the
+   * screen pre-cap its stepper and explain a blocked scan before the employee
+   * tries one.
+   */
+  earning_cap: EarningCapSnapshot | null;
+}
+
+/** Per-customer earning cap: what is left, and when it frees up. */
+export interface EarningCapSnapshot {
+  per_day: number | null;
+  per_week: number | null;
+  week_mode: "calendar" | "rolling";
+  /** Which window is binding right now. */
+  scope: "day" | "week";
+  limit: number;
+  earned: number;
+  /** Stamps/points this customer may still earn. 0 = blocked. */
+  remaining: number;
+  /** ISO-8601 instant when the binding window rolls over. */
+  resets_at: string;
 }
 
 export interface Customer {
@@ -77,6 +99,16 @@ export interface StampResponse {
   transaction_id?: string;
   location_id?: string | null;
   location_name?: string | null;
+  /**
+   * True when the per-customer earning cap is what held this scan back, so the
+   * screen says "2 of 5 added" instead of a plain, misleading success.
+   */
+  cap_applied?: boolean;
+  cap_scope?: "day" | "week";
+  /** What the scan would have credited with no cap in play. */
+  cap_requested?: number;
+  cap_remaining?: number;
+  cap_resets_at?: string;
 }
 
 export interface Business {

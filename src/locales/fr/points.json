@@ -29,5 +29,9 @@
     "amountRequired": "Saisissez le montant de l'achat pour ajouter des points.",
     "addFailed": "Impossible d'ajouter les points. Réessayez.",
     "redeemFailed": "Impossible d'utiliser la récompense. Réessayez."
+  },
+  "cap": {
+    "previewClamped": "Seuls {{count}} seront comptés dans la limite.",
+    "blockedKeypad": "Ce client a atteint sa limite."
   }
 }
