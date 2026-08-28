@@ -18,6 +18,7 @@ import {
   parseAmount,
 } from "@/utils/money";
 import { formatThreshold, previewBoost } from "@/utils/boost";
+import { resolveWaiveAction } from "@/utils/cap";
 import { Keypad } from "@/components/Keypad";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -180,7 +181,11 @@ export function PointsFlow({
     }
   }
 
-  async function handleAdd() {
+  /**
+   * `overrideNow` is the manager's just-made decision, passed explicitly because
+   * the `capOverride` state it also sets is not readable until the next render.
+   */
+  async function handleAdd(overrideNow?: boolean) {
     if (adding || !(parsedAmount > 0)) return;
     try {
       setAdding(true);
@@ -191,7 +196,7 @@ export function PointsFlow({
         enrollmentId,
         parsedAmount,
         selectedLocation?.id,
-        capOverride
+        overrideNow ?? capOverride
       );
       const after = valueOf(result);
       setAddResult(result);
@@ -213,6 +218,29 @@ export function PointsFlow({
     } finally {
       setAdding(false);
     }
+  }
+
+  /**
+   * Manager waives the limit. When the block came from a rejected request the
+   * amount is still on screen and already confirmed, so send it straight
+   * through — the alternative is dropping them back on the keypad to press
+   * "Add points" a second time on an amount they never changed.
+   */
+  async function handleWaive() {
+    setCapOverride(true);
+    setError(null);
+    const action = resolveWaiveAction({
+      rejectedRequest: capError !== null,
+      inputReady: parsedAmount > 0,
+    });
+    if (action === "resubmit") {
+      // capError stays until this lands: it keeps the limit screen (and its
+      // spinner) up instead of flashing the keypad mid-request, and a failure
+      // leaves the decision exactly where the manager made it.
+      await handleAdd(true);
+      return;
+    }
+    setCapError(null);
   }
 
   async function handleRedeem(rewardId: string) {
@@ -406,11 +434,9 @@ export function PointsFlow({
         customerName={customer?.name ?? ""}
         cap={blockingCap}
         serverAllowsOverride={blockingCap.can_override}
-        onOverride={() => {
-          setCapOverride(true);
-          setCapError(null);
-          setError(null);
-        }}
+        onOverride={handleWaive}
+        overriding={adding}
+        errorMessage={error}
         onDone={handleDone}
       />
     );
@@ -664,7 +690,7 @@ export function PointsFlow({
             <PressableScale
               style={styles.addButton}
               haptic="medium"
-              onPress={handleAdd}
+              onPress={() => handleAdd()}
               disabled={adding || !canAdd}
             >
               {adding ? (
