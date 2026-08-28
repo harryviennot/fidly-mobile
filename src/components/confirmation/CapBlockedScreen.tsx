@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { Prohibit } from "phosphor-react-native";
@@ -7,7 +7,7 @@ import { useBusiness } from "@/contexts/business-context";
 import type { EarningCapSnapshot } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
-import { ACTION_ENTER, BODY_ENTER, DETAIL_ENTER, ICON_ENTER } from "./animations";
+import { ACTION_ENTER, BODY_ENTER, DETAIL_ENTER, ICON_ENTER, SOFT_ENTER } from "./animations";
 import { UNLOCK_AMBER, UNLOCK_TINT } from "./palette";
 
 interface CapBlockedScreenProps {
@@ -22,6 +22,13 @@ interface CapBlockedScreenProps {
   serverAllowsOverride?: boolean;
   /** Called after the manager confirms the override. */
   onOverride: () => void;
+  /**
+   * True while the override is sending the scan straight through (the block
+   * came from a rejected request, so there is nothing to go back and re-press).
+   */
+  overriding?: boolean;
+  /** Failure from that send, kept on this screen so the decision can be retried. */
+  errorMessage?: string | null;
   onDone: () => void;
   /** Redeeming is not earning, so a banked reward stays claimable here. */
   renderRedeemButton?: () => React.ReactNode;
@@ -41,6 +48,8 @@ export function CapBlockedScreen({
   cap,
   serverAllowsOverride,
   onOverride,
+  overriding = false,
+  errorMessage,
   onDone,
   renderRedeemButton,
 }: CapBlockedScreenProps) {
@@ -57,6 +66,7 @@ export function CapBlockedScreen({
   const mayOverride = serverAllowsOverride !== false && isManager;
 
   const confirmOverride = () => {
+    if (overriding) return;
     alert(t("cap.overrideConfirmTitle"), t("cap.overrideConfirmMessage"), [
       { text: t("cap.overrideCancel"), style: "cancel" },
       { text: t("cap.overrideConfirm"), onPress: onOverride },
@@ -91,16 +101,33 @@ export function CapBlockedScreen({
           </Text>
         </Animated.View>
 
+        {errorMessage && (
+          <Animated.View entering={SOFT_ENTER} style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+          </Animated.View>
+        )}
+
         <Animated.View entering={ACTION_ENTER} style={styles.actions}>
           {renderRedeemButton?.()}
           {mayOverride && (
-            <PressableScale style={styles.overrideButton} onPress={confirmOverride}>
-              <Text style={styles.overrideText}>{t("cap.overrideButton")}</Text>
+            <PressableScale
+              style={[styles.overrideButton, overriding && styles.overrideBusy]}
+              onPress={confirmOverride}
+              disabled={overriding}
+            >
+              {overriding ? (
+                <ActivityIndicator color={UNLOCK_AMBER} />
+              ) : (
+                <Text style={styles.overrideText}>{t("cap.overrideButton")}</Text>
+              )}
             </PressableScale>
           )}
-          <TouchableOpacity style={styles.doneButton} onPress={onDone}>
+          {/* The way out is the safe answer, so it gets a real button rather
+              than a grey line of text — especially now that "Add anyway"
+              commits the scan on the spot. */}
+          <PressableScale style={styles.doneButton} onPress={onDone} disabled={overriding}>
             <Text style={styles.doneText}>{t("cap.done")}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </Animated.View>
       </View>
     </ConfirmationScaffold>
@@ -125,7 +152,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  overrideBusy: { opacity: 0.7 },
   overrideText: { fontSize: 16, fontWeight: "600", color: UNLOCK_AMBER },
-  doneButton: { height: 48, alignItems: "center", justifyContent: "center" },
-  doneText: { fontSize: 15, fontWeight: "500", color: "#6B7280" },
+  doneButton: {
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneText: { fontSize: 16, fontWeight: "600", color: "#374151" },
+  inlineError: {
+    marginHorizontal: 4,
+    backgroundColor: "#fef2f2",
+    padding: 12,
+    borderRadius: 10,
+  },
+  inlineErrorText: { color: "#dc2626", textAlign: "center" },
 });

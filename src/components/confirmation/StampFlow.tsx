@@ -10,6 +10,7 @@ import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
 import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
+import { resolveWaiveAction } from "@/utils/cap";
 import type { Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -135,7 +136,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     }
   }
 
-  async function handleAddStamp() {
+  /**
+   * `overrideNow` is the manager's just-made decision, passed explicitly because
+   * the `capOverride` state it also sets is not readable until the next render.
+   */
+  async function handleAddStamp(overrideNow?: boolean) {
     if (stamping) return;
     try {
       setStamping(true);
@@ -147,7 +152,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         enrollmentId,
         selectedLocation?.id,
         quantity,
-        capOverride
+        overrideNow ?? capOverride
       );
       setSuccess(result);
       setCustomer((prev) =>
@@ -199,6 +204,29 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     } finally {
       setStamping(false);
     }
+  }
+
+  /**
+   * Manager waives the limit. When the block came from a rejected request the
+   * quantity is still on screen and already confirmed, so send it straight
+   * through rather than dropping them back on the stepper to press "Add stamp"
+   * a second time on a quantity they never changed.
+   */
+  async function handleWaive() {
+    setCapOverride(true);
+    setError(null);
+    const action = resolveWaiveAction({
+      rejectedRequest: capError !== null,
+      inputReady: quantity >= 1,
+    });
+    if (action === "resubmit") {
+      // capError stays until this lands: it keeps the limit screen (and its
+      // spinner) up instead of flashing the stepper mid-request, and a failure
+      // leaves the decision exactly where the manager made it.
+      await handleAddStamp(true);
+      return;
+    }
+    setCapError(null);
   }
 
   async function handleRedeemReward() {
@@ -568,13 +596,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         customerName={customer.name}
         cap={blockingCap}
         serverAllowsOverride={blockingCap.can_override}
-        onOverride={() => {
-          // Lift the cap for the next request only, and clear the stale 409 so
-          // the entry screen comes back with its stepper.
-          setCapOverride(true);
-          setCapError(null);
-          setError(null);
-        }}
+        onOverride={handleWaive}
+        overriding={stamping}
+        errorMessage={error}
         onDone={handleDone}
         renderRedeemButton={hasBankedRewards ? renderRedeemButton : undefined}
       />
@@ -679,7 +703,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           <PressableScale
             style={[styles.stampButton, stamping && styles.buttonDisabled]}
             haptic="medium"
-            onPress={handleAddStamp}
+            onPress={() => handleAddStamp()}
             disabled={stamping || redeeming}
           >
             {stamping ? (

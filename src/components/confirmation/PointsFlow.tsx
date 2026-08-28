@@ -16,8 +16,9 @@ import {
   getCurrencySymbol,
   getDecimalSeparator,
   parseAmount,
-  previewPoints,
 } from "@/utils/money";
+import { formatThreshold, previewBoost } from "@/utils/boost";
+import { resolveWaiveAction } from "@/utils/cap";
 import { Keypad } from "@/components/Keypad";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -92,7 +93,12 @@ export function PointsFlow({
   const currency = getCurrencySymbol();
 
   const parsedAmount = parseAmount(amount, separator);
-  const pointsPreview = rate != null ? previewPoints(parsedAmount, rate) : null;
+  // Basket boosters change what this ticket is worth, so the keypad previews
+  // the boosted total (and names the threshold still to come) rather than a
+  // base figure the scan would immediately contradict.
+  const boostTiers = program?.basket_boost?.tiers ?? null;
+  const boostPreview = previewBoost(parsedAmount, rate, boostTiers);
+  const pointsPreview = rate != null ? boostPreview.total : null;
 
   // Live balance: after an action use its result, else the snapshot.
   const balance = redeemResult ? valueOf(redeemResult) : addResult ? valueOf(addResult) : program?.primary_value ?? 0;
@@ -175,7 +181,11 @@ export function PointsFlow({
     }
   }
 
-  async function handleAdd() {
+  /**
+   * `overrideNow` is the manager's just-made decision, passed explicitly because
+   * the `capOverride` state it also sets is not readable until the next render.
+   */
+  async function handleAdd(overrideNow?: boolean) {
     if (adding || !(parsedAmount > 0)) return;
     try {
       setAdding(true);
@@ -186,7 +196,7 @@ export function PointsFlow({
         enrollmentId,
         parsedAmount,
         selectedLocation?.id,
-        capOverride
+        overrideNow ?? capOverride
       );
       const after = valueOf(result);
       setAddResult(result);
@@ -208,6 +218,29 @@ export function PointsFlow({
     } finally {
       setAdding(false);
     }
+  }
+
+  /**
+   * Manager waives the limit. When the block came from a rejected request the
+   * amount is still on screen and already confirmed, so send it straight
+   * through — the alternative is dropping them back on the keypad to press
+   * "Add points" a second time on an amount they never changed.
+   */
+  async function handleWaive() {
+    setCapOverride(true);
+    setError(null);
+    const action = resolveWaiveAction({
+      rejectedRequest: capError !== null,
+      inputReady: parsedAmount > 0,
+    });
+    if (action === "resubmit") {
+      // capError stays until this lands: it keeps the limit screen (and its
+      // spinner) up instead of flashing the keypad mid-request, and a failure
+      // leaves the decision exactly where the manager made it.
+      await handleAdd(true);
+      return;
+    }
+    setCapError(null);
   }
 
   async function handleRedeem(rewardId: string) {
@@ -313,6 +346,27 @@ export function PointsFlow({
           color: UNLOCK_AMBER,
           textAlign: "center",
         },
+        boostUpcoming: {
+          marginTop: 12,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: 10,
+          backgroundColor: "rgba(0,0,0,0.04)",
+        },
+        boostUpcomingText: {
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
+        boostNoteText: {
+          marginTop: 8,
+          fontSize: 13.5,
+          lineHeight: 19,
+          fontWeight: "600",
+          color: UNLOCK_AMBER,
+          textAlign: "center",
+        },
         capNoteText: {
           marginTop: 8,
           fontSize: 13.5,
@@ -380,11 +434,9 @@ export function PointsFlow({
         customerName={customer?.name ?? ""}
         cap={blockingCap}
         serverAllowsOverride={blockingCap.can_override}
-        onOverride={() => {
-          setCapOverride(true);
-          setCapError(null);
-          setError(null);
-        }}
+        onOverride={handleWaive}
+        overriding={adding}
+        errorMessage={error}
         onDone={handleDone}
       />
     );
@@ -483,6 +535,17 @@ export function PointsFlow({
           <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
             {earned > 0 && (
               <Text style={styles.earnedText}>{t("success.earned", { count: earned })}</Text>
+            )}
+            {/* What the boost added, broken out from the base. Hidden when the
+                cap clamped the scan: the pre-clamp bonus never fully landed,
+                and the cap note below is the honest line. */}
+            {addResult.boost_applied && !addResult.cap_applied && (addResult.boost_bonus ?? 0) > 0 && (
+              <Text style={styles.boostNoteText}>
+                {t("boost.successNote", {
+                  base: addResult.boost_base ?? 0,
+                  bonus: addResult.boost_bonus ?? 0,
+                })}
+              </Text>
             )}
             {/* Never let a clamped scan read as a clean success. */}
             {addResult.cap_applied && (
@@ -585,6 +648,26 @@ export function PointsFlow({
               <Text style={styles.capNoticeText}>{tStamp("cap.overrideActiveNotice")}</Text>
             </Animated.View>
           )}
+          {/* Say the boost out loud BEFORE the press, so the employee can tell
+              the customer "add a little and it doubles" rather than the bonus
+              landing as an unexplained number. */}
+          {boostPreview.tier && !willClamp && (
+            <Animated.View entering={SOFT_ENTER} style={styles.capNotice}>
+              <Text style={styles.capNoticeText}>
+                {t("boost.active", { count: boostPreview.bonus })}
+              </Text>
+            </Animated.View>
+          )}
+          {!boostPreview.tier && boostPreview.nextTier && parsedAmount > 0 && (
+            <Animated.View entering={SOFT_ENTER} style={styles.boostUpcoming}>
+              <Text style={styles.boostUpcomingText}>
+                {t("boost.upcoming", {
+                  amount: formatThreshold(boostPreview.nextTier.threshold),
+                  currency,
+                })}
+              </Text>
+            </Animated.View>
+          )}
           {/* Warn BEFORE the press: this ticket is worth more than the limit
               still allows, so only part of it will land. */}
           {willClamp && !capOverride && (
@@ -607,7 +690,7 @@ export function PointsFlow({
             <PressableScale
               style={styles.addButton}
               haptic="medium"
-              onPress={handleAdd}
+              onPress={() => handleAdd()}
               disabled={adding || !canAdd}
             >
               {adding ? (
