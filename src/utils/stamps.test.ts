@@ -23,6 +23,38 @@ describe("maxStampQuantity", () => {
     expect(maxStampQuantity({ totalStamps: NaN, currentStamps: NaN, stackable: false })).toBe(10);
   });
 
+  it("offers no more than the customer may still earn today", () => {
+    // The merchant's per-customer earning cap is tighter than the card's room:
+    // the stepper must not promise stamps the server is about to clamp away.
+    expect(
+      maxStampQuantity({ totalStamps: 10, currentStamps: 0, stackable: false, capRemaining: 2 })
+    ).toBe(2);
+  });
+
+  it("ignores a cap that is looser than the card's own room", () => {
+    expect(
+      maxStampQuantity({ totalStamps: 10, currentStamps: 7, stackable: false, capRemaining: 20 })
+    ).toBe(3);
+  });
+
+  it("ignores an absent cap", () => {
+    // No cap configured, or a tier that isn't entitled: unchanged behaviour.
+    expect(
+      maxStampQuantity({ totalStamps: 10, currentStamps: 7, stackable: false, capRemaining: null })
+    ).toBe(3);
+    expect(
+      maxStampQuantity({ totalStamps: 10, currentStamps: 7, stackable: false })
+    ).toBe(3);
+  });
+
+  it("still returns 1 when the cap is exhausted", () => {
+    // The blocked screen owns remaining === 0; the stepper must never render a
+    // 0 ceiling if it is somehow reached anyway.
+    expect(
+      maxStampQuantity({ totalStamps: 10, currentStamps: 0, stackable: false, capRemaining: 0 })
+    ).toBe(1);
+  });
+
   it("respects the server's per-scan ceiling on an unusually long card", () => {
     expect(maxStampQuantity({ totalStamps: 200, currentStamps: 0, stackable: true })).toBe(
       MAX_STAMPS_PER_SCAN

@@ -42,5 +42,24 @@
     "accessDenied": "You do not have access to this business. Ask the owner to check your invitation."
   },
   "rewardsBadge": "{{count}} rewards to redeem",
-  "rewardsBadgeOne": "1 reward to redeem"
+  "rewardsBadgeOne": "1 reward to redeem",
+  "cap": {
+    "blockedTitleDay": "Daily limit reached",
+    "blockedTitleWeek": "Weekly limit reached",
+    "blockedMessageDay": "Your program limits each customer to {{limit}} per day.",
+    "blockedMessageWeek": "Your program limits each customer to {{limit}} per week.",
+    "contactManager": "Ask a manager if this customer should get more.",
+    "overrideHint": "You can let this one through.",
+    "overrideButton": "Add anyway",
+    "overrideConfirmTitle": "Go past the limit?",
+    "overrideConfirmMessage": "This customer has reached the limit your program sets. Adding anyway is recorded with your name.",
+    "overrideConfirm": "Add anyway",
+    "overrideCancel": "Cancel",
+    "overrideActiveNotice": "Limit lifted for this scan",
+    "overrideNotAllowed": "Only owners and admins can go past the limit.",
+    "done": "Scan next customer",
+    "partialTitle": "Limit reached",
+    "partialDay": "{{added}} of {{requested}} added. That is all this customer can collect today.",
+    "partialWeek": "{{added}} of {{requested}} added. That is all this customer can collect this week."
+  }
 }

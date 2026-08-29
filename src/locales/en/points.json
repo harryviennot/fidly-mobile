@@ -29,5 +29,14 @@
     "amountRequired": "Enter the purchase amount to add points.",
     "addFailed": "Couldn't add points. Please try again.",
     "redeemFailed": "Couldn't redeem the reward. Please try again."
+  },
+  "cap": {
+    "previewClamped": "Only {{count}} of these will count toward the limit.",
+    "blockedKeypad": "This customer has reached their limit."
+  },
+  "boost": {
+    "upcoming": "Boost from {{amount}}{{currency}}",
+    "active": "Boost on: +{{count}} pts",
+    "successNote": "{{base}} pts + {{bonus}} boost"
   }
 }

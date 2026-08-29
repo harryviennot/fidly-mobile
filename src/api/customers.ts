@@ -10,7 +10,9 @@ export async function addStamp(
   enrollmentId: string,
   locationId?: string | null,
   /** Stamps this one scan is worth (the stepper). Omitted when 1. */
-  quantity?: number
+  quantity?: number,
+  /** Owner/admin decision to push past a reached earning cap. Omitted unless true. */
+  capOverride?: boolean
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
@@ -22,6 +24,7 @@ export async function addStamp(
   const reqBody: Record<string, unknown> = {};
   if (locationId) reqBody.location_id = locationId;
   if (quantity != null && quantity > 1) reqBody.quantity = quantity;
+  if (capOverride) reqBody.cap_override = true;
   if (Object.keys(reqBody).length > 0) {
     init.body = JSON.stringify(reqBody);
   }
@@ -48,10 +51,15 @@ export async function addStamp(
       code === "LOCATION_REQUIRED" ||
       code === "LOCATION_NOT_PERMITTED" ||
       code === "LOCATION_NOT_FOUND" ||
-      code === "AMOUNT_REQUIRED"
+      code === "AMOUNT_REQUIRED" ||
+      code === "EARNING_CAP_REACHED" ||
+      code === "CAP_OVERRIDE_NOT_ALLOWED"
     ) {
       const err = new Error(code);
       (err as any).code = code;
+      // The cap payload carries which window is full, when it frees up, and
+      // whether this user may override — the screen needs all three.
+      (err as any).detail = body?.detail;
       throw err;
     }
     if (response.status === 403) {
