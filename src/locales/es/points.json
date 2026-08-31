@@ -3,8 +3,10 @@
   "unit": "pts",
   "amountPreview": "≈ +{{points}} pts",
   "addPoints": "Añadir puntos",
-  "rewardsAvailable": "{{count}} recompensas por canjear",
   "rewardsAvailable_one": "1 recompensa por canjear",
+  "rewardsAvailable_few": "{{count}} recompensas por canjear",
+  "rewardsAvailable_many": "{{count}} recompensas por canjear",
+  "rewardsAvailable_other": "{{count}} recompensas por canjear",
   "menu": {
     "title": "Recompensas",
     "cost": "{{count}} pts",

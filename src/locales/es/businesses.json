@@ -1,7 +1,10 @@
 {
   "loading": "Cargando comercios...",
   "header": "Tus comercios",
-  "subtitle": "{{count}} comercios",
+  "subtitle_one": "1 comercio",
+  "subtitle_few": "{{count}} comercios",
+  "subtitle_many": "{{count}} comercios",
+  "subtitle_other": "{{count}} comercios",
   "empty": {
     "title": "Sin comercios",
     "message": "Todavía no te han añadido a ningún comercio.\nPonte en contacto con tu responsable para recibir una invitación."

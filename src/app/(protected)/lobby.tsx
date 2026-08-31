@@ -24,6 +24,7 @@ import {
 } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
 import { QRCodeSkeleton } from "@/components/skeleton";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
 import { getLocationQR } from "@/api/locations";
@@ -330,6 +331,8 @@ export default function LobbyScreen() {
             </Text>
           </View>
         </TouchableOpacity>
+
+        <LanguagePicker />
 
         <TouchableOpacity
           style={styles.signOutButton}

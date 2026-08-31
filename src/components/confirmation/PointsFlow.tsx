@@ -19,6 +19,7 @@ import {
 } from "@/utils/money";
 import { formatThreshold, previewBoost } from "@/utils/boost";
 import { resolveWaiveAction } from "@/utils/cap";
+import { selectPluralForm } from "@/utils/plural";
 import { Keypad } from "@/components/Keypad";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -67,7 +68,7 @@ export function PointsFlow({
   enrollmentId,
   fallbackRate,
 }: PointsFlowProps) {
-  const { t } = useTranslation("points");
+  const { t, i18n } = useTranslation("points");
   const { t: tStamp } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
@@ -631,7 +632,7 @@ export function PointsFlow({
               >
                 <Gift size={18} color={theme.primaryText} weight="fill" />
                 <Text style={styles.chipText}>
-                  {t(affordableCount === 1 ? "rewardsAvailable_one" : "rewardsAvailable", {
+                  {t(`rewardsAvailable_${selectPluralForm(i18n.language, affordableCount)}`, {
                     count: affordableCount,
                   })}
                 </Text>

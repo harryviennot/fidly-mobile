@@ -5,9 +5,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import * as Sentry from "@sentry/react-native";
 import * as SentryReact from "@sentry/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "@/global.css";
 import "@/locales/i18n";
+import { restoreStoredLanguage } from "@/lib/app-language";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { BusinessProvider } from "@/contexts/business-context";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -102,12 +103,31 @@ function RootNavigator() {
 
 function RootLayout() {
   const navigationRef = useNavigationContainerRef();
+  // i18n boots on the device language synchronously; a saved manual override
+  // lives in storage and only lands a tick later. Hold the first render until
+  // it has been applied so no screen flashes in the wrong language.
+  const [languageReady, setLanguageReady] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== "web" && navigationRef?.current) {
       navigationIntegration.registerNavigationContainer(navigationRef);
     }
   }, [navigationRef]);
+
+  useEffect(() => {
+    // Never let a storage failure hold the app on the spinner.
+    restoreStoredLanguage()
+      .catch(() => {})
+      .finally(() => setLanguageReady(true));
+  }, []);
+
+  if (!languageReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider>

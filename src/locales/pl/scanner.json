@@ -1,0 +1,15 @@
+{
+  "requestingPermission": "Prośba o dostęp do aparatu...",
+  "permission": {
+    "title": "Potrzebny dostęp do aparatu",
+    "description": "Potrzebujemy dostępu do aparatu, żeby skanować karty lojalnościowe klientów.",
+    "grant": "Kontynuuj",
+    "denied": "Dostęp do aparatu został odrzucony. Włącz go w ustawieniach telefonu, żeby używać skanera.",
+    "openSettings": "Otwórz ustawienia",
+    "browserHint": "Dostęp do aparatu jest zablokowany. Kliknij ikonę aparatu w pasku adresu przeglądarki, żeby przywrócić dostęp.",
+    "insecureContext": "Dostęp do aparatu wymaga HTTPS. Otwórz tę stronę przez bezpieczne połączenie."
+  },
+  "invalidQr": "Nieprawidłowy kod QR. Zeskanuj kartę lojalnościową.",
+  "instruction": "Skieruj aparat na kod QR karty lojalnościowej",
+  "rescan": "Naciśnij, aby skanować ponownie"
+}

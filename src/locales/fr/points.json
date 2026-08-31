@@ -3,8 +3,10 @@
   "unit": "pts",
   "amountPreview": "≈ +{{points}} pts",
   "addPoints": "Ajouter des points",
-  "rewardsAvailable": "{{count}} récompenses à utiliser",
   "rewardsAvailable_one": "1 récompense à utiliser",
+  "rewardsAvailable_few": "{{count}} récompenses à utiliser",
+  "rewardsAvailable_many": "{{count}} récompenses à utiliser",
+  "rewardsAvailable_other": "{{count}} récompenses à utiliser",
   "menu": {
     "title": "Récompenses",
     "cost": "{{count}} pts",
