@@ -1,0 +1,13 @@
+{
+  "loading": "Wczytywanie firm...",
+  "header": "Twoje firmy",
+  "subtitle_one": "1 firma",
+  "subtitle_few": "{{count}} firmy",
+  "subtitle_many": "{{count}} firm",
+  "subtitle_other": "{{count}} firmy",
+  "empty": {
+    "title": "Brak firm",
+    "message": "Nie należysz jeszcze do żadnej firmy.\nPoproś kierownika o zaproszenie."
+  },
+  "signOutLink": "Wyloguj się"
+}

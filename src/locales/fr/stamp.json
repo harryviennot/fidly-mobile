@@ -1,27 +1,35 @@
 {
   "stampsCount": "{{current}} / {{total}}",
-  "addStamp": "Ajouter un tampon",
-  "addStampMany": "Ajouter {{count}} tampons",
+  "addStamp_one": "Ajouter un tampon",
+  "addStamp_few": "Ajouter {{count}} tampons",
+  "addStamp_many": "Ajouter {{count}} tampons",
+  "addStamp_other": "Ajouter {{count}} tampons",
   "quantity": {
-    "pending": "+{{count}} tampons",
-    "pendingOne": "+1 tampon",
+    "pending_one": "+1 tampon",
+    "pending_few": "+{{count}} tampons",
+    "pending_many": "+{{count}} tampons",
+    "pending_other": "+{{count}} tampons",
     "completesCard": "La carte sera complète"
   },
   "scanNext": "Scanner le prochain client",
   "skipForNow": "Passer pour l'instant",
   "redeemReward": "Utiliser la récompense",
   "success": {
-    "stampAdded": "Tampon ajouté !",
-    "stampsAdded": "{{count}} tampons ajoutés !",
+    "stampAdded_one": "Tampon ajouté !",
+    "stampAdded_few": "{{count}} tampons ajoutés !",
+    "stampAdded_many": "{{count}} tampons ajoutés !",
+    "stampAdded_other": "{{count}} tampons ajoutés !",
     "cardComplete": "Carte complète !",
     "rewardRedeemed": "Récompense utilisée !",
     "cardFull": "Sa carte est maintenant complète !",
     "collectAgain": "Il/Elle peut recommencer à collecter des tampons !",
     "rewardBanked": "Récompense mise de côté !",
     "rewardBankedFor": "{{name}} a complété sa carte. La récompense est mise de côté et sa carte continue.",
-    "rewardsWaiting": "{{count}} récompenses à utiliser.",
-    "progressKept": "{{name}} garde ses tampons.",
-    "rewardsWaitingOne": "1 récompense à utiliser."
+    "rewardsWaiting_one": "1 récompense à utiliser.",
+    "rewardsWaiting_few": "{{count}} récompenses à utiliser.",
+    "rewardsWaiting_many": "{{count}} récompenses à utiliser.",
+    "rewardsWaiting_other": "{{count}} récompenses à utiliser.",
+    "progressKept": "{{name}} garde ses tampons."
   },
   "reward": {
     "banner": "Récompense disponible !",
@@ -41,8 +49,10 @@
     "billingRequired": "L'abonnement de ce commerce est en pause. Le responsable doit mettre à jour le moyen de paiement avant que vous puissiez scanner.",
     "accessDenied": "Vous n'avez pas accès à ce commerce. Demandez au responsable de vérifier votre invitation."
   },
-  "rewardsBadge": "{{count}} récompenses à utiliser",
-  "rewardsBadgeOne": "1 récompense à utiliser",
+  "rewardsBadge_one": "1 récompense à utiliser",
+  "rewardsBadge_few": "{{count}} récompenses à utiliser",
+  "rewardsBadge_many": "{{count}} récompenses à utiliser",
+  "rewardsBadge_other": "{{count}} récompenses à utiliser",
   "cap": {
     "blockedTitleDay": "Limite du jour atteinte",
     "blockedTitleWeek": "Limite de la semaine atteinte",

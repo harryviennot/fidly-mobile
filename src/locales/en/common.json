@@ -14,5 +14,9 @@
     "owner": "Owner",
     "admin": "Admin",
     "scanner": "Scanner"
+  },
+  "language": {
+    "title": "App language",
+    "device": "Device language"
   }
 }

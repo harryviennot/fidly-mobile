@@ -1,27 +1,35 @@
 {
   "stampsCount": "{{current}} / {{total}}",
-  "addStamp": "Add Stamp",
-  "addStampMany": "Add {{count}} stamps",
+  "addStamp_one": "Add Stamp",
+  "addStamp_few": "Add {{count}} stamps",
+  "addStamp_many": "Add {{count}} stamps",
+  "addStamp_other": "Add {{count}} stamps",
   "quantity": {
-    "pending": "+{{count}} stamps",
-    "pendingOne": "+1 stamp",
+    "pending_one": "+1 stamp",
+    "pending_few": "+{{count}} stamps",
+    "pending_many": "+{{count}} stamps",
+    "pending_other": "+{{count}} stamps",
     "completesCard": "This completes the card"
   },
   "scanNext": "Scan Next Customer",
   "skipForNow": "Skip for Now",
   "redeemReward": "Redeem Reward",
   "success": {
-    "stampAdded": "Stamp Added!",
-    "stampsAdded": "{{count}} stamps added!",
+    "stampAdded_one": "Stamp Added!",
+    "stampAdded_few": "{{count}} stamps added!",
+    "stampAdded_many": "{{count}} stamps added!",
+    "stampAdded_other": "{{count}} stamps added!",
     "cardComplete": "Card Complete!",
     "rewardRedeemed": "Reward Redeemed!",
     "cardFull": "Their card is now full!",
     "collectAgain": "They can start collecting stamps again!",
     "rewardBanked": "Reward saved!",
     "rewardBankedFor": "{{name}} completed their card. The reward is saved and their card keeps going.",
-    "rewardsWaiting": "{{count}} rewards waiting to be redeemed.",
-    "progressKept": "{{name}} keeps their stamps.",
-    "rewardsWaitingOne": "1 reward waiting to be redeemed."
+    "rewardsWaiting_one": "1 reward waiting to be redeemed.",
+    "rewardsWaiting_few": "{{count}} rewards waiting to be redeemed.",
+    "rewardsWaiting_many": "{{count}} rewards waiting to be redeemed.",
+    "rewardsWaiting_other": "{{count}} rewards waiting to be redeemed.",
+    "progressKept": "{{name}} keeps their stamps."
   },
   "reward": {
     "banner": "Ready for Reward!",
@@ -41,8 +49,10 @@
     "billingRequired": "This business's subscription is paused. The owner needs to update the payment method before you can scan.",
     "accessDenied": "You do not have access to this business. Ask the owner to check your invitation."
   },
-  "rewardsBadge": "{{count}} rewards to redeem",
-  "rewardsBadgeOne": "1 reward to redeem",
+  "rewardsBadge_one": "1 reward to redeem",
+  "rewardsBadge_few": "{{count}} rewards to redeem",
+  "rewardsBadge_many": "{{count}} rewards to redeem",
+  "rewardsBadge_other": "{{count}} rewards to redeem",
   "cap": {
     "blockedTitleDay": "Daily limit reached",
     "blockedTitleWeek": "Weekly limit reached",

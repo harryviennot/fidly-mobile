@@ -21,6 +21,7 @@ import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
 import { supabase } from "@/lib/supabase";
 import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 import { getUserMemberships } from "@/api/memberships";
+import { resolveSupportedLocale } from "@/locales/i18n";
 
 const SHOWCASE_BASE_URL = "https://stampeo.app";
 
@@ -43,7 +44,8 @@ export default function LoginScreen() {
   );
   const oauthHandledRef = useRef(false);
 
-  const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
+  // Send the owner to the onboarding in the language they are already reading.
+  const locale = resolveSupportedLocale(i18n.language);
   const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
 
   // Translate raw Supabase error messages into friendly, localised copy.
