@@ -11,6 +11,7 @@ import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
 import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
 import { resolveWaiveAction } from "@/utils/cap";
+import { selectPluralForm } from "@/utils/plural";
 import type { Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -42,7 +43,7 @@ interface StampFlowProps {
  * the controls anchored at the bottom where the thumb already is.
  */
 export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: StampFlowProps) {
-  const { t } = useTranslation("stamp");
+  const { t, i18n } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
   const { selectedLocation } = useLocation();
@@ -110,11 +111,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   const willCompleteCard = currentStamps + quantity >= totalStamps;
 
-  // Explicit singular/plural key selection: we know the count, so never
-  // show a "(s)" guess. (Done in JS rather than i18next suffixes because
-  // Hermes' Intl.PluralRules support is unreliable.)
+  // Explicit plural key selection: we know the count, so never show a "(s)"
+  // guess. (The form is picked in JS rather than by i18next, whose resolver is
+  // built on Intl.PluralRules and unreliable on Hermes. Polish needs one/few/
+  // many, so a "1 or not 1" ternary is not enough.)
+  const plural = (count: number) => selectPluralForm(i18n.language, count);
+
   const rewardsWaitingText = (count: number) =>
-    t(count === 1 ? "success.rewardsWaitingOne" : "success.rewardsWaiting", { count });
+    t(`success.rewardsWaiting_${plural(count)}`, { count });
 
   /**
    * The payoff. A success notification, then one light tick per stamp so a
@@ -503,9 +507,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         ? t("success.cardComplete")
         : success.cap_applied
           ? t("cap.partialTitle")
-          : added > 1
-            ? t("success.stampsAdded", { count: added })
-            : t("success.stampAdded");
+          : t(`success.stampAdded_${plural(added)}`, { count: added });
 
     return (
       <ConfirmationScaffold>
@@ -659,7 +661,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             <Animated.View entering={SOFT_ENTER} style={styles.chip}>
               <Gift size={18} color="#fff" weight="fill" />
               <Text style={styles.chipText}>
-                {t(rewards === 1 ? "rewardsBadgeOne" : "rewardsBadge", { count: rewards })}
+                {t(`rewardsBadge_${plural(rewards)}`, { count: rewards })}
               </Text>
             </Animated.View>
           )}
@@ -677,7 +679,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             >
               {willCompleteCard
                 ? t("quantity.completesCard")
-                : t(quantity === 1 ? "quantity.pendingOne" : "quantity.pending", { count: quantity })}
+                : t(`quantity.pending_${plural(quantity)}`, { count: quantity })}
             </Animated.Text>
           </View>
           {capOverride && (
@@ -710,7 +712,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               <ActivityIndicator color={theme.primaryText} />
             ) : (
               <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
-                {quantity === 1 ? t("addStamp") : t("addStampMany", { count: quantity })}
+                {t(`addStamp_${plural(quantity)}`, { count: quantity })}
               </Animated.Text>
             )}
           </PressableScale>

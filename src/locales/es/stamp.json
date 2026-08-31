@@ -1,27 +1,35 @@
 {
   "stampsCount": "{{current}} / {{total}}",
-  "addStamp": "Añadir sello",
-  "addStampMany": "Añadir {{count}} sellos",
+  "addStamp_one": "Añadir sello",
+  "addStamp_few": "Añadir {{count}} sellos",
+  "addStamp_many": "Añadir {{count}} sellos",
+  "addStamp_other": "Añadir {{count}} sellos",
   "quantity": {
-    "pending": "+{{count}} sellos",
-    "pendingOne": "+1 sello",
+    "pending_one": "+1 sello",
+    "pending_few": "+{{count}} sellos",
+    "pending_many": "+{{count}} sellos",
+    "pending_other": "+{{count}} sellos",
     "completesCard": "Con esto la tarjeta se completa"
   },
   "scanNext": "Escanear al siguiente cliente",
   "skipForNow": "Omitir por ahora",
   "redeemReward": "Canjear recompensa",
   "success": {
-    "stampAdded": "¡Sello añadido!",
-    "stampsAdded": "¡{{count}} sellos añadidos!",
+    "stampAdded_one": "¡Sello añadido!",
+    "stampAdded_few": "¡{{count}} sellos añadidos!",
+    "stampAdded_many": "¡{{count}} sellos añadidos!",
+    "stampAdded_other": "¡{{count}} sellos añadidos!",
     "cardComplete": "¡Tarjeta completa!",
     "rewardRedeemed": "¡Recompensa canjeada!",
     "cardFull": "¡Su tarjeta ya está completa!",
     "collectAgain": "¡Ya puede empezar a juntar sellos otra vez!",
     "rewardBanked": "¡Recompensa guardada!",
     "rewardBankedFor": "{{name}} ha completado su tarjeta. La recompensa queda guardada y su tarjeta sigue activa.",
-    "rewardsWaiting": "{{count}} recompensas pendientes de canjear.",
-    "progressKept": "{{name}} conserva sus sellos.",
-    "rewardsWaitingOne": "1 recompensa pendiente de canjear."
+    "rewardsWaiting_one": "1 recompensa pendiente de canjear.",
+    "rewardsWaiting_few": "{{count}} recompensas pendientes de canjear.",
+    "rewardsWaiting_many": "{{count}} recompensas pendientes de canjear.",
+    "rewardsWaiting_other": "{{count}} recompensas pendientes de canjear.",
+    "progressKept": "{{name}} conserva sus sellos."
   },
   "reward": {
     "banner": "¡Recompensa disponible!",
@@ -41,8 +49,10 @@
     "billingRequired": "La suscripción de este comercio está en pausa. El responsable tiene que actualizar el método de pago antes de que puedas escanear.",
     "accessDenied": "No tienes acceso a este comercio. Pide al responsable que revise tu invitación."
   },
-  "rewardsBadge": "{{count}} recompensas por canjear",
-  "rewardsBadgeOne": "1 recompensa por canjear",
+  "rewardsBadge_one": "1 recompensa por canjear",
+  "rewardsBadge_few": "{{count}} recompensas por canjear",
+  "rewardsBadge_many": "{{count}} recompensas por canjear",
+  "rewardsBadge_other": "{{count}} recompensas por canjear",
   "cap": {
     "blockedTitleDay": "Límite diario alcanzado",
     "blockedTitleWeek": "Límite semanal alcanzado",

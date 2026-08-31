@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useAlert } from "@/contexts/alert-context";
 import { CaretRight, SignOutIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
+import { selectPluralForm } from "@/utils/plural";
 import type { Membership } from "@/types/api";
 
 function getRoleBadgeStyles(role: string): { bg: string; text: string; accent: string } {
@@ -87,7 +88,7 @@ function BusinessCard({
 
 export default function BusinessesScreen() {
   const router = useRouter();
-  const { t } = useTranslation("businesses");
+  const { t, i18n } = useTranslation("businesses");
   const { t: tCommon } = useTranslation("common");
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
@@ -172,7 +173,9 @@ export default function BusinessesScreen() {
         <View>
           <Text style={styles.headerTitle}>{t("header")}</Text>
           <Text style={styles.headerSubtitle}>
-            {t("subtitle", { count: memberships.length })}
+            {t(`subtitle_${selectPluralForm(i18n.language, memberships.length)}`, {
+              count: memberships.length,
+            })}
           </Text>
         </View>
         <TouchableOpacity style={styles.signOutIconButton} hitSlop={12} onPress={handleSignOut}>

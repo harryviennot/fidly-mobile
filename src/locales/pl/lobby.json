@@ -1,0 +1,10 @@
+{
+  "qrUnavailable": "Kod QR niedostępny",
+  "qrLabel": "Klienci skanują ten kod, żeby dostać kartę lojalnościową",
+  "startScanning": "Zacznij skanować",
+  "paused": {
+    "banner": "Twój dostęp do skanowania jest wstrzymany",
+    "description": "Właściciel firmy wstrzymał twój dostęp do skanowania. Skontaktuj się z nim, żeby odzyskać dostęp.",
+    "switchBusiness": "Zmień firmę"
+  }
+}

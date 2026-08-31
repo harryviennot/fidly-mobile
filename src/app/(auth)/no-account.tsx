@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { StampeoLogo } from "@/components/ui/StampeoLogo";
+import { resolveSupportedLocale } from "@/locales/i18n";
 
 const SHOWCASE_BASE_URL = "https://stampeo.app";
 
@@ -17,7 +18,8 @@ export default function NoAccountScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation("login");
 
-  const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
+  // Send the owner to the onboarding in the language they are already reading.
+  const locale = resolveSupportedLocale(i18n.language);
   const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
 
   const handleCreateBusiness = () => {

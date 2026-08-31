@@ -1,0 +1,44 @@
+{
+  "balance": "{{count}} pkt",
+  "unit": "pkt",
+  "amountPreview": "≈ +{{points}} pkt",
+  "addPoints": "Dodaj punkty",
+  "rewardsAvailable_one": "1 nagroda do odebrania",
+  "rewardsAvailable_few": "{{count}} nagrody do odebrania",
+  "rewardsAvailable_many": "{{count}} nagród do odebrania",
+  "rewardsAvailable_other": "{{count}} nagrody do odebrania",
+  "menu": {
+    "title": "Nagrody",
+    "cost": "{{count}} pkt",
+    "need": "Brakuje {{count}} pkt",
+    "redeem": "Odbierz"
+  },
+  "success": {
+    "title": "Punkty dodane!",
+    "earned": "+{{count}} pkt",
+    "scanNext": "Skanuj następnego klienta",
+    "toNextReward": "{{reward}}: jeszcze {{count}} pkt",
+    "topReward": "Najwyższa nagroda osiągnięta!"
+  },
+  "reward": {
+    "unlocked": "Nagroda odblokowana!",
+    "redeemNow": "Odbierz teraz"
+  },
+  "redeem": {
+    "title": "Nagroda odebrana!"
+  },
+  "errors": {
+    "amountRequired": "Wpisz kwotę zakupu, żeby dodać punkty.",
+    "addFailed": "Nie udało się dodać punktów. Spróbuj ponownie.",
+    "redeemFailed": "Nie udało się odebrać nagrody. Spróbuj ponownie."
+  },
+  "cap": {
+    "previewClamped": "Do limitu wliczy się tylko {{count}} pkt.",
+    "blockedKeypad": "Ten klient osiągnął swój limit."
+  },
+  "boost": {
+    "upcoming": "Bonus od {{amount}}{{currency}}",
+    "active": "Bonus aktywny: +{{count}} pkt",
+    "successNote": "{{base}} pkt + {{bonus}} bonusu"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "pickerLabel": "Lokal",
+  "pickerTitle": "Gdzie skanujesz?",
+  "searchPlaceholder": "Szukaj lokalu",
+  "noMatches": "Żaden lokal nie pasuje do wyszukiwania.",
+  "chooseLocationHint": "Wybierz lokal, zanim zaczniesz skanować.",
+  "scanningAt": "Skanujesz w lokalu {{name}}",
+  "noneAssigned": {
+    "title": "Brak przypisanego lokalu",
+    "body": "Nie masz jeszcze przypisanego lokalu. Poproś właściciela firmy o przypisanie, zanim zaczniesz skanować."
+  },
+  "permission": {
+    "title": "Użyć twojej lokalizacji?",
+    "body": "Lokalizacja jest sprawdzana tylko na twoim urządzeniu, żeby potwierdzić, że jesteś we właściwym lokalu przed przybiciem pieczątki. Nigdy nie opuszcza telefonu: nie dostajemy jej, nie przechowujemy i nie udostępniamy.",
+    "enable": "Użyj mojej lokalizacji",
+    "notNow": "Nie teraz"
+  },
+  "proximity": {
+    "title": "Zły lokal?",
+    "body": "Wygląda na to, że jesteś w lokalu {{name}}, około {{distance}} stąd. Przełączyć?",
+    "switch": "Przełącz na lokal {{name}}",
+    "keep": "Zostań w lokalu {{current}}"
+  },
+  "errors": {
+    "locationRequired": "Wybierz lokal, zanim przybijesz pieczątkę.",
+    "notPermitted": "Nie masz dostępu do tego lokalu. Wybierz jeden ze swoich lokali."
+  }
+}

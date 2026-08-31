@@ -1,0 +1,22 @@
+{
+  "loading": "Wczytywanie...",
+  "error": "Błąd",
+  "cancel": "Anuluj",
+  "retry": "Spróbuj ponownie",
+  "goBack": "Wróć",
+  "goHome": "Ekran główny",
+  "signOut": "Wyloguj się",
+  "signOutConfirmTitle": "Na pewno?",
+  "signOutConfirmMessage": "Nastąpi wylogowanie.",
+  "signOutConfirmNo": "Nie, zostaję",
+  "signOutConfirmYes": "Tak, wyloguj",
+  "roles": {
+    "owner": "Właściciel",
+    "admin": "Administrator",
+    "scanner": "Skaner"
+  },
+  "language": {
+    "title": "Język aplikacji",
+    "device": "Język urządzenia"
+  }
+}

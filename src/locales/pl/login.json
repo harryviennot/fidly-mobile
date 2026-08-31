@@ -1,0 +1,40 @@
+{
+  "title": "Witaj ponownie",
+  "subtitle": "Zaloguj się i zacznij skanować",
+  "emailTitle": "Logowanie e-mailem",
+  "emailSubtitle": "Wpisz dane logowania, żeby kontynuować",
+  "email": "E-mail",
+  "emailPlaceholder": "twoj@email.com",
+  "password": "Hasło",
+  "passwordPlaceholder": "Wpisz swoje hasło",
+  "signIn": "Zaloguj się",
+  "back": "Wróć",
+  "signupPrompt": "Nie masz konta?",
+  "getStarted": "Zaczynamy",
+  "continueGoogle": "Kontynuuj z Google",
+  "continueApple": "Kontynuuj z Apple",
+  "continueEmail": "Kontynuuj z e-mailem",
+  "oauth": {
+    "apple": "Kontynuuj z Apple",
+    "google": "Kontynuuj z Google",
+    "divider": "lub",
+    "connecting": "Łączenie…",
+    "lastUsed": "Ostatnio"
+  },
+  "errors": {
+    "required": "Wpisz e-mail i hasło",
+    "unexpected": "Wystąpił nieoczekiwany błąd",
+    "oauthFailed": "Logowanie nie powiodło się. Spróbuj ponownie.",
+    "invalidCredentials": "Błędny e-mail lub hasło",
+    "tooManyRequests": "Zbyt wiele prób. Poczekaj chwilę.",
+    "userNotFound": "Nie ma konta z tym adresem e-mail",
+    "networkError": "Błąd sieci. Sprawdź połączenie.",
+    "generic": "Coś poszło nie tak. Spróbuj ponownie."
+  },
+  "noAccount": {
+    "title": "Nie znaleziono konta",
+    "message": "To logowanie nie jest jeszcze powiązane z żadną firmą. Załóż firmę na Stampeo albo poproś właściciela firmy o zaproszenie.",
+    "createBusiness": "Załóż firmę",
+    "backToLogin": "Wróć do logowania"
+  }
+}
