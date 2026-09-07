@@ -54,7 +54,10 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
                 variant="quiet"
                 title={tCommon("signOut")}
                 onPress={() => {
-                  void signOut();
+                  // /join sits outside both route groups, so the protected
+                  // flip does not move it: without this they sign out and stay
+                  // looking at the code field.
+                  void signOut().finally(() => router.replace("/(auth)/welcome"));
                 }}
               />
             </>

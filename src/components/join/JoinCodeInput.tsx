@@ -111,9 +111,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     width: "100%",
+    // Capped and centred: six flex cells with no ceiling render as huge
+    // rectangles on a tablet or the web build.
+    maxWidth: 400,
   },
   cell: {
     flex: 1,
+    maxWidth: 60,
     aspectRatio: 0.8,
     borderRadius: radius.block,
     borderWidth: 1.5,
