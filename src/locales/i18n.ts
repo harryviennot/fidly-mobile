@@ -9,6 +9,8 @@ import enBusinesses from './en/businesses.json';
 import enLobby from './en/lobby.json';
 import enScanner from './en/scanner.json';
 import enStamp from './en/stamp.json';
+import enJoin from './en/join.json';
+import enOnboarding from './en/onboarding.json';
 import enLocation from './en/location.json';
 import enPoints from './en/points.json';
 import enUpdate from './en/update.json';
@@ -20,6 +22,8 @@ import frBusinesses from './fr/businesses.json';
 import frLobby from './fr/lobby.json';
 import frScanner from './fr/scanner.json';
 import frStamp from './fr/stamp.json';
+import frJoin from './fr/join.json';
+import frOnboarding from './fr/onboarding.json';
 import frLocation from './fr/location.json';
 import frPoints from './fr/points.json';
 import frUpdate from './fr/update.json';
@@ -31,6 +35,8 @@ import esBusinesses from './es/businesses.json';
 import esLobby from './es/lobby.json';
 import esScanner from './es/scanner.json';
 import esStamp from './es/stamp.json';
+import esJoin from './es/join.json';
+import esOnboarding from './es/onboarding.json';
 import esLocation from './es/location.json';
 import esPoints from './es/points.json';
 import esUpdate from './es/update.json';
@@ -42,6 +48,8 @@ import plBusinesses from './pl/businesses.json';
 import plLobby from './pl/lobby.json';
 import plScanner from './pl/scanner.json';
 import plStamp from './pl/stamp.json';
+import plJoin from './pl/join.json';
+import plOnboarding from './pl/onboarding.json';
 import plLocation from './pl/location.json';
 import plPoints from './pl/points.json';
 import plUpdate from './pl/update.json';
@@ -54,6 +62,8 @@ const resources = {
     lobby: enLobby,
     scanner: enScanner,
     stamp: enStamp,
+    join: enJoin,
+    onboarding: enOnboarding,
     location: enLocation,
     points: enPoints,
     update: enUpdate,
@@ -65,6 +75,8 @@ const resources = {
     lobby: frLobby,
     scanner: frScanner,
     stamp: frStamp,
+    join: frJoin,
+    onboarding: frOnboarding,
     location: frLocation,
     points: frPoints,
     update: frUpdate,
@@ -76,6 +88,8 @@ const resources = {
     lobby: esLobby,
     scanner: esScanner,
     stamp: esStamp,
+    join: esJoin,
+    onboarding: esOnboarding,
     location: esLocation,
     points: esPoints,
     update: esUpdate,
@@ -87,6 +101,8 @@ const resources = {
     lobby: plLobby,
     scanner: plScanner,
     stamp: plStamp,
+    join: plJoin,
+    onboarding: plOnboarding,
     location: plLocation,
     points: plPoints,
     update: plUpdate,
@@ -136,7 +152,7 @@ i18n.use(initReactI18next).init({
   lng: initialLocale,
   fallbackLng: 'en',
   defaultNS: 'common',
-  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location', 'points', 'update'],
+  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location', 'points', 'update', 'join', 'onboarding'],
   interpolation: {
     escapeValue: false, // React already escapes
   },

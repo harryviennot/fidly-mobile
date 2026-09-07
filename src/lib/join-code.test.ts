@@ -1,0 +1,142 @@
+import { describe, expect, it } from "bun:test";
+import {
+  JOIN_CODE_ALPHABET,
+  JOIN_ERROR_KEYS,
+  formatJoinCode,
+  isValidJoinCode,
+  isPendingCodeFresh,
+  joinErrorKey,
+  normalizeJoinCode,
+  PENDING_CODE_TTL_MS,
+  sanitizeJoinCodeInput,
+} from "./join-code";
+
+describe("alphabet", () => {
+  it("excludes every confusable character", () => {
+    for (const c of "01ILOU") {
+      expect(JOIN_CODE_ALPHABET).not.toContain(c);
+    }
+  });
+
+  it("is 30 distinct symbols", () => {
+    expect(JOIN_CODE_ALPHABET.length).toBe(30);
+    expect(new Set(JOIN_CODE_ALPHABET).size).toBe(30);
+  });
+});
+
+describe("normalizeJoinCode", () => {
+  // This table is the contract shared with backend/tests/test_join_codes.py.
+  const cases: [string | null | undefined, string][] = [
+    ["abcd3f", "ABCD3F"],
+    ["ABC-D3F", "ABCD3F"],
+    ["abc-d3f", "ABCD3F"],
+    [" ABC D3F ", "ABCD3F"],
+    ["a b c d 3 f", "ABCD3F"],
+    ["ABC–D3F", "ABCD3F"], // en dash
+    ["ABC—D3F", "ABCD3F"], // em dash
+    ["abc_d3f", "ABCD3F"],
+    ["", ""],
+    [null, ""],
+    [undefined, ""],
+    ["   ", ""],
+  ];
+
+  for (const [raw, expected] of cases) {
+    it(`normalizes ${JSON.stringify(raw)} to ${JSON.stringify(expected)}`, () => {
+      expect(normalizeJoinCode(raw)).toBe(expected);
+    });
+  }
+
+  it("keeps confusable characters so they can be rejected", () => {
+    expect(normalizeJoinCode("ABCO3F")).toBe("ABCO3F");
+    expect(isValidJoinCode("ABCO3F")).toBe(false);
+  });
+});
+
+describe("isValidJoinCode", () => {
+  it("accepts a well-formed code", () => {
+    expect(isValidJoinCode("ABCD3F")).toBe(true);
+  });
+
+  it("rejects bad shapes", () => {
+    for (const bad of ["ABCD3", "ABCD3FG", "", "ABC03F", "ABCI3F", "ABCL3F", "ABCU3F", "abcd3f"]) {
+      expect(isValidJoinCode(bad)).toBe(false);
+    }
+  });
+});
+
+describe("formatJoinCode", () => {
+  it("groups in threes", () => {
+    expect(formatJoinCode("ABCD3F")).toBe("ABC-D3F");
+  });
+
+  it("is idempotent", () => {
+    expect(formatJoinCode(formatJoinCode("ABCD3F"))).toBe("ABC-D3F");
+  });
+
+  it("does not throw on short input", () => {
+    expect(formatJoinCode("AB")).toBe("AB");
+    expect(formatJoinCode("")).toBe("");
+  });
+});
+
+describe("sanitizeJoinCodeInput", () => {
+  it("drops characters that can never appear in a code", () => {
+    expect(sanitizeJoinCodeInput("O")).toBe("");
+    expect(sanitizeJoinCodeInput("ab0cd1e")).toBe("ABCDE");
+  });
+
+  it("accepts a pasted formatted code", () => {
+    expect(sanitizeJoinCodeInput("abc-d3f")).toBe("ABCD3F");
+  });
+
+  it("caps at the code length", () => {
+    expect(sanitizeJoinCodeInput("ABCD3FGHJK")).toBe("ABCD3F");
+  });
+});
+
+describe("joinErrorKey", () => {
+  it("maps every backend code to a key that exists in the catalog", async () => {
+    const en = await import("../locales/en/join.json");
+    for (const code of JOIN_ERROR_KEYS) {
+      const key = joinErrorKey(code).split(".")[1];
+      expect(en.default.errors).toHaveProperty(key);
+    }
+    expect(en.default.errors).toHaveProperty("GENERIC");
+  });
+
+  it("falls back to GENERIC for an unknown code", () => {
+    expect(joinErrorKey("SOMETHING_NEW")).toBe("errors.GENERIC");
+    expect(joinErrorKey(undefined)).toBe("errors.GENERIC");
+  });
+});
+
+describe("isPendingCodeFresh", () => {
+  const now = 1_757_000_000_000;
+
+  it("accepts a code saved just now", () => {
+    expect(isPendingCodeFresh(now, now)).toBe(true);
+  });
+
+  it("accepts a code inside the window", () => {
+    expect(isPendingCodeFresh(now - PENDING_CODE_TTL_MS + 1000, now)).toBe(true);
+  });
+
+  it("rejects a code past the window", () => {
+    expect(isPendingCodeFresh(now - PENDING_CODE_TTL_MS - 1, now)).toBe(false);
+  });
+
+  it("rejects a code exactly at the window edge", () => {
+    expect(isPendingCodeFresh(now - PENDING_CODE_TTL_MS, now)).toBe(false);
+  });
+
+  it("rejects a future timestamp rather than treating it as fresh forever", () => {
+    expect(isPendingCodeFresh(now + 60_000, now)).toBe(false);
+  });
+
+  it("rejects junk timestamps", () => {
+    expect(isPendingCodeFresh(0, now)).toBe(false);
+    expect(isPendingCodeFresh(-1, now)).toBe(false);
+    expect(isPendingCodeFresh(Number.NaN, now)).toBe(false);
+  });
+});

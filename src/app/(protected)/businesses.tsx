@@ -90,6 +90,7 @@ export default function BusinessesScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation("businesses");
   const { t: tCommon } = useTranslation("common");
+  const { t: tJoin } = useTranslation("join");
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
   const { signOut } = useAuth();
@@ -154,6 +155,14 @@ export default function BusinessesScreen() {
         <Text style={styles.emptyText}>
           {t("empty.message")}
         </Text>
+        {/* Signing out used to be the only way off this screen. A code gets
+            them in instead (STA-246). */}
+        <TouchableOpacity
+          style={styles.joinButton}
+          onPress={() => router.push("/join")}
+        >
+          <Text style={styles.joinButtonText}>{tJoin("haveACode")}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Text style={styles.signOutButtonText}>{tCommon("signOut")}</Text>
         </TouchableOpacity>
@@ -194,6 +203,14 @@ export default function BusinessesScreen() {
         )}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListFooterComponent={
+          <TouchableOpacity
+            style={styles.addBusinessRow}
+            onPress={() => router.push("/join")}
+          >
+            <Text style={styles.addBusinessText}>{tJoin("addBusiness")}</Text>
+          </TouchableOpacity>
+        }
       />
     </SafeAreaView>
   );
@@ -203,6 +220,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f0efe9",
+  },
+  joinButton: {
+    backgroundColor: "#f97316",
+    borderRadius: 9999,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    marginTop: 20,
+  },
+  joinButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  addBusinessRow: {
+    marginTop: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  addBusinessText: {
+    color: "#6b7280",
+    fontSize: 15,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   centered: {
     flex: 1,

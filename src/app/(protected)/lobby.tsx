@@ -29,6 +29,8 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
 import { getLocationQR } from "@/api/locations";
 import { maybeRequestReviewOnLobby } from "@/lib/app-rating";
+import { hasSeenOnboarding } from "@/lib/onboarding-store";
+import { shouldAutoShowOnboarding, type ProgramType } from "@/lib/scanner-onboarding";
 
 // Whether we've shown the location explainer this app session. Deliberately
 // in-memory (not persisted): if the user dismisses with "Not now" we don't nag
@@ -42,8 +44,9 @@ export default function LobbyScreen() {
   const { t } = useTranslation("lobby");
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
+  const { t: tOnboarding } = useTranslation("onboarding");
   const { currentBusiness, currentMembership, memberships } = useBusiness();
-  const { theme, signupQR, qrLoading } = useTheme();
+  const { theme, design, signupQR, qrLoading } = useTheme();
   const { signOut } = useAuth();
   const { alert } = useAlert();
   const {
@@ -76,6 +79,27 @@ export default function LobbyScreen() {
   const handleStartScanning = () => {
     router.push("/scan");
   };
+
+  // First visit to this shop: run the short tour before anything else. Gated on
+  // knowing the program type, because the tour describes a stamp stepper or a
+  // points keypad and guessing wrong is worse than showing it a visit later.
+  const programType = (design?.card_type as ProgramType | undefined) ?? null;
+  useEffect(() => {
+    if (!currentBusiness?.id || !programType) return;
+    let active = true;
+
+    (async () => {
+      const seen = await hasSeenOnboarding(currentBusiness.id, programType);
+      if (!active) return;
+      if (shouldAutoShowOnboarding({ seen, programType, businessId: currentBusiness.id })) {
+        router.replace("/onboarding");
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [currentBusiness?.id, programType, router]);
 
   // Ask for an app rating once the employee is back on the lobby, calm and done
   // scanning — never mid-flow. No-op unless a scan armed it (and only once ever).
@@ -388,6 +412,17 @@ export default function LobbyScreen() {
           <Text style={dynamicStyles.qrLabel}>
             {t("qrLabel")}
           </Text>
+
+          {/* The tour is one-shot per shop, so keep a way back to it. */}
+          <TouchableOpacity
+            style={styles.replayButton}
+            onPress={() => router.push("/onboarding")}
+            hitSlop={8}
+          >
+            <Text style={[styles.replayText, { color: theme.textSecondary }]}>
+              {tOnboarding("replay")}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={dynamicStyles.divider} />
@@ -449,6 +484,16 @@ export default function LobbyScreen() {
 
 // Static styles that don't depend on theme
 const styles = StyleSheet.create({
+  replayButton: {
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  replayText: {
+    fontSize: 13,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
   locationHeader: {
     paddingHorizontal: 16,
     paddingBottom: 12,

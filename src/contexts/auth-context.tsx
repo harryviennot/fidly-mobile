@@ -10,21 +10,85 @@ import { Platform, Linking } from "react-native";
 import Constants from "expo-constants";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as WebBrowser from "expo-web-browser";
-import {
-  GoogleSignin,
-  statusCodes,
+import type {
+  GoogleSignin as GoogleSigninType,
+  statusCodes as statusCodesType,
 } from "@react-native-google-signin/google-signin";
+import * as Sentry from "@sentry/react-native";
 import { supabase } from "@/lib/supabase";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { writeLastLogin } from "@/lib/last-login";
+import { loadOptionalModule } from "@/lib/optional-native";
 
 export type OAuthProvider = "apple" | "google";
+
+/**
+ * Send a provider failure to Sentry, tagged so the two STA-246 causes are
+ * distinguishable in the dashboard: an iOS "Unacceptable audience in id_token"
+ * (Supabase missing the iOS client ID) and an Android code "10"
+ * (no Android OAuth client registered in Google Cloud).
+ *
+ * Both are invisible from the UI, which only ever showed "Sign-in failed".
+ * Never let telemetry break a sign-in.
+ */
+function reportAuthFailure(
+  provider: OAuthProvider,
+  error: unknown,
+  code?: string | number | null
+): void {
+  try {
+    Sentry.captureException(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        tags: {
+          auth_provider: provider,
+          auth_platform: Platform.OS,
+          auth_error_code: String(code ?? "none"),
+        },
+      }
+    );
+  } catch {
+    // Sentry may be uninitialised (no DSN in dev). Not worth a crash.
+  }
+}
 
 // Native deep-link redirect for OAuth callbacks (must match scheme in app.config.ts).
 const NATIVE_OAUTH_REDIRECT = "stampeo-scanner://auth/callback";
 
-// Configure Google Sign In once at module load (native only).
-if (Platform.OS !== "web") {
+/**
+ * Google Sign-In is loaded optionally.
+ *
+ * A static import binds the whole app's fate to this one native module: when it
+ * is absent the import throws while auth-context is being evaluated, and every
+ * route that reaches this file fails to export a component. That is not
+ * hypothetical -- Expo Go ships a fixed set of modules and no third-party ones,
+ * so opening the project there used to brick the entire app rather than just
+ * greying out one button.
+ *
+ * Now a missing module simply means Google is not on offer. Email and Apple
+ * still work, which since email sign-up exists is a complete way in.
+ */
+const google = Platform.OS === "web"
+  ? { module: null, available: false }
+  : loadOptionalModule<{
+      GoogleSignin: typeof GoogleSigninType;
+      statusCodes: typeof statusCodesType;
+    }>(
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      () => require("@react-native-google-signin/google-signin"),
+      (m) => !!m?.GoogleSignin
+    );
+
+/**
+ * Whether the Google button should be offered at all on this build.
+ *
+ * True on web regardless of the native module: the web build never touches it
+ * and signs in through the browser OAuth flow instead.
+ */
+export const isGoogleSignInAvailable =
+  Platform.OS === "web" || google.available;
+
+if (google.available && google.module) {
   const iosClientId = Constants.expoConfig?.extra?.googleIosClientId as
     | string
     | undefined;
@@ -32,8 +96,20 @@ if (Platform.OS !== "web") {
     | string
     | undefined;
   if (iosClientId && webClientId) {
-    GoogleSignin.configure({ iosClientId, webClientId });
+    google.module.GoogleSignin.configure({ iosClientId, webClientId });
+  } else {
+    // Silently skipping configure() means signIn() later dies with an opaque
+    // "failed to determine clientID". Make it loud instead: this can only
+    // happen if `extra` failed to embed, which is a build problem.
+    console.warn(
+      "[Auth] Google Sign-In not configured: missing googleIosClientId/googleWebClientId in expoConfig.extra"
+    );
+    reportAuthFailure("google", new Error("GoogleSignin.configure skipped: expoConfig.extra missing client IDs"));
   }
+} else if (Platform.OS !== "web") {
+  console.warn(
+    "[Auth] Google Sign-In native module not present in this binary (Expo Go, or a build predating the dependency). Hiding the Google option."
+  );
 }
 
 // Required for expo-web-browser OAuth completion on web (no-op on native).
@@ -58,9 +134,24 @@ interface AuthContextType {
     email: string,
     password: string
   ) => Promise<{ error: AuthError | null }>;
+  /** Create an account. `alreadyRegistered` means the address exists already,
+   *  so the caller should offer sign-in rather than a verification code. */
+  signUp: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ error: AuthError | null; alreadyRegistered?: boolean }>;
+  verifySignupOtp: (
+    email: string,
+    token: string
+  ) => Promise<{ error: AuthError | null }>;
+  resendSignupOtp: (email: string) => Promise<{ error: AuthError | null }>;
   signInWithProvider: (
     provider: OAuthProvider
-  ) => Promise<{ error: AuthError | { message: string } | null; cancelled?: boolean }>;
+  ) => Promise<{
+    error: AuthError | { message: string; code?: string } | null;
+    cancelled?: boolean;
+  }>;
   signOut: () => Promise<void>;
 }
 
@@ -155,6 +246,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleUrl = async (url: string | null) => {
       if (!url) return;
 
+      // Scope this to the OAuth callback. A join deep link is
+      // `stampeo-scanner://join?code=ABCD3F` -- it also carries `code`, and
+      // feeding a six-character team code to exchangeCodeForSession would burn
+      // the PKCE verifier and fail. Match the path before reading anything.
+      if (!url.includes("auth/callback")) return;
+
       let code: string | null = null;
       try {
         const parsed = new URL(url);
@@ -190,6 +287,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error) {
       void writeLastLogin("email", email);
     }
+    return { error };
+  }, []);
+
+  // Email sign-up. The Supabase project has email confirmation ON, so this is
+  // a two-step flow exactly like the dashboard's: create the account, then
+  // verify a six-digit code. Anything that skips the code leaves the employee
+  // with an account they cannot use.
+  const signUp = useCallback(
+    async (email: string, password: string, name: string) => {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+
+      if (error) return { error };
+
+      // Supabase does not error on a duplicate address -- it returns a user
+      // with an empty identities array, so that an attacker cannot enumerate
+      // accounts. Surface it as its own outcome rather than sending the
+      // employee to wait for a code that will never arrive.
+      const alreadyRegistered =
+        !data?.user || (data.user.identities?.length ?? 0) === 0;
+
+      return { error: null, alreadyRegistered };
+    },
+    []
+  );
+
+  const verifySignupOtp = useCallback(async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "signup",
+    });
+    if (!error) {
+      void writeLastLogin("email", email);
+    }
+    return { error };
+  }, []);
+
+  const resendSignupOtp = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({ type: "signup", email });
     return { error };
   }, []);
 
@@ -236,11 +376,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Native Google (iOS / Android) — uses Google Sign In SDK.
       if (provider === "google" && Platform.OS !== "web") {
+        if (!google.available || !google.module) {
+          // The button should be hidden in this case, so reaching here means a
+          // caller went around the check. Fail with the copy that tells the
+          // employee to use another method rather than "try again".
+          return {
+            error: { message: "Google sign-in is unavailable in this build" },
+          };
+        }
+        const { GoogleSignin, statusCodes } = google.module;
         try {
           console.log("[Auth] Google: checking Play Services");
           await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
           console.log("[Auth] Google: launching native sign-in");
           const result = await GoogleSignin.signIn();
+
+          // v13+ does NOT throw on cancel: it resolves to
+          // {type:"cancelled", data:null}. Reading `data.idToken` here and
+          // reporting "no ID token" is what made every dismissed sheet look
+          // like a failed sign-in (STA-246). The statusCodes.SIGN_IN_CANCELLED
+          // branch in the catch below is unreachable for signIn() as a result.
+          if (result.type === "cancelled") {
+            console.log("[Auth] Google: user cancelled");
+            return { error: null, cancelled: true };
+          }
+
           const idToken = result.data?.idToken;
           console.log("[Auth] Google: SDK returned, hasIdToken=", !!idToken, "email=", result.data?.user?.email ?? "<none>");
           if (!idToken) {
@@ -253,6 +413,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           if (error) {
             console.log("[Auth] Google: Supabase rejected token, message=", error.message, "status=", error.status, "name=", error.name);
+            // The iOS half of STA-246 lands here: the SDK signs in fine, then
+            // Supabase refuses the token because the iOS client ID is not in
+            // its Authorized Client IDs list.
+            reportAuthFailure("google", error, error.status);
           } else {
             console.log("[Auth] Google: Supabase accepted token");
             void writeLastLogin("google", result.data?.user?.email ?? undefined);
@@ -265,8 +429,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { error: null, cancelled: true };
           }
           console.log("[Auth] Google: SDK threw, code=", code, "err=", err);
+          reportAuthFailure("google", err, code);
           return {
-            error: { message: err instanceof Error ? err.message : "Google sign-in failed" },
+            error: {
+              message: err instanceof Error ? err.message : "Google sign-in failed",
+              // v16's statusCodes has no DEVELOPER_ERROR member, so the raw
+              // code has to travel with the error for the UI to classify it.
+              code,
+            },
           };
         }
       }
@@ -352,7 +522,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, appUser, session, loading, signIn, signInWithProvider, signOut }}
+      value={{ user, appUser, session, loading, signIn, signUp, verifySignupOtp,
+                resendSignupOtp, signInWithProvider, signOut }}
     >
       {children}
     </AuthContext.Provider>

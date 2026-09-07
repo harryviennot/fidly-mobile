@@ -29,12 +29,36 @@
     "tooManyRequests": "Zbyt wiele prób. Poczekaj chwilę.",
     "userNotFound": "Nie ma konta z tym adresem e-mail",
     "networkError": "Błąd sieci. Sprawdź połączenie.",
-    "generic": "Coś poszło nie tak. Spróbuj ponownie."
+    "providerUnavailable": "Ta metoda logowania jest teraz niedostępna. Zaloguj się przez e-mail.",
+    "generic": "Coś poszło nie tak. Spróbuj ponownie.",
+    "emailExists": "Konto z tym adresem już istnieje. Zaloguj się.",
+    "otpInvalid": "Ten kod jest nieprawidłowy lub stracił ważność. Spróbuj ponownie lub poproś o nowy."
   },
   "noAccount": {
     "title": "Nie znaleziono konta",
     "message": "To logowanie nie jest jeszcze powiązane z żadną firmą. Załóż firmę na Stampeo albo poproś właściciela firmy o zaproszenie.",
     "createBusiness": "Załóż firmę",
     "backToLogin": "Wróć do logowania"
-  }
+  },
+  "signup": {
+    "title": "Załóż konto",
+    "subtitle": "Potem wpisz kod, który wysłał ci przełożony.",
+    "name": "Twoje imię i nazwisko",
+    "namePlaceholder": "Marie Dupont",
+    "createAccount": "Załóż konto",
+    "haveAccount": "Mam już konto",
+    "ruleLength": "co najmniej 6 znaków",
+    "ruleLower": "mała litera",
+    "ruleUpper": "wielka litera",
+    "ruleDigit": "cyfra",
+    "ruleSymbol": "symbol"
+  },
+  "otp": {
+    "title": "Sprawdź swoją pocztę",
+    "subtitle": "Kod z sześciu cyfr został wysłany na adres {email}.",
+    "verify": "Potwierdź",
+    "resend": "Wyślij kod ponownie",
+    "resendIn": "Ponowne wysłanie za {seconds}s"
+  },
+  "signupCta": "Załóż konto"
 }

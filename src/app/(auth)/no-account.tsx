@@ -17,6 +17,7 @@ const SHOWCASE_BASE_URL = "https://stampeo.app";
 export default function NoAccountScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation("login");
+  const { t: tJoin } = useTranslation("join");
 
   // Send the owner to the onboarding in the language they are already reading.
   const locale = resolveSupportedLocale(i18n.language);
@@ -34,6 +35,10 @@ export default function NoAccountScreen() {
     router.replace("/(auth)/login");
   };
 
+  const handleHaveACode = () => {
+    router.replace("/join");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -47,12 +52,19 @@ export default function NoAccountScreen() {
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleCreateBusiness}>
-            <Text style={styles.primaryButtonText}>{t("noAccount.createBusiness")}</Text>
+          {/* An employee standing at the counter is the common case here, so
+              the join code leads. Creating a business is the owner's path and
+              demotes to a text link. */}
+          <TouchableOpacity style={styles.primaryButton} onPress={handleHaveACode}>
+            <Text style={styles.primaryButtonText}>{tJoin("haveACode")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={handleBackToLogin}>
             <Text style={styles.secondaryButtonText}>{t("noAccount.backToLogin")}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tertiaryButton} onPress={handleCreateBusiness}>
+            <Text style={styles.tertiaryButtonText}>{t("noAccount.createBusiness")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -119,5 +131,15 @@ const styles = StyleSheet.create({
     color: "#2d3436",
     fontSize: 16,
     fontWeight: "500",
+  },
+  tertiaryButton: {
+    backgroundColor: "transparent",
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  tertiaryButtonText: {
+    color: "#6b7280",
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
 });

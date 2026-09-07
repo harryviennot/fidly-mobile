@@ -9,7 +9,12 @@ import {
 import Svg, { Path, G } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { CaretRightIcon, EnvelopeSimpleIcon } from "phosphor-react-native";
-import { useAuth, type OAuthProvider } from "@/contexts/auth-context";
+import {
+  isGoogleSignInAvailable,
+  useAuth,
+  type OAuthProvider,
+} from "@/contexts/auth-context";
+import { classifyAuthError } from "@/lib/auth-errors";
 import { useLastLogin } from "@/lib/last-login";
 
 interface AuthMethodChooserProps {
@@ -36,7 +41,14 @@ export function AuthMethodChooser({
       const { error, cancelled } = await signInWithProvider(provider);
       if (cancelled) return;
       if (error) {
-        onError(t("errors.oauthFailed"));
+        // Don't flatten every failure into "try again": a misconfigured
+        // provider can never succeed on a retry, and the employee needs to be
+        // pointed at email instead (STA-246).
+        const key = classifyAuthError(
+          error.message,
+          (error as { code?: string }).code
+        );
+        onError(t(`errors.${key}` as "errors.generic"));
         return;
       }
       onSuccess();
@@ -51,15 +63,19 @@ export function AuthMethodChooser({
 
   return (
     <View style={styles.container}>
-      <MethodButton
-        onPress={() => handleOAuth("google")}
-        disabled={isDisabled("google")}
-        loading={pending === "google"}
-        loadingLabel={t("oauth.connecting")}
-        icon={<GoogleIcon />}
-        label={t("continueGoogle")}
-        lastUsedLabel={lastUsed === "google" ? lastUsedLabel : undefined}
-      />
+      {/* Offering Google on a build without the native module would be a
+          button that can only ever fail. Email and Apple are still there. */}
+      {isGoogleSignInAvailable ? (
+        <MethodButton
+          onPress={() => handleOAuth("google")}
+          disabled={isDisabled("google")}
+          loading={pending === "google"}
+          loadingLabel={t("oauth.connecting")}
+          icon={<GoogleIcon />}
+          label={t("continueGoogle")}
+          lastUsedLabel={lastUsed === "google" ? lastUsedLabel : undefined}
+        />
+      ) : null}
       <MethodButton
         onPress={() => handleOAuth("apple")}
         disabled={isDisabled("apple")}

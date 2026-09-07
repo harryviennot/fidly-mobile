@@ -18,14 +18,16 @@ import { ArrowLeftIcon } from "phosphor-react-native";
 import { useAuth } from "@/contexts/auth-context";
 import { StampeoLogo } from "@/components/ui/StampeoLogo";
 import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
+import { EmailSignUpForm } from "@/components/auth/EmailSignUpForm";
 import { supabase } from "@/lib/supabase";
 import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 import { getUserMemberships } from "@/api/memberships";
 import { resolveSupportedLocale } from "@/locales/i18n";
+import { classifyAuthError } from "@/lib/auth-errors";
 
 const SHOWCASE_BASE_URL = "https://stampeo.app";
 
-type Phase = "choose" | "credentials";
+type Phase = "choose" | "credentials" | "signup";
 
 export default function LoginScreen() {
   const { t, i18n } = useTranslation("login");
@@ -49,40 +51,27 @@ export default function LoginScreen() {
   const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
 
   // Translate raw Supabase error messages into friendly, localised copy.
+  // The classification itself lives in a pure module so the OAuth path in
+  // AuthMethodChooser uses exactly the same rules (STA-246: it used to have
+  // none, and flattened every provider failure into "try again").
   const translateError = useCallback(
-    (message: string) => {
-      const msg = message.toLowerCase();
-      if (
-        msg.includes("invalid") &&
-        (msg.includes("credentials") || msg.includes("password") || msg.includes("login"))
-      ) {
-        return t("errors.invalidCredentials");
-      }
-      if (msg.includes("rate") || msg.includes("too many") || msg.includes("429")) {
-        return t("errors.tooManyRequests");
-      }
-      if (msg.includes("user not found") || msg.includes("no user")) {
-        return t("errors.userNotFound");
-      }
-      if (msg.includes("network") || msg.includes("fetch")) {
-        return t("errors.networkError");
-      }
-      return t("errors.generic");
-    },
+    (message: string, code?: string) =>
+      t(`errors.${classifyAuthError(message, code)}` as "errors.generic"),
     [t]
   );
 
   // After ANY successful auth, ensure the user has at least one membership.
-  // Scanner-app is invite-only — orphan auth users (no business) are signed
-  // out and routed to the no-account screen.
+  // Scanner-app is still invite-only, but a memberless user is no longer signed
+  // back out: they keep the session and land on the join screen, one field away
+  // from being in (STA-246). Signing them out was the dead end that made a
+  // *successful* Google sign-in look like a failed one.
   const enforceInviteOnly = useCallback(async (): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     try {
       const memberships = await getUserMemberships(user.id);
       if (memberships.length === 0) {
-        await supabase.auth.signOut({ scope: "local" });
-        router.replace("/(auth)/no-account");
+        router.replace("/join");
         return false;
       }
       return true;
@@ -232,6 +221,29 @@ export default function LoginScreen() {
                   onError={(message) => setError(message)}
                 />
               </>
+            ) : phase === "signup" ? (
+              <>
+                <View style={styles.headingRow}>
+                  <TouchableOpacity
+                    onPress={handleBackToChoose}
+                    style={styles.backButton}
+                    hitSlop={12}
+                    accessibilityLabel={t("back")}
+                  >
+                    <ArrowLeftIcon size={20} color="#6b7280" weight="bold" />
+                  </TouchableOpacity>
+                </View>
+
+                <EmailSignUpForm
+                  // A brand-new employee has no memberships, so this lands them
+                  // on the join screen with the code still to enter.
+                  onSuccess={enforceInviteOnly}
+                  onSwitchToSignIn={() => {
+                    setPhase("credentials");
+                    setError(null);
+                  }}
+                />
+              </>
             ) : (
               <>
                 <View style={styles.headingRow}>
@@ -295,6 +307,16 @@ export default function LoginScreen() {
                   ) : (
                     <Text style={styles.primaryButtonText}>{t("signIn")}</Text>
                   )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setPhase("signup");
+                    setError(null);
+                  }}
+                  style={styles.signupLinkButton}
+                >
+                  <Text style={styles.signupLink}>{t("signupCta")}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -429,6 +451,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontWeight: "600",
+  },
+  signupLinkButton: {
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  signupLink: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#2d3436",
+    textDecorationLine: "underline",
   },
   footer: {
     flexDirection: "row",

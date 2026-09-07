@@ -16,6 +16,11 @@ export default function ProtectedLayout() {
     if (!protectedSegment) {
       if (currentBusiness) {
         router.replace("/lobby");
+      } else if (memberships.length === 0) {
+        // Signed in but part of no team yet: the code screen is the only
+        // useful destination. The business picker would just show an empty
+        // list (STA-246).
+        router.replace("/join");
       } else {
         router.replace("/businesses");
       }
@@ -26,6 +31,7 @@ export default function ProtectedLayout() {
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
       <Stack.Screen name="lobby" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="businesses" options={{ animation: "fade" }} />
+      <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
       <Stack.Screen
         name="scan"
         options={{

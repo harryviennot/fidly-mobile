@@ -1,0 +1,31 @@
+{
+  "codeTitle": "Entrez votre code d'équipe",
+  "codeSubtitle": "Six caractères, donnés par la personne qui gère Stampeo dans votre commerce.",
+  "codeLabel": "Code d'équipe",
+  "codeHelper": "Aide : Demandez-le à votre responsable si vous ne l'avez pas encore.",
+  "codeSubmit": "Trouver mon commerce",
+  "authTitle": "Connectez-vous pour terminer",
+  "authSubtitle": "On a gardé votre code. Choisissez comment vous connecter.",
+  "confirmTitle": "Rejoindre {business} ?",
+  "confirmRole": "Vous pourrez scanner les cartes de vos clients.",
+  "confirmInvitedBy": "Invité par {inviter}",
+  "confirmSubmit": "Rejoindre cette équipe",
+  "confirmCancel": "Ce n'est pas mon commerce",
+  "joining": "Connexion en cours…",
+  "successTitle": "C'est bon",
+  "successBody": "Vous pouvez commencer à scanner chez {business}.",
+  "haveACode": "J'ai un code d'équipe",
+  "addBusiness": "Rejoindre un autre commerce",
+  "errors": {
+    "JOIN_CODE_INVALID": "Ce code n'existe pas. Vérifiez-le et réessayez.",
+    "JOIN_CODE_EXPIRED": "Ce code a expiré. Demandez-en un nouveau à votre responsable.",
+    "JOIN_CODE_USED": "Ce code a déjà été utilisé. Demandez-en un nouveau à votre responsable.",
+    "JOIN_CODE_REVOKED": "Ce code a été annulé. Demandez-en un nouveau à votre responsable.",
+    "ALREADY_MEMBER": "Vous faites déjà partie de cette équipe.",
+    "LIMIT_EXCEEDED": "Cette équipe est complète. Votre responsable doit passer à un plan supérieur pour vous ajouter.",
+    "BILLING_REQUIRED": "L'abonnement de ce commerce est terminé. Votre responsable peut le réactiver.",
+    "CHECKOUT_REQUIRED": "Ce commerce n'a pas encore terminé sa configuration Stampeo.",
+    "BUSINESS_NOT_ACTIVE": "Ce commerce n'est pas actif pour le moment.",
+    "GENERIC": "Une erreur s'est produite. Réessayez."
+  }
+}

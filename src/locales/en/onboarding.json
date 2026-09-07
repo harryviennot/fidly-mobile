@@ -1,0 +1,26 @@
+{
+  "skip": "Skip",
+  "next": "Next",
+  "done": "Start scanning",
+  "replay": "How scanning works",
+  "counterQr": {
+    "title": "The code on your counter",
+    "body": "A customer without a card scans the QR on your lobby screen. Their card lands straight in their phone wallet, no app to download."
+  },
+  "scanning": {
+    "title": "Scanning a customer",
+    "body": "Tap Scan, then point the camera at the card in the customer's wallet. That's the whole job."
+  },
+  "stamp": {
+    "title": "Adding stamps",
+    "body": "One tap adds one stamp. Bought a round? Use the stepper to add several at once. When the card fills up, the reward appears and you hand it over."
+  },
+  "points": {
+    "title": "Adding points",
+    "body": "Type the ticket amount on the keypad and the points work themselves out. To give a reward, pick it from the rewards list instead."
+  },
+  "locations": {
+    "title": "Choosing your venue",
+    "body": "You work in more than one place, so pick the right one at the top of the lobby before you scan. Every scan is credited there."
+  }
+}
