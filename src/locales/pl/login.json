@@ -9,22 +9,16 @@
   "passwordPlaceholder": "Wpisz swoje hasło",
   "signIn": "Zaloguj się",
   "back": "Wróć",
-  "signupPrompt": "Nie masz konta?",
-  "getStarted": "Zaczynamy",
   "continueGoogle": "Kontynuuj z Google",
   "continueApple": "Kontynuuj z Apple",
   "continueEmail": "Kontynuuj z e-mailem",
   "oauth": {
-    "apple": "Kontynuuj z Apple",
-    "google": "Kontynuuj z Google",
-    "divider": "lub",
     "connecting": "Łączenie…",
     "lastUsed": "Ostatnio"
   },
   "errors": {
     "required": "Wpisz e-mail i hasło",
     "unexpected": "Wystąpił nieoczekiwany błąd",
-    "oauthFailed": "Logowanie nie powiodło się. Spróbuj ponownie.",
     "invalidCredentials": "Błędny e-mail lub hasło",
     "tooManyRequests": "Zbyt wiele prób. Poczekaj chwilę.",
     "userNotFound": "Nie ma konta z tym adresem e-mail",
@@ -33,12 +27,6 @@
     "generic": "Coś poszło nie tak. Spróbuj ponownie.",
     "emailExists": "Konto z tym adresem już istnieje. Zaloguj się.",
     "otpInvalid": "Ten kod jest nieprawidłowy lub stracił ważność. Spróbuj ponownie lub poproś o nowy."
-  },
-  "noAccount": {
-    "title": "Nie znaleziono konta",
-    "message": "To logowanie nie jest jeszcze powiązane z żadną firmą. Załóż firmę na Stampeo albo poproś właściciela firmy o zaproszenie.",
-    "createBusiness": "Załóż firmę",
-    "backToLogin": "Wróć do logowania"
   },
   "signup": {
     "title": "Załóż konto",
@@ -55,10 +43,10 @@
   },
   "otp": {
     "title": "Sprawdź swoją pocztę",
-    "subtitle": "Kod z sześciu cyfr został wysłany na adres {email}.",
+    "subtitle": "Kod z sześciu cyfr został wysłany na adres {{email}}.",
     "verify": "Potwierdź",
     "resend": "Wyślij kod ponownie",
-    "resendIn": "Ponowne wysłanie za {seconds}s"
+    "resendIn": "Ponowne wysłanie za {{seconds}}s"
   },
   "signupCta": "Załóż konto"
 }

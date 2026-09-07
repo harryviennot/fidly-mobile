@@ -1,5 +1,9 @@
+import { useState } from "react";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { JoinCodeFlow } from "./JoinCodeFlow";
+import { CreateBusinessSheet } from "@/components/auth/CreateBusinessSheet";
+import { BlockButton } from "@/components/auth-ui";
 import { useAuth } from "@/contexts/auth-context";
 import { useBusiness } from "@/contexts/business-context";
 
@@ -13,22 +17,57 @@ import { useBusiness } from "@/contexts/business-context";
  */
 export function JoinScreen({ initialCode }: { initialCode?: string }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { t } = useTranslation("welcome");
+  const { t: tCommon } = useTranslation("common");
+  const { user, signOut } = useAuth();
   const { memberships } = useBusiness();
+  const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
 
+  // Signed in with nowhere to go: every other caller of this screen has a list
+  // to fall back to, this one does not.
+  const stranded = !!user && memberships.length === 0;
   const canGoBack = user ? memberships.length > 0 : true;
 
   return (
-    <JoinCodeFlow
-      initialCode={initialCode}
-      // Straight into the tour: a brand-new employee has never seen the lobby,
-      // and the tour ends on it anyway.
-      onJoined={() => router.replace("/onboarding")}
-      onCancel={
-        canGoBack
-          ? () => router.replace(user ? "/businesses" : "/(auth)/login")
-          : undefined
-      }
-    />
+    <>
+      <JoinCodeFlow
+        initialCode={initialCode}
+        // Straight into the tour: a brand-new employee has never seen the lobby,
+        // and the tour ends on it anyway.
+        onJoined={() => router.replace("/onboarding")}
+        onCancel={
+          canGoBack
+            ? () => router.replace(user ? "/businesses" : "/(auth)/welcome")
+            : undefined
+        }
+        footer={
+          stranded ? (
+            <>
+              {/* Without these, an employee who signed up but has no code is
+                  stuck on this screen with no way forward and no way out. */}
+              <BlockButton
+                variant="quiet"
+                title={t("businessLink")}
+                onPress={() => setBusinessSheetOpen(true)}
+              />
+              <BlockButton
+                variant="quiet"
+                title={tCommon("signOut")}
+                onPress={() => {
+                  void signOut();
+                }}
+              />
+            </>
+          ) : undefined
+        }
+      />
+
+      <CreateBusinessSheet
+        visible={businessSheetOpen}
+        onClose={() => setBusinessSheetOpen(false)}
+        // Already on the join screen: closing the sheet is the whole action.
+        onUseCode={() => {}}
+      />
+    </>
   );
 }

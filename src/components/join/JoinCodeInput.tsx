@@ -8,6 +8,8 @@ import {
   Platform,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
+import { colors, radius, spacing } from "@/components/auth-ui";
 import { JOIN_CODE_LENGTH, sanitizeJoinCodeInput } from "@/lib/join-code";
 
 interface JoinCodeInputProps {
@@ -36,6 +38,7 @@ export function JoinCodeInput({
   disabled,
   hasError,
 }: JoinCodeInputProps) {
+  const { t } = useTranslation("join");
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
 
@@ -97,7 +100,7 @@ export function JoinCodeInput({
         autoComplete="off"
         keyboardType={Platform.OS === "ios" ? "ascii-capable" : "visible-password"}
         returnKeyType="done"
-        accessibilityLabel="Team code"
+        accessibilityLabel={t("codeLabel")}
       />
     </Pressable>
   );
@@ -106,39 +109,36 @@ export function JoinCodeInput({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
+    gap: spacing.sm,
     width: "100%",
   },
   cell: {
     flex: 1,
-    maxWidth: 52,
-    aspectRatio: 0.78,
-    borderRadius: 12,
+    aspectRatio: 0.8,
+    borderRadius: radius.block,
     borderWidth: 1.5,
-    borderColor: "#ddd9d0",
-    backgroundColor: "#faf9f6",
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   cellFilled: {
-    borderColor: "#c9c3b6",
-    backgroundColor: "#fff",
+    borderColor: colors.ink,
   },
   cellActive: {
-    borderColor: "#f97316",
-    backgroundColor: "#fff",
+    borderColor: colors.brand,
+    borderWidth: 2,
   },
   cellError: {
-    borderColor: "#dc2626",
+    borderColor: colors.danger,
   },
   cellDisabled: {
     opacity: 0.5,
   },
   cellText: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2d3436",
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.ink,
     fontVariant: ["tabular-nums"],
   },
   hiddenInput: {

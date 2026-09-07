@@ -1,6 +1,12 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'expo-localization';
+import {
+  SUPPORTED_LOCALES,
+  isSupportedLocale,
+  resolveSupportedLocale,
+  type SupportedLocale,
+} from './supported';
 
 // English translations
 import enCommon from './en/common.json';
@@ -14,6 +20,7 @@ import enOnboarding from './en/onboarding.json';
 import enLocation from './en/location.json';
 import enPoints from './en/points.json';
 import enUpdate from './en/update.json';
+import enWelcome from './en/welcome.json';
 
 // French translations
 import frCommon from './fr/common.json';
@@ -27,6 +34,7 @@ import frOnboarding from './fr/onboarding.json';
 import frLocation from './fr/location.json';
 import frPoints from './fr/points.json';
 import frUpdate from './fr/update.json';
+import frWelcome from './fr/welcome.json';
 
 // Spanish translations
 import esCommon from './es/common.json';
@@ -40,6 +48,7 @@ import esOnboarding from './es/onboarding.json';
 import esLocation from './es/location.json';
 import esPoints from './es/points.json';
 import esUpdate from './es/update.json';
+import esWelcome from './es/welcome.json';
 
 // Polish translations
 import plCommon from './pl/common.json';
@@ -53,6 +62,7 @@ import plOnboarding from './pl/onboarding.json';
 import plLocation from './pl/location.json';
 import plPoints from './pl/points.json';
 import plUpdate from './pl/update.json';
+import plWelcome from './pl/welcome.json';
 
 const resources = {
   en: {
@@ -67,6 +77,7 @@ const resources = {
     location: enLocation,
     points: enPoints,
     update: enUpdate,
+    welcome: enWelcome,
   },
   fr: {
     common: frCommon,
@@ -80,6 +91,7 @@ const resources = {
     location: frLocation,
     points: frPoints,
     update: frUpdate,
+    welcome: frWelcome,
   },
   es: {
     common: esCommon,
@@ -93,6 +105,7 @@ const resources = {
     location: esLocation,
     points: esPoints,
     update: esUpdate,
+    welcome: esWelcome,
   },
   pl: {
     common: plCommon,
@@ -106,31 +119,14 @@ const resources = {
     location: plLocation,
     points: plPoints,
     update: plUpdate,
+    welcome: plWelcome,
   },
 };
 
-/** Every language the app ships. The single source of truth: derive, never re-list. */
-export const SUPPORTED_LOCALES = ['en', 'fr', 'es', 'pl'] as const;
-
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-
-export function isSupportedLocale(value: string | null | undefined): value is SupportedLocale {
-  return !!value && (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
-
-/** Base language code of a tag: 'pl-PL' and 'pl_PL' both become 'pl'. */
-function baseLanguage(value: string | null | undefined): string {
-  return (value ?? '').split(/[-_]/)[0].toLowerCase();
-}
-
-/**
- * The locale we should serve for a language tag, English when we ship nothing
- * closer. Matches on the base code, so a pl-PL device gets Polish.
- */
-export function resolveSupportedLocale(value: string | null | undefined): SupportedLocale {
-  const base = baseLanguage(value);
-  return isSupportedLocale(base) ? base : 'en';
-}
+// The language set itself lives in a react-native-free module so unit tests and
+// pure helpers can import it; re-exported here so existing callers are unchanged.
+export { SUPPORTED_LOCALES, isSupportedLocale, resolveSupportedLocale };
+export type { SupportedLocale };
 
 // Get device locale safely. `languageCode` is already the base code ('pl'), but
 // normalise anyway so a platform that hands back 'pl-PL' still matches.
@@ -152,7 +148,7 @@ i18n.use(initReactI18next).init({
   lng: initialLocale,
   fallbackLng: 'en',
   defaultNS: 'common',
-  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location', 'points', 'update', 'join', 'onboarding'],
+  ns: ['common', 'login', 'businesses', 'lobby', 'scanner', 'stamp', 'location', 'points', 'update', 'join', 'onboarding', 'welcome'],
   interpolation: {
     escapeValue: false, // React already escapes
   },

@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { CheckIcon } from "phosphor-react-native";
 import { useAuth } from "@/contexts/auth-context";
 import { classifyAuthError } from "@/lib/auth-errors";
+import {
+  AuthTextField,
+  BlockButton,
+  colors,
+  radius,
+  spacing,
+  type,
+} from "@/components/auth-ui";
 
 type Step = "details" | "code";
 
@@ -139,7 +140,7 @@ export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpForm
         <TextInput
           style={styles.otpInput}
           placeholder="000000"
-          placeholderTextColor="#c9c3b6"
+          placeholderTextColor={colors.inkFaint}
           value={otp}
           onChangeText={(v) => setOtp(v.replace(/\D/g, "").slice(0, 6))}
           keyboardType="number-pad"
@@ -147,25 +148,23 @@ export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpForm
           textContentType="oneTimeCode"
           maxLength={6}
           editable={!loading}
+          accessibilityLabel={t("otp.title")}
         />
 
-        <TouchableOpacity
-          style={[styles.primaryButton, (loading || otp.length < 6) && styles.buttonDisabled]}
+        <BlockButton
+          variant="primary"
+          title={t("otp.verify")}
           onPress={handleVerify}
+          loading={loading}
           disabled={loading || otp.length < 6}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.primaryButtonText}>{t("otp.verify")}</Text>
-          )}
-        </TouchableOpacity>
+        />
 
-        <TouchableOpacity onPress={handleResend} disabled={cooldown > 0} style={styles.linkButton}>
-          <Text style={[styles.link, cooldown > 0 && styles.linkMuted]}>
-            {cooldown > 0 ? t("otp.resendIn", { seconds: cooldown }) : t("otp.resend")}
-          </Text>
-        </TouchableOpacity>
+        <BlockButton
+          variant="quiet"
+          title={cooldown > 0 ? t("otp.resendIn", { seconds: cooldown }) : t("otp.resend")}
+          onPress={handleResend}
+          disabled={cooldown > 0}
+        />
       </View>
     );
   }
@@ -183,41 +182,31 @@ export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpForm
         </View>
       ) : null}
 
-      <View style={styles.field}>
-        <Text style={styles.label}>{t("signup.name")}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={t("signup.namePlaceholder")}
-          placeholderTextColor="#9ca3af"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-          autoComplete="name"
-          editable={!loading}
-        />
-      </View>
+      <AuthTextField
+        label={t("signup.name")}
+        placeholder={t("signup.namePlaceholder")}
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        autoComplete="name"
+        editable={!loading}
+      />
+
+      <AuthTextField
+        label={t("email")}
+        placeholder={t("emailPlaceholder")}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        autoComplete="email"
+        editable={!loading}
+      />
 
       <View style={styles.field}>
-        <Text style={styles.label}>{t("email")}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={t("emailPlaceholder")}
-          placeholderTextColor="#9ca3af"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          editable={!loading}
-        />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>{t("password")}</Text>
-        <TextInput
-          style={styles.input}
+        <AuthTextField
+          label={t("password")}
           placeholder={t("passwordPlaceholder")}
-          placeholderTextColor="#9ca3af"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -236,9 +225,9 @@ export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpForm
           ).map(([key, label]) => (
             <View key={key} style={styles.checkRow}>
               <CheckIcon
-                size={12}
+                size={13}
                 weight="bold"
-                color={checks[key] ? "#1d6b45" : "#c9c3b6"}
+                color={checks[key] ? colors.good : colors.inkFaint}
               />
               <Text style={[styles.checkText, checks[key] && styles.checkTextOk]}>
                 {label}
@@ -248,74 +237,51 @@ export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpForm
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.primaryButton, (loading || !canSubmit) && styles.buttonDisabled]}
+      <BlockButton
+        variant="primary"
+        title={t("signup.createAccount")}
         onPress={handleCreate}
+        loading={loading}
         disabled={loading || !canSubmit}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryButtonText}>{t("signup.createAccount")}</Text>
-        )}
-      </TouchableOpacity>
+      />
 
-      <TouchableOpacity onPress={onSwitchToSignIn} style={styles.linkButton}>
-        <Text style={styles.link}>{t("signup.haveAccount")}</Text>
-      </TouchableOpacity>
+      <BlockButton
+        variant="quiet"
+        title={t("signup.haveAccount")}
+        onPress={onSwitchToSignIn}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { width: "100%", gap: 14 },
-  heading: { gap: 6, alignItems: "center" },
-  title: { fontSize: 22, fontWeight: "700", color: "#2d3436", textAlign: "center" },
-  subtitle: { fontSize: 15, color: "#6b7280", textAlign: "center", lineHeight: 21 },
-  field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: "600", color: "#2d3436" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd9d0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#2d3436",
-  },
+  container: { width: "100%", gap: spacing.lg },
+  heading: { gap: spacing.sm },
+  title: { ...type.title, color: colors.ink },
+  subtitle: { ...type.body, color: colors.inkSoft },
+  field: { gap: spacing.md },
   otpInput: {
     borderWidth: 1.5,
-    borderColor: "#ddd9d0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 16,
-    fontSize: 28,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    borderRadius: radius.block,
+    paddingVertical: spacing.lg,
+    fontSize: 30,
     fontWeight: "700",
-    letterSpacing: 10,
+    letterSpacing: 12,
     textAlign: "center",
-    color: "#2d3436",
+    color: colors.ink,
   },
-  checks: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  checkText: { fontSize: 12, color: "#9ca3af" },
-  checkTextOk: { color: "#1d6b45" },
-  primaryButton: {
-    backgroundColor: "#f97316",
-    borderRadius: 9999,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  buttonDisabled: { opacity: 0.5 },
-  linkButton: { paddingVertical: 10, alignItems: "center" },
-  link: { fontSize: 14, fontWeight: "500", color: "#2d3436", textDecorationLine: "underline" },
-  linkMuted: { color: "#9ca3af", textDecorationLine: "none" },
+  checks: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  checkText: { fontSize: 12.5, color: colors.inkFaint },
+  checkTextOk: { color: colors.good, fontWeight: "600" },
   errorBox: {
-    backgroundColor: "#f6e3df",
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: colors.dangerSurface,
+    borderWidth: 1,
+    borderColor: colors.dangerLine,
+    borderRadius: radius.block,
+    padding: spacing.md,
   },
-  errorText: { color: "#a8321f", fontSize: 14, lineHeight: 20 },
+  errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
 });

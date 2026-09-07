@@ -1,18 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-} from "react-native";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { StampeoLogo } from "@/components/ui/StampeoLogo";
 import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
+import {
+  AuthScreen,
+  BlockButton,
+  colors,
+  radius,
+  spacing,
+  type,
+} from "@/components/auth-ui";
 import { JoinCodeInput } from "./JoinCodeInput";
 import { useAuth } from "@/contexts/auth-context";
 import { useBusiness } from "@/contexts/business-context";
@@ -41,6 +40,11 @@ interface JoinCodeFlowProps {
     programType: "stamp" | "points" | null;
   }) => void;
   onCancel?: () => void;
+  /**
+   * Extra links under the actions. The signed-in memberless case uses this for
+   * its way out (create a business, or sign out), since it has no cancel.
+   */
+  footer?: ReactNode;
 }
 
 /**
@@ -51,7 +55,12 @@ interface JoinCodeFlowProps {
  * point of handing someone a code across the counter. The cost is that the code
  * has to survive the OAuth round trip, which is what pending-join-code is for.
  */
-export function JoinCodeFlow({ initialCode, onJoined, onCancel }: JoinCodeFlowProps) {
+export function JoinCodeFlow({
+  initialCode,
+  onJoined,
+  onCancel,
+  footer,
+}: JoinCodeFlowProps) {
   const router = useRouter();
   const { t } = useTranslation("join");
   const { t: tCommon } = useTranslation("common");
@@ -164,85 +173,43 @@ export function JoinCodeFlow({ initialCode, onJoined, onCancel }: JoinCodeFlowPr
     void clearPendingJoinCode();
   }, []);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+  if (phase === "auth") {
+    return (
+      <AuthScreen
+        title={t("authTitle")}
+        subtitle={t("authSubtitle")}
+        error={error}
+        onBack={handleReset}
+        backLabel={tCommon("goBack")}
+        footer={footer}
       >
-        <StampeoLogo size={48} color="#000000" />
+        <AuthMethodChooser
+          // Email sign-in lives on the login screen, not here. The code is
+          // already parked in storage, so signing in there bounces a
+          // memberless user straight back to /join and the pending-code
+          // effect resumes where they left off.
+          onChooseEmail={() => router.push("/(auth)/login")}
+          onSuccess={() => {
+            // The pending-code effect above takes it from here once the
+            // session lands.
+          }}
+          onError={setError}
+        />
+      </AuthScreen>
+    );
+  }
 
-        {phase === "code" && (
-          <View style={styles.block}>
-            <Text style={styles.title}>{t("codeTitle")}</Text>
-            <Text style={styles.subtitle}>{t("codeSubtitle")}</Text>
-
-            <JoinCodeInput
-              value={code}
-              onChange={(next) => {
-                setCode(next);
-                if (error) setError(null);
-              }}
-              onComplete={lookup}
-              disabled={busy}
-              hasError={!!error}
-            />
-
-            <Text style={styles.helper}>{t("codeHelper")}</Text>
-
-            {error && <Text style={styles.error}>{error}</Text>}
-
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                (code.length < JOIN_CODE_LENGTH || busy) && styles.buttonDisabled,
-              ]}
-              onPress={() => lookup(code)}
-              disabled={code.length < JOIN_CODE_LENGTH || busy}
-            >
-              {busy ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>{t("codeSubmit")}</Text>
-              )}
-            </TouchableOpacity>
-
-            {onCancel && (
-              <TouchableOpacity style={styles.secondaryButton} onPress={onCancel}>
-                <Text style={styles.secondaryButtonText}>{tCommon("cancel")}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {phase === "auth" && (
-          <View style={styles.block}>
-            <Text style={styles.title}>{t("authTitle")}</Text>
-            <Text style={styles.subtitle}>{t("authSubtitle")}</Text>
-
-            {error && <Text style={styles.error}>{error}</Text>}
-
-            <AuthMethodChooser
-              // Email sign-in lives on the login screen, not here. The code is
-              // already parked in storage, so signing in there bounces a
-              // memberless user straight back to /join and the pending-code
-              // effect resumes where they left off.
-              onChooseEmail={() => router.push("/(auth)/login")}
-              onSuccess={() => {
-                // The pending-code effect above takes it from here once the
-                // session lands.
-              }}
-              onError={setError}
-            />
-
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleReset}>
-              <Text style={styles.secondaryButtonText}>{tCommon("goBack")}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {(phase === "confirm" || phase === "joining") && preview && (
-          <View style={styles.block}>
+  if ((phase === "confirm" || phase === "joining") && preview) {
+    return (
+      <AuthScreen
+        title={t("confirmTitle", { business: preview.business_name })}
+        subtitle={t("confirmRole")}
+        error={error}
+        onBack={busy ? undefined : handleReset}
+        backLabel={t("confirmCancel")}
+        footer={footer}
+        body={
+          <View style={styles.identity}>
             {preview.business_logo_url ? (
               <Image
                 source={preview.business_logo_url}
@@ -250,113 +217,86 @@ export function JoinCodeFlow({ initialCode, onJoined, onCancel }: JoinCodeFlowPr
                 contentFit="contain"
               />
             ) : null}
-
-            <Text style={styles.title}>
-              {t("confirmTitle", { business: preview.business_name })}
-            </Text>
-            <Text style={styles.subtitle}>{t("confirmRole")}</Text>
-            <Text style={styles.helper}>
+            <Text style={styles.invitedBy}>
               {t("confirmInvitedBy", { inviter: preview.inviter_name })}
             </Text>
-
-            {error && <Text style={styles.error}>{error}</Text>}
-
-            <TouchableOpacity
-              style={[styles.primaryButton, busy && styles.buttonDisabled]}
-              onPress={handleJoin}
-              disabled={busy}
-            >
-              {busy ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>{t("confirmSubmit")}</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleReset}
-              disabled={busy}
-            >
-              <Text style={styles.secondaryButtonText}>{t("confirmCancel")}</Text>
-            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        }
+      >
+        <BlockButton
+          variant="primary"
+          title={busy ? t("joining") : t("confirmSubmit")}
+          onPress={handleJoin}
+          loading={busy}
+          disabled={busy}
+        />
+        <BlockButton
+          variant="quiet"
+          title={t("confirmCancel")}
+          onPress={handleReset}
+          disabled={busy}
+        />
+      </AuthScreen>
+    );
+  }
+
+  return (
+    <AuthScreen
+      title={t("codeTitle")}
+      subtitle={t("codeSubtitle")}
+      error={error}
+      footer={footer}
+      body={
+        <>
+          <JoinCodeInput
+            value={code}
+            onChange={(next) => {
+              setCode(next);
+              if (error) setError(null);
+            }}
+            onComplete={lookup}
+            disabled={busy}
+            hasError={!!error}
+          />
+          <Text style={styles.helper}>{t("codeHelper")}</Text>
+        </>
+      }
+    >
+      <BlockButton
+        variant="primary"
+        title={t("codeSubmit")}
+        onPress={() => lookup(code)}
+        loading={busy}
+        disabled={code.length < JOIN_CODE_LENGTH || busy}
+      />
+
+      {onCancel ? (
+        <BlockButton variant="quiet" title={tCommon("cancel")} onPress={onCancel} />
+      ) : null}
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0efe9",
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: "center",
+  identity: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    gap: 28,
-  },
-  block: {
-    width: "100%",
-    maxWidth: 420,
-    alignItems: "center",
-    gap: 14,
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
   },
   logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
+    width: 52,
+    height: 52,
+    borderRadius: radius.block,
+    backgroundColor: colors.surface,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2d3436",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 22,
+  invitedBy: {
+    ...type.body,
+    color: colors.inkSoft,
+    flex: 1,
   },
   helper: {
-    fontSize: 13,
-    color: "#9ca3af",
-    textAlign: "center",
-  },
-  error: {
-    fontSize: 14,
-    color: "#dc2626",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  primaryButton: {
-    width: "100%",
-    backgroundColor: "#f97316",
-    borderRadius: 9999,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 6,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  secondaryButton: {
-    padding: 12,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#2d3436",
-    fontSize: 15,
-    fontWeight: "500",
+    ...type.body,
+    color: colors.inkFaint,
   },
 });

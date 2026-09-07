@@ -10,6 +10,7 @@ import type enPoints from './en/points.json';
 import type enUpdate from './en/update.json';
 import type enJoin from './en/join.json';
 import type enOnboarding from './en/onboarding.json';
+import type enWelcome from './en/welcome.json';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -26,6 +27,7 @@ declare module 'i18next' {
       update: typeof enUpdate;
       join: typeof enJoin;
       onboarding: typeof enOnboarding;
+      welcome: typeof enWelcome;
     };
   }
 }

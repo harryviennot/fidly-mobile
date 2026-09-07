@@ -9,22 +9,16 @@
   "passwordPlaceholder": "Enter your password",
   "signIn": "Sign In",
   "back": "Back",
-  "signupPrompt": "No account?",
-  "getStarted": "Get started",
   "continueGoogle": "Continue with Google",
   "continueApple": "Continue with Apple",
   "continueEmail": "Continue with email",
   "oauth": {
-    "apple": "Continue with Apple",
-    "google": "Continue with Google",
-    "divider": "or",
     "connecting": "Connecting…",
     "lastUsed": "Last used"
   },
   "errors": {
     "required": "Please enter email and password",
     "unexpected": "An unexpected error occurred",
-    "oauthFailed": "Sign-in failed. Please try again.",
     "invalidCredentials": "Wrong email or password",
     "tooManyRequests": "Too many attempts. Please wait a moment.",
     "userNotFound": "No account found for this email",
@@ -33,12 +27,6 @@
     "generic": "Something went wrong. Please try again.",
     "emailExists": "There's already an account for this email. Sign in instead.",
     "otpInvalid": "That code is wrong or has expired. Try again, or send a new one."
-  },
-  "noAccount": {
-    "title": "No account found",
-    "message": "This sign-in isn't linked to any business yet. Create one on Stampeo, or ask your business owner to invite you.",
-    "createBusiness": "Create a business",
-    "backToLogin": "Back to sign in"
   },
   "signup": {
     "title": "Create your account",
@@ -55,10 +43,10 @@
   },
   "otp": {
     "title": "Check your email",
-    "subtitle": "We sent a six-digit code to {email}.",
+    "subtitle": "We sent a six-digit code to {{email}}.",
     "verify": "Confirm",
     "resend": "Send the code again",
-    "resendIn": "Send again in {seconds}s"
+    "resendIn": "Send again in {{seconds}}s"
   },
   "signupCta": "Create an account"
 }
