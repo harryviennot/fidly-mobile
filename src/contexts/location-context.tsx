@@ -27,6 +27,8 @@ export interface ProximitySuggestion {
 interface LocationContextType {
   scannableLocations: ScannerLocation[];
   requiresLocation: boolean;
+  /** The owner's name, when this scanner is stranded without a location. */
+  managerName: string | null;
   scope: "all" | "assigned" | null;
   selectedLocation: ScannerLocation | null;
   loading: boolean;
@@ -78,6 +80,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const [scannableLocations, setScannableLocations] = useState<ScannerLocation[]>([]);
   const [requiresLocation, setRequiresLocation] = useState(false);
+  // Who to ask when stranded. Server-side, because the app has no other way to
+  // know which of the people around them runs Stampeo.
+  const [managerName, setManagerName] = useState<string | null>(null);
   const [scope, setScope] = useState<"all" | "assigned" | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<ScannerLocation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +123,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       if (!businessId) {
         setScannableLocations([]);
         setRequiresLocation(false);
+        setManagerName(null);
         setScope(null);
         setSelectedLocation(null);
         setProximitySuggestion(null);
@@ -133,6 +139,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
         setScannableLocations(data.locations);
         setRequiresLocation(data.requires_location);
+        setManagerName(data.manager_name ?? null);
         setScope(data.scope);
 
         // Auto-select: previously-stored → primary → first. Never blocks.
@@ -150,6 +157,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         setError(err instanceof Error ? err.message : "Failed to load locations");
         setScannableLocations([]);
         setRequiresLocation(false);
+        setManagerName(null);
         setScope(null);
         setSelectedLocation(null);
       } finally {
@@ -217,6 +225,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       value={{
         scannableLocations,
         requiresLocation,
+        managerName,
         scope,
         selectedLocation,
         loading,

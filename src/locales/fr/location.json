@@ -7,7 +7,8 @@
   "scanningAt": "Vous scannez à {{name}}",
   "noneAssigned": {
     "title": "Aucun emplacement assigné",
-    "body": "Vous n'êtes assigné à aucun emplacement pour le moment. Demandez au propriétaire de vous en assigner un avant de scanner."
+    "body": "Vous n'êtes rattaché à aucun établissement pour le moment, le scan est donc indisponible.",
+    "bodyNamed": "Vous n'êtes rattaché à aucun établissement. Demandez à {{manager}} de vous en attribuer un, et vous pourrez scanner aussitôt."
   },
   "permission": {
     "title": "Utiliser votre position ?",

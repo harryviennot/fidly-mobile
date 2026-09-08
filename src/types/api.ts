@@ -182,6 +182,9 @@ export interface ScannableLocationsResponse {
   // location_id when stamping. Mirrors POST /stamps validation server-side.
   requires_location: boolean;
   scope: "all" | "assigned";
+  /** Who to ask, when this scanner has no location and needs one. Null
+   *  whenever there is nothing to ask about. */
+  manager_name?: string | null;
 }
 
 export interface LocationQRResponse {

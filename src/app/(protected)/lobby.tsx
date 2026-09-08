@@ -55,6 +55,7 @@ export default function LobbyScreen() {
     requiresLocation,
     selectedLocation,
     isStranded,
+    managerName,
     selectLocation,
     proximitySuggestion,
     dismissSuggestion,
@@ -453,7 +454,14 @@ export default function LobbyScreen() {
           <View style={styles.strandedCard}>
             <WarningCircleIcon size={28} color="#D97706" weight="fill" />
             <Text style={styles.strandedTitle}>{tLocation("noneAssigned.title")}</Text>
-            <Text style={styles.strandedBody}>{tLocation("noneAssigned.body")}</Text>
+            <Text style={styles.strandedBody}>
+              {/* Name the person when the server knows who they are: at a
+                  multi-site shop "ask the business owner" leaves a new hire
+                  guessing which of the people around them that is. */}
+              {managerName
+                ? tLocation("noneAssigned.bodyNamed", { manager: managerName })
+                : tLocation("noneAssigned.body")}
+            </Text>
           </View>
         ) : (
           /* Scan Button */
