@@ -85,6 +85,26 @@ export function joinErrorKey(code: string | undefined): string {
  */
 export const PENDING_CODE_TTL_MS = 15 * 60 * 1000;
 
+/**
+ * After a lookup or a redeem fails, should the parked code survive for another
+ * attempt?
+ *
+ * The parked code is a handoff across the sign-in detour, not a retry queue. So
+ * the question is not which error came back, it is whether the server answered
+ * about this code at all: once it has, the handoff is finished, and keeping the
+ * code means the resume effect re-submits it on every mount. That is what made
+ * one mistyped character reappear as a red error on every cold start for the
+ * next fifteen minutes, burning a lookup each time.
+ *
+ * Only a failure that says nothing about the code keeps it: no response at all
+ * (offline, dropped connection), the server failing, or a throttle.
+ */
+export function keepPendingCodeAfterFailure(status: number | undefined): boolean {
+  if (status === undefined) return true;
+  if (status === 429) return true;
+  return status < 400 || status >= 500;
+}
+
 /** Is a stored pending code still within its window? */
 export function isPendingCodeFresh(
   savedAt: number,

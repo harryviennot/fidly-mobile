@@ -21,6 +21,7 @@ import {
   JOIN_CODE_LENGTH,
   isValidJoinCode,
   joinErrorKey,
+  keepPendingCodeAfterFailure,
   sanitizeJoinCodeInput,
 } from "@/lib/join-code";
 import {
@@ -77,6 +78,14 @@ export function JoinCodeFlow({
     (err: unknown) => {
       const apiError = err instanceof ApiError ? err : null;
       setError(t(joinErrorKey(apiError?.code) as "errors.GENERIC"));
+      // Unpark the code once the server has answered about it. The parked copy
+      // only exists to survive the sign-in detour, and leaving a rejected code
+      // in storage turns the resume effect into a replay: the same red error on
+      // every cold start until the TTL runs out. The typed code stays in the
+      // field either way, so the employee can still fix their typo in place.
+      if (!keepPendingCodeAfterFailure(apiError?.status)) {
+        void clearPendingJoinCode();
+      }
     },
     [t]
   );

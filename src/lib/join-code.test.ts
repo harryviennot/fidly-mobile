@@ -6,6 +6,7 @@ import {
   isValidJoinCode,
   isPendingCodeFresh,
   joinErrorKey,
+  keepPendingCodeAfterFailure,
   normalizeJoinCode,
   PENDING_CODE_TTL_MS,
   sanitizeJoinCodeInput,
@@ -138,5 +139,43 @@ describe("isPendingCodeFresh", () => {
     expect(isPendingCodeFresh(0, now)).toBe(false);
     expect(isPendingCodeFresh(-1, now)).toBe(false);
     expect(isPendingCodeFresh(Number.NaN, now)).toBe(false);
+  });
+});
+
+describe("keepPendingCodeAfterFailure", () => {
+  it("DROPS A CODE THE SERVER HAS ALREADY REJECTED", () => {
+    // The bug this exists for. A mistyped code stayed in storage for the full
+    // TTL, and the effect that resumes a parked code re-read and re-submitted
+    // it on every mount: a memberless employee who fat-fingered one character
+    // met the red error again on every cold start for fifteen minutes, with a
+    // wasted lookup each time, on the one screen that has no Cancel.
+    expect(keepPendingCodeAfterFailure(404)).toBe(false);
+    expect(keepPendingCodeAfterFailure(403)).toBe(false);
+    expect(keepPendingCodeAfterFailure(409)).toBe(false);
+    expect(keepPendingCodeAfterFailure(402)).toBe(false);
+    expect(keepPendingCodeAfterFailure(400)).toBe(false);
+  });
+
+  it("keeps a code when the request never reached the server", () => {
+    // Offline, DNS failure, a dropped connection: fetch throws before there is
+    // a status. The code is still good and retyping it is a real cost.
+    expect(keepPendingCodeAfterFailure(undefined)).toBe(true);
+  });
+
+  it("keeps a code when the server failed rather than answered", () => {
+    expect(keepPendingCodeAfterFailure(500)).toBe(true);
+    expect(keepPendingCodeAfterFailure(502)).toBe(true);
+    expect(keepPendingCodeAfterFailure(503)).toBe(true);
+  });
+
+  it("keeps a code that was throttled, since that says nothing about the code", () => {
+    expect(keepPendingCodeAfterFailure(429)).toBe(true);
+  });
+
+  it("drops on any other answer, so a new gate cannot reinstate the replay", () => {
+    // The rule is about who answered, not about which codes we listed: an
+    // unrecognised 4xx is still the server telling us about this code.
+    expect(keepPendingCodeAfterFailure(418)).toBe(false);
+    expect(keepPendingCodeAfterFailure(422)).toBe(false);
   });
 });
