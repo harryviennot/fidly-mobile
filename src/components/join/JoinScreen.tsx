@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { JoinCodeFlow } from "./JoinCodeFlow";
 import { CreateBusinessSheet } from "@/components/auth/CreateBusinessSheet";
 import { BlockButton } from "@/components/auth-ui";
+import { joinScreenState } from "@/lib/join-screen-state";
 import { useAuth } from "@/contexts/auth-context";
 import { useBusiness } from "@/contexts/business-context";
 
@@ -23,10 +24,11 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
   const { memberships } = useBusiness();
   const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
 
-  // Signed in with nowhere to go: every other caller of this screen has a list
-  // to fall back to, this one does not.
-  const stranded = !!user && memberships.length === 0;
-  const canGoBack = user ? memberships.length > 0 : true;
+  // Which way out this screen offers; the two can never both be absent.
+  const { canCancel, showEscapeHatch } = joinScreenState({
+    signedIn: !!user,
+    membershipCount: memberships.length,
+  });
 
   return (
     <>
@@ -36,12 +38,12 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
         // and the tour ends on it anyway.
         onJoined={() => router.replace("/onboarding")}
         onCancel={
-          canGoBack
+          canCancel
             ? () => router.replace(user ? "/businesses" : "/(auth)/welcome")
             : undefined
         }
         footer={
-          stranded ? (
+          showEscapeHatch ? (
             <>
               {/* Without these, an employee who signed up but has no code is
                   stuck on this screen with no way forward and no way out. */}
