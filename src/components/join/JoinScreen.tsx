@@ -6,6 +6,7 @@ import { CreateBusinessSheet } from "@/components/auth/CreateBusinessSheet";
 import { BlockButton } from "@/components/auth-ui";
 import { joinScreenState } from "@/lib/join-screen-state";
 import { useAuth } from "@/contexts/auth-context";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { useBusiness } from "@/contexts/business-context";
 
 /**
@@ -20,7 +21,8 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
   const router = useRouter();
   const { t } = useTranslation("welcome");
   const { t: tCommon } = useTranslation("common");
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
+  const signOutToWelcome = useSignOut();
   const { memberships } = useBusiness();
   const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
 
@@ -55,12 +57,7 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
               <BlockButton
                 variant="quiet"
                 title={tCommon("signOut")}
-                onPress={() => {
-                  // /join sits outside both route groups, so the protected
-                  // flip does not move it: without this they sign out and stay
-                  // looking at the code field.
-                  void signOut().finally(() => router.replace("/(auth)/welcome"));
-                }}
+                onPress={signOutToWelcome}
               />
             </>
           ) : undefined

@@ -19,6 +19,13 @@ interface BusinessContextType {
   currentBusiness: Business | null;
   currentMembership: Membership | null;
   loading: boolean;
+  /**
+   * True once the membership list has actually been fetched for the current
+   * user. An empty `memberships` only means "on no team" when this is true:
+   * before the first fetch it means "not asked yet", and routing on the
+   * difference is what stranded scanners on the join screen.
+   */
+  membershipsResolved: boolean;
   error: string | null;
   selectBusiness: (businessId: string) => void;
   refreshMemberships: () => Promise<void>;
@@ -60,6 +67,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [currentMembership, setCurrentMembership] =
     useState<Membership | null>(null);
   const [loading, setLoading] = useState(true);
+  // The user whose memberships the state currently reflects.
+  const [resolvedFor, setResolvedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectBusiness = useCallback(
@@ -79,6 +88,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
+      setResolvedFor(null);
       setLoading(false);
       return;
     }
@@ -115,6 +125,9 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load businesses");
     } finally {
+      // Resolved either way: a failed fetch is still an answer, and leaving it
+      // unresolved would freeze routing behind a transient network error.
+      setResolvedFor(userId);
       setLoading(false);
     }
   }, [userId]);
@@ -130,6 +143,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
+      setResolvedFor(null);
       removeStoredBusinessId();
     }
   }, [userId]);
@@ -138,6 +152,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     <BusinessContext.Provider
       value={{
         memberships,
+        membershipsResolved: !!userId && resolvedFor === userId,
         currentBusiness,
         currentMembership,
         loading,

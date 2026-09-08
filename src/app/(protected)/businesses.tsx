@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
-import { useAuth } from "@/contexts/auth-context";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
 import { CaretRight, SignOutIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
@@ -93,7 +93,7 @@ export default function BusinessesScreen() {
   const { t: tJoin } = useTranslation("join");
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
-  const { signOut } = useAuth();
+  const signOutToWelcome = useSignOut();
   const { alert } = useAlert();
 
   const handleSignOut = () => {
@@ -102,7 +102,7 @@ export default function BusinessesScreen() {
       tCommon("signOutConfirmMessage"),
       [
         { text: tCommon("signOutConfirmNo"), style: "cancel" },
-        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOut },
+        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOutToWelcome },
       ]
     );
   };

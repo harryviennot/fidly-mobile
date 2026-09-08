@@ -12,7 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
-import { useAuth } from "@/contexts/auth-context";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
 import { useLocation } from "@/contexts/location-context";
 import {
@@ -47,7 +47,7 @@ export default function LobbyScreen() {
   const { t: tOnboarding } = useTranslation("onboarding");
   const { currentBusiness, currentMembership, memberships } = useBusiness();
   const { theme, design, signupQR, qrLoading } = useTheme();
-  const { signOut } = useAuth();
+  const signOutToWelcome = useSignOut();
   const { alert } = useAlert();
   const {
     scannableLocations,
@@ -192,7 +192,7 @@ export default function LobbyScreen() {
       tCommon("signOutConfirmMessage"),
       [
         { text: tCommon("signOutConfirmNo"), style: "cancel" },
-        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOut },
+        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOutToWelcome },
       ]
     );
   };

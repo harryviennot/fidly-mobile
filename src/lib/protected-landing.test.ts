@@ -1,0 +1,101 @@
+import { describe, expect, test } from "bun:test";
+import { protectedLanding } from "./protected-landing";
+
+const base = {
+  signedIn: true,
+  membershipsResolved: true,
+  atGroupRoot: true,
+  hasCurrentBusiness: false,
+  membershipCount: 0,
+};
+
+describe("protectedLanding", () => {
+  test("a signed-in member with a selected shop goes to the lobby", () => {
+    expect(
+      protectedLanding({ ...base, hasCurrentBusiness: true, membershipCount: 1 }),
+    ).toBe("/lobby");
+  });
+
+  test("several shops and none selected goes to the picker", () => {
+    expect(protectedLanding({ ...base, membershipCount: 3 })).toBe("/businesses");
+  });
+
+  test("signed in on no team goes to the code screen", () => {
+    // The business picker would just show an empty list.
+    expect(protectedLanding(base)).toBe("/join");
+  });
+
+  test("nothing is decided away from the group root", () => {
+    // Already on a real screen; redirecting would fight the user's navigation.
+    expect(protectedLanding({ ...base, atGroupRoot: false })).toBeNull();
+  });
+
+  test("AN UNRESOLVED MEMBERSHIP LIST DECIDES NOTHING", () => {
+    // The bug this exists for. An empty list means two completely different
+    // things: "this person is on no team" and "we have not asked yet". The
+    // context reports zero memberships and not-loading in the gap between a
+    // session arriving and the fetch starting, so treating that as an answer
+    // sent a scanner with a perfectly good membership to the join screen —
+    // and /join sits outside this group, so the correction never ran.
+    expect(protectedLanding({ ...base, membershipsResolved: false })).toBeNull();
+    expect(
+      protectedLanding({
+        ...base,
+        membershipsResolved: false,
+        hasCurrentBusiness: true,
+        membershipCount: 1,
+      }),
+    ).toBeNull();
+  });
+
+  test("SIGNING OUT NEVER ROUTES ANYWHERE", () => {
+    // Same shape, other direction: sign-out clears memberships, which used to
+    // look like "signed in, no team" and fired /join while the session was
+    // tearing down.
+    expect(protectedLanding({ ...base, signedIn: false })).toBeNull();
+    expect(
+      protectedLanding({
+        ...base,
+        signedIn: false,
+        hasCurrentBusiness: true,
+        membershipCount: 2,
+      }),
+    ).toBeNull();
+  });
+
+  test.each([true, false])(
+    "signed out beats every other signal (resolved=%p)",
+    (membershipsResolved) => {
+      expect(
+        protectedLanding({ ...base, signedIn: false, membershipsResolved }),
+      ).toBeNull();
+    },
+  );
+
+  test("the join screen is only ever reached from a resolved, signed-in, empty list", () => {
+    // Guards the one destination that can strand someone outside the group.
+    const joins = [true, false].flatMap((signedIn) =>
+      [true, false].flatMap((membershipsResolved) =>
+        [0, 1].map((membershipCount) => ({
+          signedIn,
+          membershipsResolved,
+          membershipCount,
+          result: protectedLanding({
+            ...base,
+            signedIn,
+            membershipsResolved,
+            membershipCount,
+          }),
+        })),
+      ),
+    );
+    joins
+      .filter((j) => j.result === "/join")
+      .forEach((j) => {
+        expect(j.signedIn).toBe(true);
+        expect(j.membershipsResolved).toBe(true);
+        expect(j.membershipCount).toBe(0);
+      });
+    expect(joins.some((j) => j.result === "/join")).toBe(true);
+  });
+});
