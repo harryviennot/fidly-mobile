@@ -135,7 +135,14 @@ export function BlockButton({
             )}
           </View>
         ) : null}
-        <View style={styles.copy}>
+        {/* `flex: 1` makes the label fill a block whose width is known. A quiet
+            link is often placed in a container that sizes itself to its content
+            instead (AuthScreen's footer aligns to the start), and there flex-
+            basis 0 resolves against an indefinite width: on the web the label
+            still occupies its minimum content width, but Yoga hands it zero and
+            the link renders as nothing at all. Sizing to the text keeps it
+            visible either way. */}
+        <View style={[styles.copy, isQuiet && styles.quietCopy]}>
           <Text style={[styles.title, tone.title]} numberOfLines={1}>
             {title}
           </Text>
@@ -196,6 +203,10 @@ const styles = StyleSheet.create({
   copy: {
     flex: 1,
     gap: 2,
+  },
+  quietCopy: {
+    flex: 0,
+    flexShrink: 1,
   },
   title: {
     ...type.action,
