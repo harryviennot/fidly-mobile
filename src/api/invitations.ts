@@ -20,6 +20,27 @@ export interface JoinCodeRedeemResult {
   program_type: "stamp" | "points" | null;
 }
 
+export interface JoinCodeCheck {
+  usable: boolean;
+  /** Why not, as the same error codes redemption uses. Null when usable. */
+  reason: string | null;
+}
+
+/**
+ * Is this code worth creating an account for?
+ *
+ * The only join endpoint that answers without a session, and it says nothing
+ * about which business the code belongs to. It exists because everything else
+ * needs a session, which put the account before the answer: a signed-out
+ * employee who mistyped one character created an account and verified their
+ * email before hearing the code was wrong.
+ */
+export async function checkJoinCode(code: string): Promise<JoinCodeCheck> {
+  return apiFetch<JoinCodeCheck>(
+    `/invitations/code/${encodeURIComponent(normalizeJoinCode(code))}/check`
+  );
+}
+
 /**
  * Look up a code without spending it. Requires a session: the code is a short
  * guessable credential, so the endpoint is authenticated and rate-limited.

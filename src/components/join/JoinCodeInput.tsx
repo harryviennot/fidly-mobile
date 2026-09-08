@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
-import { colors, radius, spacing } from "@/components/auth-ui";
+import { colors, radius, spacing, type } from "@/components/auth-ui";
 import { JOIN_CODE_LENGTH, sanitizeJoinCodeInput } from "@/lib/join-code";
 
 interface JoinCodeInputProps {
@@ -61,7 +61,13 @@ export function JoinCodeInput({
   // The cursor sits on the first empty cell, or the last one when full.
   const cursorIndex = Math.min(value.length, JOIN_CODE_LENGTH - 1);
 
+  const clear = () => {
+    onChange("");
+    inputRef.current?.focus();
+  };
+
   return (
+    <View style={styles.wrapper}>
     <Pressable
       style={styles.container}
       onPress={() => inputRef.current?.focus()}
@@ -103,10 +109,30 @@ export function JoinCodeInput({
         accessibilityLabel={t("codeLabel")}
       />
     </Pressable>
+
+    {/* Six filled cells and a rejected code used to leave backspace as the
+        only way out, six times over, at a counter. */}
+    {value.length > 0 && !disabled ? (
+      <Pressable onPress={clear} hitSlop={8} accessibilityRole="button">
+        <Text style={styles.clear}>{t("codeClear")}</Text>
+      </Pressable>
+    ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    width: "100%",
+    gap: spacing.sm,
+    alignItems: "flex-start",
+  },
+  clear: {
+    ...type.link,
+    color: colors.inkSoft,
+    textDecorationLine: "underline",
+    paddingVertical: spacing.xs,
+  },
   container: {
     flexDirection: "row",
     gap: spacing.sm,

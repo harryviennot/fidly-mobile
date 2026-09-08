@@ -16,6 +16,9 @@
   "successBody": "Możesz zacząć skanować w {{business}}.",
   "haveACode": "Mam kod zespołu",
   "addBusiness": "Dołącz do innej firmy",
+  "addTitle": "Dołącz do innego lokalu",
+  "addBody": "Wpisz sześcioznakowy kod od osoby, która prowadzi tam Stampeo. Twój obecny lokal zostaje bez zmian.",
+  "codeClear": "Wyczyść",
   "errors": {
     "JOIN_CODE_INVALID": "Taki kod nie istnieje. Sprawdź go i spróbuj ponownie.",
     "JOIN_CODE_EXPIRED": "Kod stracił ważność. Poproś o nowy.",

@@ -16,6 +16,9 @@
   "successBody": "You can start scanning at {{business}}.",
   "haveACode": "I have a team code",
   "addBusiness": "Join another shop",
+  "addTitle": "Join another shop",
+  "addBody": "Enter the six-character code from whoever runs Stampeo there. Your current shop stays where it is.",
+  "codeClear": "Clear",
   "errors": {
     "JOIN_CODE_INVALID": "That code doesn't exist. Check it and try again.",
     "JOIN_CODE_EXPIRED": "That code has expired. Ask your manager for a new one.",

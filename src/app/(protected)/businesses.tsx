@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
-import { CaretRight, SignOutIcon } from "phosphor-react-native";
+import { CaretRight, PlusIcon, SignOutIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
+import { JoinBusinessSheet } from "@/components/join/JoinBusinessSheet";
 import { selectPluralForm } from "@/utils/plural";
 import type { Membership } from "@/types/api";
 
@@ -95,6 +96,7 @@ export default function BusinessesScreen() {
     useBusiness();
   const signOutToWelcome = useSignOut();
   const { alert } = useAlert();
+  const [joinSheetOpen, setJoinSheetOpen] = useState(false);
 
   const handleSignOut = () => {
     alert(
@@ -171,9 +173,22 @@ export default function BusinessesScreen() {
             })}
           </Text>
         </View>
-        <TouchableOpacity style={styles.signOutIconButton} hitSlop={12} onPress={handleSignOut}>
-          <SignOutIcon size={20} color="#6b7280" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {/* Adding a shop belongs at the top, next to the list it changes.
+              As a footer link under the last card it was below the fold for
+              anyone with more than a couple of shops. */}
+          <TouchableOpacity
+            style={styles.addBusinessButton}
+            hitSlop={8}
+            onPress={() => setJoinSheetOpen(true)}
+          >
+            <PlusIcon size={16} color="#2d3436" weight="bold" />
+            <Text style={styles.addBusinessButtonText}>{tJoin("addBusiness")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.signOutIconButton} hitSlop={12} onPress={handleSignOut}>
+            <SignOutIcon size={20} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -187,14 +202,11 @@ export default function BusinessesScreen() {
         )}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListFooterComponent={
-          <TouchableOpacity
-            style={styles.addBusinessRow}
-            onPress={() => router.push("/join")}
-          >
-            <Text style={styles.addBusinessText}>{tJoin("addBusiness")}</Text>
-          </TouchableOpacity>
-        }
+      />
+
+      <JoinBusinessSheet
+        visible={joinSheetOpen}
+        onClose={() => setJoinSheetOpen(false)}
       />
     </SafeAreaView>
   );
@@ -205,16 +217,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f0efe9",
   },
-  addBusinessRow: {
-    marginTop: 16,
-    paddingVertical: 14,
+  headerActions: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
-  addBusinessText: {
-    color: "#6b7280",
-    fontSize: 15,
-    fontWeight: "500",
-    textDecorationLine: "underline",
+  addBusinessButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#2d3436",
+    backgroundColor: "#faf9f6",
+  },
+  addBusinessButtonText: {
+    color: "#2d3436",
+    fontSize: 14,
+    fontWeight: "600",
   },
   centered: {
     flex: 1,

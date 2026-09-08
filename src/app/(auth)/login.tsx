@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/auth-context";
 import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
@@ -18,15 +18,19 @@ import { supabase } from "@/lib/supabase";
 import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 import { getUserMemberships } from "@/api/memberships";
 import { classifyAuthError } from "@/lib/auth-errors";
-
-type Phase = "choose" | "credentials" | "signup";
+import { backFromPhase, initialAuthPhase, type AuthPhase } from "@/lib/login-phase";
 
 export default function LoginScreen() {
   const { t } = useTranslation("login");
   const { t: tWelcome } = useTranslation("welcome");
   const router = useRouter();
   const { signIn } = useAuth();
-  const [phase, setPhase] = useState<Phase>("choose");
+  // `?phase=` lets a caller that already knows what someone needs skip the
+  // chooser — the join flow sends code holders straight to sign-up rather than
+  // showing them the same three providers a second time.
+  const { phase: phaseParam } = useLocalSearchParams<{ phase?: string }>();
+  const seededPhase = useRef(initialAuthPhase(phaseParam)).current;
+  const [phase, setPhase] = useState<AuthPhase>(seededPhase);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +163,7 @@ export default function LoginScreen() {
   // stepping back rather than landing somewhere new.
   const handleBack = () => {
     setError(null);
-    if (phase === "choose") {
+    if (backFromPhase({ phase, seeded: seededPhase !== "choose" }) === "leave") {
       router.back();
       return;
     }

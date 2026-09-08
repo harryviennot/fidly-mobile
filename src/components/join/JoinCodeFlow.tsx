@@ -15,7 +15,12 @@ import {
 import { JoinCodeInput } from "./JoinCodeInput";
 import { useAuth } from "@/contexts/auth-context";
 import { useBusiness } from "@/contexts/business-context";
-import { previewJoinCode, redeemJoinCode, type JoinCodePreview } from "@/api/invitations";
+import {
+  checkJoinCode,
+  previewJoinCode,
+  redeemJoinCode,
+  type JoinCodePreview,
+} from "@/api/invitations";
 import { ApiError } from "@/api/errors";
 import {
   JOIN_CODE_LENGTH,
@@ -97,6 +102,25 @@ export function JoinCodeFlow({
       setError(null);
 
       if (!user) {
+        // Check the code BEFORE sending anyone off to make an account. Every
+        // other lookup needs a session, which used to put the account before
+        // the answer: one mistyped character cost a signup, an email
+        // verification, and only then "that code doesn't exist".
+        setBusy(true);
+        try {
+          const check = await checkJoinCode(candidate);
+          if (!check.usable) {
+            setError(t(joinErrorKey(check.reason ?? undefined) as "errors.GENERIC"));
+            return;
+          }
+        } catch {
+          // Offline or the check itself failed: say nothing and carry on. The
+          // code is probably fine, and refusing to continue over a network
+          // blip would be worse than the wasted signup we are avoiding.
+        } finally {
+          setBusy(false);
+        }
+
         // Park the code so it survives an OAuth cold launch, then sign in.
         await savePendingJoinCode(candidate);
         setPhase("auth");
@@ -115,7 +139,7 @@ export function JoinCodeFlow({
         setBusy(false);
       }
     },
-    [user, showError]
+    [user, showError, t]
   );
 
   // A code arrived in the link: look it up straight away rather than showing
@@ -193,11 +217,17 @@ export function JoinCodeFlow({
         footer={footer}
       >
         <AuthMethodChooser
-          // Email sign-in lives on the login screen, not here. The code is
-          // already parked in storage, so signing in there bounces a
-          // memberless user straight back to /join and the pending-code
-          // effect resumes where they left off.
-          onChooseEmail={() => router.push("/(auth)/login")}
+          // Straight to the sign-up form, not to the login screen's own
+          // chooser: this screen has just shown those same three providers, so
+          // landing on them again made the employee choose email twice, both
+          // times under a heading about signing in. Someone holding a team
+          // code is almost always new; the form's own "I already have an
+          // account" covers the rest in one tap.
+          //
+          // The code is already parked in storage, so whichever way they
+          // authenticate, a memberless user bounces straight back to /join and
+          // the pending-code effect resumes where they left off.
+          onChooseEmail={() => router.push("/(auth)/login?phase=signup")}
           onSuccess={() => {
             // The pending-code effect above takes it from here once the
             // session lands.

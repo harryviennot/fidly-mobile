@@ -27,6 +27,7 @@ import { QRCodeSkeleton } from "@/components/skeleton";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
+import { JoinBusinessSheet } from "@/components/join/JoinBusinessSheet";
 import { getLocationQR } from "@/api/locations";
 import { maybeRequestReviewOnLobby } from "@/lib/app-rating";
 import { hasSeenOnboarding } from "@/lib/onboarding-store";
@@ -63,6 +64,7 @@ export default function LobbyScreen() {
 
   const [locationQR, setLocationQR] = useState<string | null>(null);
   const [locationQRLoading, setLocationQRLoading] = useState(false);
+  const [joinSheetOpen, setJoinSheetOpen] = useState(false);
 
   const hasMultipleBusinesses = memberships.length > 1;
   const isPaused = currentMembership?.is_paused ?? false;
@@ -327,10 +329,14 @@ export default function LobbyScreen() {
     <SafeAreaView style={dynamicStyles.container} edges={["top"]}>
       {/* Business Banner */}
       <View style={dynamicStyles.banner}>
+        {/* On one team the banner opens the join sheet, on several it opens
+            the picker (which carries its own join button). Never the sheet
+            when there are other shops to reach: that tap is how you get to
+            them. */}
         <TouchableOpacity
           style={styles.bannerTouchable}
-          onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
-          activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
+          onPress={hasMultipleBusinesses ? handleSwitchBusiness : () => setJoinSheetOpen(true)}
+          activeOpacity={0.7}
         >
           {currentBusiness.logo_url ? (
             <View style={styles.logoContainer}>
@@ -480,6 +486,11 @@ export default function LobbyScreen() {
           proximitySuggestion && selectLocation(proximitySuggestion.location.id)
         }
         onKeep={dismissSuggestion}
+      />
+
+      <JoinBusinessSheet
+        visible={joinSheetOpen}
+        onClose={() => setJoinSheetOpen(false)}
       />
     </SafeAreaView>
   );
