@@ -39,7 +39,8 @@
     "ruleLower": "minuscule",
     "ruleUpper": "majuscule",
     "ruleDigit": "chiffre",
-    "ruleSymbol": "symbole"
+    "ruleSymbol": "symbole",
+    "subtitleWithCode": "On a gardé votre code. Créez votre compte et c'est réglé."
   },
   "otp": {
     "title": "Vérifiez vos emails",

@@ -105,6 +105,49 @@ export function keepPendingCodeAfterFailure(status: number | undefined): boolean
   return status < 400 || status >= 500;
 }
 
+/**
+ * Should the join screen pick up a parked code and run with it?
+ *
+ * Only when it was opened with nothing in hand. A code that arrived with the
+ * route is the one the person is asking about right now, and resuming over it
+ * swapped their shop for someone else's: typing one code into the join sheet
+ * produced a confirmation for a different business entirely, off a code left in
+ * storage minutes earlier. A parked code is a fallback, never an override.
+ *
+ * And never once the flow has moved on: re-running a lookup under a
+ * confirmation the person is reading would change what they are agreeing to.
+ */
+export function shouldResumeParkedCode({
+  signedIn,
+  phase,
+  hasInitialCode,
+}: {
+  signedIn: boolean;
+  phase: "code" | "confirm" | "joining";
+  hasInitialCode: boolean;
+}): boolean {
+  if (!signedIn) return false;
+  if (phase !== "code") return false;
+  return !hasInitialCode;
+}
+
+/**
+ * After signing in, should the parked code be thrown away unused?
+ *
+ * The parked copy exists to carry ONE person's code across ONE sign-in detour.
+ * If the session that lands already belongs to a team, that detour ended
+ * somewhere else entirely — they went to their own lobby, the join screen never
+ * mounted, and the code sat in storage for the rest of its fifteen minutes. On a
+ * shared counter phone that is the next person's problem: they open the join
+ * sheet and inherit a stranger's shop.
+ *
+ * A session with no team is the opposite case: they are one screen away from
+ * using it, so it stays.
+ */
+export function shouldDropParkedCodeAfterSignIn(membershipCount: number): boolean {
+  return membershipCount > 0;
+}
+
 /** Is a stored pending code still within its window? */
 export function isPendingCodeFresh(
   savedAt: number,

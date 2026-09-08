@@ -18,6 +18,12 @@ type Step = "details" | "code";
 interface EmailSignUpFormProps {
   onSuccess: () => void;
   onSwitchToSignIn: () => void;
+  /**
+   * They arrived from the join flow with a code already handed over. Changes
+   * one line: telling someone to enter a code afterwards, when we are holding
+   * it for them, reads as though the last screen did not count.
+   */
+  codeParked?: boolean;
 }
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -33,7 +39,7 @@ const RESEND_COOLDOWN_SECONDS = 60;
  * The password rules mirror the dashboard's rather than inventing a looser set,
  * so an employee cannot pick a password here that the project would reject.
  */
-export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpFormProps) {
+export function EmailSignUpForm({ onSuccess, onSwitchToSignIn, codeParked }: EmailSignUpFormProps) {
   const { t } = useTranslation("login");
   const { signUp, verifySignupOtp, resendSignupOtp } = useAuth();
 
@@ -173,7 +179,9 @@ export function EmailSignUpForm({ onSuccess, onSwitchToSignIn }: EmailSignUpForm
     <View style={styles.container}>
       <View style={styles.heading}>
         <Text style={styles.title}>{t("signup.title")}</Text>
-        <Text style={styles.subtitle}>{t("signup.subtitle")}</Text>
+        <Text style={styles.subtitle}>
+          {t(codeParked ? "signup.subtitleWithCode" : "signup.subtitle")}
+        </Text>
       </View>
 
       {error ? (

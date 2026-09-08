@@ -39,7 +39,8 @@
     "ruleLower": "mała litera",
     "ruleUpper": "wielka litera",
     "ruleDigit": "cyfra",
-    "ruleSymbol": "symbol"
+    "ruleSymbol": "symbol",
+    "subtitleWithCode": "Zachowaliśmy Twój kod. Załóż konto i gotowe."
   },
   "otp": {
     "title": "Sprawdź swoją pocztę",

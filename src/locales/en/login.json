@@ -39,7 +39,8 @@
     "ruleLower": "lowercase",
     "ruleUpper": "uppercase",
     "ruleDigit": "number",
-    "ruleSymbol": "symbol"
+    "ruleSymbol": "symbol",
+    "subtitleWithCode": "We've kept your code. Set this up and you're in."
   },
   "otp": {
     "title": "Check your email",

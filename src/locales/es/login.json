@@ -39,7 +39,8 @@
     "ruleLower": "minúscula",
     "ruleUpper": "mayúscula",
     "ruleDigit": "número",
-    "ruleSymbol": "símbolo"
+    "ruleSymbol": "símbolo",
+    "subtitleWithCode": "Hemos guardado tu código. Crea tu cuenta y ya está."
   },
   "otp": {
     "title": "Revisa tu email",

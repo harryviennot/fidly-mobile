@@ -18,6 +18,8 @@ import { supabase } from "@/lib/supabase";
 import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 import { getUserMemberships } from "@/api/memberships";
 import { classifyAuthError } from "@/lib/auth-errors";
+import { shouldDropParkedCodeAfterSignIn } from "@/lib/join-code";
+import { clearPendingJoinCode, readPendingJoinCode } from "@/lib/pending-join-code";
 import { backFromPhase, initialAuthPhase, type AuthPhase } from "@/lib/login-phase";
 
 export default function LoginScreen() {
@@ -43,6 +45,21 @@ export default function LoginScreen() {
       /[?&](code|error)=/.test(window.location.search)
   );
   const oauthHandledRef = useRef(false);
+  // Someone arriving from the join flow has already typed a code and handed it
+  // to us. The screen that used to say so is gone, and losing that reassurance
+  // would leave them wondering whether they have to start over.
+  const [codeParked, setCodeParked] = useState(false);
+  useEffect(() => {
+    let active = true;
+    readPendingJoinCode()
+      .then((pending) => {
+        if (active) setCodeParked(!!pending);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Translate raw Supabase error messages into friendly, localised copy.
   // The classification itself lives in a pure module so the OAuth path in
@@ -64,11 +81,15 @@ export default function LoginScreen() {
     if (!user) return false;
     try {
       const memberships = await getUserMemberships(user.id);
-      if (memberships.length === 0) {
-        router.replace("/join");
-        return false;
+      if (shouldDropParkedCodeAfterSignIn(memberships.length)) {
+        // This session is not the one the parked code was typed for: they are
+        // going to their own lobby, so the code would just sit in storage
+        // waiting for whoever picks the phone up next.
+        void clearPendingJoinCode();
+        return true;
       }
-      return true;
+      router.replace("/join");
+      return false;
     } catch {
       // If membership fetch fails, leave the session intact and let the
       // protected layout handle the error. Don't block login on transient
@@ -225,6 +246,9 @@ export default function LoginScreen() {
               // A brand-new employee has no memberships, so this lands them
               // on the join screen with the code still to enter.
               onSuccess={enforceInviteOnly}
+              // Says "we've kept your code" in the form's own subtitle rather
+              // than in a second box above it saying the same thing.
+              codeParked={codeParked}
               onSwitchToSignIn={() => {
                 setPhase("credentials");
                 setError(null);

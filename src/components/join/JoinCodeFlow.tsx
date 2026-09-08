@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
 import {
   AuthScreen,
   BlockButton,
@@ -28,6 +27,7 @@ import {
   joinErrorKey,
   keepPendingCodeAfterFailure,
   sanitizeJoinCodeInput,
+  shouldResumeParkedCode,
 } from "@/lib/join-code";
 import {
   clearPendingJoinCode,
@@ -35,7 +35,9 @@ import {
   savePendingJoinCode,
 } from "@/lib/pending-join-code";
 
-type Phase = "code" | "auth" | "confirm" | "joining";
+// No "auth" phase: signing in belongs to the sign-in screen, which owns
+// the provider list. Having one here too meant the same three buttons twice.
+type Phase = "code" | "confirm" | "joining";
 
 interface JoinCodeFlowProps {
   /** Code carried in from the emailed link, if any. */
@@ -121,9 +123,13 @@ export function JoinCodeFlow({
           setBusy(false);
         }
 
-        // Park the code so it survives an OAuth cold launch, then sign in.
+        // Park the code so it survives an OAuth cold launch, then hand the
+        // whole choice to the sign-in screen. This flow used to show its own
+        // provider list first, which meant choosing email led to the same
+        // three buttons again — walking past the duplicate forwards still left
+        // it there for the back button to reveal.
         await savePendingJoinCode(candidate);
-        setPhase("auth");
+        router.push("/(auth)/login?phase=signup");
         return;
       }
 
@@ -139,7 +145,7 @@ export function JoinCodeFlow({
         setBusy(false);
       }
     },
-    [user, showError, t]
+    [user, showError, t, router]
   );
 
   // A code arrived in the link: look it up straight away rather than showing
@@ -158,8 +164,19 @@ export function JoinCodeFlow({
 
   // Coming back from the sign-in detour: pick the parked code up and continue
   // where the employee left off, rather than making them retype it.
+  //
+  // Only ever when this screen was opened with nothing in hand. A code that
+  // arrived with the route is the one the person is asking about right now, and
+  // resuming over it swapped their shop for someone else's: typing PTNA45 in
+  // the sheet produced "Join Aurevo?" off a code left in storage minutes
+  // earlier. A parked code is a fallback, never an override.
   useEffect(() => {
-    if (!user || phase === "confirm" || phase === "joining") return;
+    const resume = shouldResumeParkedCode({
+      signedIn: !!user,
+      phase,
+      hasInitialCode: isValidJoinCode(sanitizeJoinCodeInput(initialCode ?? "")),
+    });
+    if (!resume) return;
     let active = true;
 
     (async () => {
@@ -205,38 +222,6 @@ export function JoinCodeFlow({
     setPhase("code");
     void clearPendingJoinCode();
   }, []);
-
-  if (phase === "auth") {
-    return (
-      <AuthScreen
-        title={t("authTitle")}
-        subtitle={t("authSubtitle")}
-        error={error}
-        onBack={handleReset}
-        backLabel={tCommon("goBack")}
-        footer={footer}
-      >
-        <AuthMethodChooser
-          // Straight to the sign-up form, not to the login screen's own
-          // chooser: this screen has just shown those same three providers, so
-          // landing on them again made the employee choose email twice, both
-          // times under a heading about signing in. Someone holding a team
-          // code is almost always new; the form's own "I already have an
-          // account" covers the rest in one tap.
-          //
-          // The code is already parked in storage, so whichever way they
-          // authenticate, a memberless user bounces straight back to /join and
-          // the pending-code effect resumes where they left off.
-          onChooseEmail={() => router.push("/(auth)/login?phase=signup")}
-          onSuccess={() => {
-            // The pending-code effect above takes it from here once the
-            // session lands.
-          }}
-          onError={setError}
-        />
-      </AuthScreen>
-    );
-  }
 
   if ((phase === "confirm" || phase === "joining") && preview) {
     return (

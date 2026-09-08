@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
-import { CaretRight, PlusIcon, SignOutIcon } from "phosphor-react-native";
+import { CaretRight, PlusIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
 import { JoinBusinessSheet } from "@/components/join/JoinBusinessSheet";
 import { selectPluralForm } from "@/utils/plural";
@@ -164,8 +164,12 @@ export default function BusinessesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Title and actions stack rather than sharing a row. Crammed onto one
+          line the join button sat flush against the heading at 402pt, and a
+          longer translation ("Vos établissements") pushed sign out off the
+          edge entirely — a documented exit, gone. */}
       <View style={styles.headerRow}>
-        <View>
+        <View style={styles.headerTitleBlock}>
           <Text style={styles.headerTitle}>{t("header")}</Text>
           <Text style={styles.headerSubtitle}>
             {t(`subtitle_${selectPluralForm(i18n.language, memberships.length)}`, {
@@ -173,22 +177,25 @@ export default function BusinessesScreen() {
             })}
           </Text>
         </View>
-        <View style={styles.headerActions}>
-          {/* Adding a shop belongs at the top, next to the list it changes.
-              As a footer link under the last card it was below the fold for
-              anyone with more than a couple of shops. */}
-          <TouchableOpacity
-            style={styles.addBusinessButton}
-            hitSlop={8}
-            onPress={() => setJoinSheetOpen(true)}
-          >
-            <PlusIcon size={16} color="#2d3436" weight="bold" />
-            <Text style={styles.addBusinessButtonText}>{tJoin("addBusiness")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.signOutIconButton} hitSlop={12} onPress={handleSignOut}>
-            <SignOutIcon size={20} color="#6b7280" />
-          </TouchableOpacity>
-        </View>
+      </View>
+
+      <View style={styles.headerActions}>
+        {/* Adding a shop belongs at the top, next to the list it changes. As a
+            footer link under the last card it was below the fold for anyone
+            with more than a couple of shops. */}
+        <TouchableOpacity
+          style={styles.addBusinessButton}
+          hitSlop={8}
+          onPress={() => setJoinSheetOpen(true)}
+        >
+          <PlusIcon size={16} color="#2d3436" weight="bold" />
+          <Text style={styles.addBusinessButtonText} numberOfLines={1}>
+            {tJoin("addBusiness")}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.signOutTextButton} hitSlop={8} onPress={handleSignOut}>
+          <Text style={styles.signOutTextButtonText}>{tCommon("signOut")}</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -217,21 +224,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f0efe9",
   },
+  headerTitleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   addBusinessButton: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: "#2d3436",
     backgroundColor: "#faf9f6",
+  },
+  signOutTextButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  signOutTextButtonText: {
+    color: "#6b7280",
+    fontSize: 14,
+    fontWeight: "600",
   },
   addBusinessButtonText: {
     color: "#2d3436",
@@ -354,8 +378,5 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontWeight: "600",
-  },
-  signOutIconButton: {
-    padding: 8,
   },
 });

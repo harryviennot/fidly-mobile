@@ -10,6 +10,8 @@ import {
   normalizeJoinCode,
   PENDING_CODE_TTL_MS,
   sanitizeJoinCodeInput,
+  shouldDropParkedCodeAfterSignIn,
+  shouldResumeParkedCode,
 } from "./join-code";
 
 describe("alphabet", () => {
@@ -177,5 +179,52 @@ describe("keepPendingCodeAfterFailure", () => {
     // unrecognised 4xx is still the server telling us about this code.
     expect(keepPendingCodeAfterFailure(418)).toBe(false);
     expect(keepPendingCodeAfterFailure(422)).toBe(false);
+  });
+});
+
+describe("shouldDropParkedCodeAfterSignIn", () => {
+  it("DROPS A CODE STRANDED BY SOMEONE ELSE'S SIGN-IN", () => {
+    // Enter a code, then sign in as an account that already has a team: you
+    // land on your own lobby, the join screen never mounts, and the code sits
+    // in storage for the rest of its fifteen minutes. On a shared counter
+    // phone the next person to open the join sheet inherits it — which is
+    // exactly how "Join Aurevo?" appeared for a freshly typed Patoune code.
+    expect(shouldDropParkedCodeAfterSignIn(1)).toBe(true);
+    expect(shouldDropParkedCodeAfterSignIn(4)).toBe(true);
+  });
+
+  it("keeps the code when the session that landed has no team", () => {
+    // The whole point of parking it: this person is one screen away from
+    // using it, and retyping six characters is the cost of getting this wrong.
+    expect(shouldDropParkedCodeAfterSignIn(0)).toBe(false);
+  });
+});
+
+describe("shouldResumeParkedCode", () => {
+  const base = { signedIn: true, phase: "code" as const, hasInitialCode: false };
+
+  it("A CODE IN THE ROUTE BEATS A CODE IN STORAGE", () => {
+    // The bug this exists for. Typing PTNA45 into the join sheet produced a
+    // confirmation headed "Join Aurevo?", because a code parked minutes
+    // earlier resumed on mount and overwrote the one just entered. Whatever
+    // the person asked about right now wins.
+    expect(shouldResumeParkedCode({ ...base, hasInitialCode: true })).toBe(false);
+  });
+
+  it("resumes when the screen was opened with nothing in hand", () => {
+    // The case it is actually for: back from the sign-in detour, code intact.
+    expect(shouldResumeParkedCode(base)).toBe(true);
+  });
+
+  it("never resumes once the flow has moved on", () => {
+    // Re-running a lookup under a confirmation someone is reading would change
+    // what they are about to agree to.
+    expect(shouldResumeParkedCode({ ...base, phase: "confirm" })).toBe(false);
+    expect(shouldResumeParkedCode({ ...base, phase: "joining" })).toBe(false);
+  });
+
+  it("never resumes without a session", () => {
+    // The lookup needs one, and a signed-out screen has its own path.
+    expect(shouldResumeParkedCode({ ...base, signedIn: false })).toBe(false);
   });
 });
