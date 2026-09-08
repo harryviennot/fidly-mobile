@@ -148,29 +148,13 @@ export default function BusinessesScreen() {
     );
   }
 
-  if (memberships.length === 0) {
-    return (
-      <SafeAreaView style={styles.centered} edges={["top"]}>
-        <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
-        <Text style={styles.emptyText}>
-          {t("empty.message")}
-        </Text>
-        {/* Signing out used to be the only way off this screen. A code gets
-            them in instead (STA-246). */}
-        <TouchableOpacity
-          style={styles.joinButton}
-          onPress={() => router.push("/join")}
-        >
-          <Text style={styles.joinButtonText}>{tJoin("haveACode")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutButtonText}>{tCommon("signOut")}</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  if (memberships.length === 1) {
+  // Nobody with an empty list stays here: the protected layout sends them to
+  // the code screen, which is the same place they get sent from anywhere else
+  // in the app. This screen used to answer that case itself, with its own
+  // wording and its own buttons, so which screen a memberless employee saw
+  // depended on whether they had just signed in or just reopened the app.
+  // Blank for the one frame before the redirect lands.
+  if (memberships.length === 0 || memberships.length === 1) {
     return (
       <View style={styles.container} />
     )
@@ -220,18 +204,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f0efe9",
-  },
-  joinButton: {
-    backgroundColor: "#f97316",
-    borderRadius: 9999,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    marginTop: 20,
-  },
-  joinButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
   },
   addBusinessRow: {
     marginTop: 16,
@@ -358,29 +330,6 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   retryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  signOutButton: {
-    backgroundColor: "#dc2626",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 9999,
-  },
-  signOutButtonText: {
     color: "#fff",
     fontWeight: "600",
   },

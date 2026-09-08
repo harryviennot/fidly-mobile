@@ -35,12 +35,17 @@ export function protectedLanding({
   if (!signedIn) return null;
   // Nothing has been fetched yet, so there is nothing to conclude.
   if (!membershipsResolved) return null;
+
+  // Part of no team yet: the code screen is the only useful destination, from
+  // ANY screen in this group and not just the root. Every screen in here needs
+  // a business to render, so the lobby bounces to the picker and the picker has
+  // an empty list — which is how the same person ended up on two different
+  // screens depending on whether they had just signed in or just cold-started.
+  if (membershipCount === 0) return "/join";
+
   // Already on a real screen — redirecting would fight the user's navigation.
   if (!atGroupRoot) return null;
 
   if (hasCurrentBusiness) return "/lobby";
-  // Signed in but part of no team yet: the code screen is the only useful
-  // destination. The business picker would just show an empty list (STA-246).
-  if (membershipCount === 0) return "/join";
   return "/businesses";
 }

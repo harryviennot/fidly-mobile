@@ -27,7 +27,26 @@ describe("protectedLanding", () => {
 
   test("nothing is decided away from the group root", () => {
     // Already on a real screen; redirecting would fight the user's navigation.
-    expect(protectedLanding({ ...base, atGroupRoot: false })).toBeNull();
+    expect(
+      protectedLanding({ ...base, atGroupRoot: false, membershipCount: 2 }),
+    ).toBeNull();
+    expect(
+      protectedLanding({
+        ...base,
+        atGroupRoot: false,
+        hasCurrentBusiness: true,
+        membershipCount: 1,
+      }),
+    ).toBeNull();
+  });
+
+  test("NO TEAM IS ANSWERED THE SAME WAY FROM EVERY SCREEN", () => {
+    // The second half of the same bug. This rule used to run only at the group
+    // root, so it decided nothing on a cold start: index sends a signed-in
+    // person to the lobby, the lobby has no business so it bounced to the
+    // picker, and the picker answered the empty list its own way. Same account,
+    // same state, a different screen depending on how the app was opened.
+    expect(protectedLanding({ ...base, atGroupRoot: false })).toBe("/join");
   });
 
   test("AN UNRESOLVED MEMBERSHIP LIST DECIDES NOTHING", () => {

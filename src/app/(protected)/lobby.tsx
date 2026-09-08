@@ -197,12 +197,15 @@ export default function LobbyScreen() {
     );
   };
 
-  // Redirect to businesses screen if no business selected
+  // Redirect to the picker if no business is selected. Not for someone with no
+  // team at all: the picker has nothing to pick, and the protected layout is
+  // already sending them to the code screen. Racing it would land them on an
+  // empty list instead.
   useEffect(() => {
-    if (!currentBusiness) {
+    if (!currentBusiness && memberships.length > 0) {
       router.replace("/businesses");
     }
-  }, [currentBusiness, router]);
+  }, [currentBusiness, memberships.length, router]);
 
   // Memoize dynamic styles based on theme
   const dynamicStyles = useMemo(
