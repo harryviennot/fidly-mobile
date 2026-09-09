@@ -59,7 +59,8 @@ export default function StampScreen() {
   }, [loadCustomer]);
 
   function handleGoHome() {
-    router.replace("/lobby");
+    // Unwinds the scanner too: the lobby is below both of these.
+    router.dismissTo("/lobby");
   }
 
   function handleGoBack() {

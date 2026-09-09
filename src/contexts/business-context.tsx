@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   type ReactNode,
@@ -71,21 +72,33 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [resolvedFor, setResolvedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectBusiness = useCallback(
-    (businessId: string) => {
-      const membership = memberships.find((m) => m.business_id === businessId);
-      if (membership) {
-        setCurrentMembership(membership);
-        setCurrentBusiness(membership.business ?? null);
-        setStoredBusinessId(businessId);
-      }
-    },
-    [memberships]
-  );
+  // The list `selectBusiness` looks in, kept in a ref rather than read out of
+  // state. Joining a shop refreshes the memberships and then selects the new
+  // one in the same tick, and state does not exist yet at that point: the
+  // callback still closed over the list from before the fetch, found no
+  // membership for the shop just joined, and silently did nothing. An employee
+  // adding a second shop stayed on the first one's lobby.
+  const membershipsRef = useRef<Membership[]>([]);
+
+  const applyMemberships = useCallback((data: Membership[]) => {
+    membershipsRef.current = data;
+    setMemberships(data);
+  }, []);
+
+  const selectBusiness = useCallback((businessId: string) => {
+    const membership = membershipsRef.current.find(
+      (m) => m.business_id === businessId
+    );
+    if (membership) {
+      setCurrentMembership(membership);
+      setCurrentBusiness(membership.business ?? null);
+      setStoredBusinessId(businessId);
+    }
+  }, []);
 
   const refreshMemberships = useCallback(async () => {
     if (!userId) {
-      setMemberships([]);
+      applyMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
       setResolvedFor(null);
@@ -98,7 +111,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
     try {
       const data = await getUserMemberships(userId);
-      setMemberships(data);
+      applyMemberships(data);
 
       // Try to restore previously selected business
       const storedBusinessId = await getStoredBusinessId();
@@ -130,7 +143,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setResolvedFor(userId);
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, applyMemberships]);
 
   // Fetch memberships when user changes
   useEffect(() => {
@@ -140,13 +153,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   // Clear business when user logs out
   useEffect(() => {
     if (!userId) {
-      setMemberships([]);
+      applyMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
       setResolvedFor(null);
       removeStoredBusinessId();
     }
-  }, [userId]);
+  }, [userId, applyMemberships]);
 
   return (
     <BusinessContext.Provider

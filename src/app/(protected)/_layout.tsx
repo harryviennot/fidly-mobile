@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { useAuth } from "@/contexts/auth-context";
 import { useBusiness } from "@/contexts/business-context";
 import { protectedLanding } from "@/lib/protected-landing";
+import { AUTH_TRANSITION } from "@/lib/transitions";
 
 export default function ProtectedLayout() {
   const router = useRouter();
@@ -28,10 +29,10 @@ export default function ProtectedLayout() {
   }, [destination, router]);
 
   return (
-    <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+    <Stack screenOptions={{ headerShown: false, ...AUTH_TRANSITION }}>
       <Stack.Screen name="lobby" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="businesses" options={{ animation: "fade" }} />
-      <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
+      <Stack.Screen name="businesses" options={AUTH_TRANSITION} />
+      <Stack.Screen name="onboarding" options={AUTH_TRANSITION} />
       <Stack.Screen
         name="scan"
         options={{

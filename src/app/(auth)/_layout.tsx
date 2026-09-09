@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { AUTH_TRANSITION } from "@/lib/transitions";
 
 /**
  * `welcome` is the anchor, not `login`. When `Stack.Protected` flips this group
@@ -13,7 +14,7 @@ export const unstable_settings = {
 
 export default function AuthLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+    <Stack screenOptions={{ headerShown: false, ...AUTH_TRANSITION }}>
       <Stack.Screen name="welcome" />
       <Stack.Screen name="login" />
     </Stack>

@@ -69,7 +69,13 @@ export default function OnboardingScreen() {
     if (currentBusiness?.id) {
       await markOnboardingSeen(currentBusiness.id, programType);
     }
-    router.replace("/lobby");
+    // Pop back to the lobby rather than replace: this screen is reached both
+    // ways, pushed on top of the lobby ("How scanning works") and in place of
+    // it (first visit, and straight after joining). `dismissTo` covers both,
+    // popping to the lobby already underneath and otherwise taking this
+    // screen's place. Replacing did the second thing in both cases, so every
+    // replay of the tour left another lobby in the stack to go back to.
+    router.dismissTo("/lobby");
   }, [currentBusiness?.id, programType, router]);
 
   const handleNext = useCallback(() => {

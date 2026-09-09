@@ -270,7 +270,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   }
 
   function handleGoHome() {
-    router.replace("/lobby");
+    // Unwinds the scanner too: the lobby is below both of these.
+    router.dismissTo("/lobby");
   }
 
   const styles = useMemo(

@@ -38,7 +38,16 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
         initialCode={initialCode}
         // Straight into the tour: a brand-new employee has never seen the lobby,
         // and the tour ends on it anyway.
-        onJoined={() => router.replace("/onboarding")}
+        //
+        // `dismissTo`, not `replace`, because this screen sits in the root
+        // stack and can be opened on top of a running app: someone already
+        // working at one shop who types a code for a second one. Replacing put
+        // a whole second copy of the app above the first, so back walked into
+        // the old shop's lobby. Popping returns to the app that is already
+        // there, and its lobby opens the tour itself for a shop it has not
+        // shown before. With no app underneath (the employee joining their
+        // first shop) it takes this screen's place, as it always did.
+        onJoined={() => router.dismissTo("/onboarding")}
         onCancel={
           canCancel
             ? () => router.replace(user ? "/businesses" : "/(auth)/welcome")

@@ -5,6 +5,8 @@
   "retry": "Spróbuj ponownie",
   "goBack": "Wróć",
   "goHome": "Ekran główny",
+  "showPassword": "Pokaż hasło",
+  "hidePassword": "Ukryj hasło",
   "signOut": "Wyloguj się",
   "signOutConfirmTitle": "Na pewno?",
   "signOutConfirmMessage": "Nastąpi wylogowanie.",

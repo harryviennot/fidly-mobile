@@ -113,13 +113,15 @@ export default function BusinessesScreen() {
   useEffect(() => {
     if (!loading && memberships.length === 1 && memberships[0].business_id) {
       selectBusiness(memberships[0].business_id);
-      router.replace("/lobby");
+      router.dismissTo("/lobby");
     }
   }, [loading, memberships, selectBusiness, router]);
 
   const handleSelectBusiness = (businessId: string) => {
     selectBusiness(businessId);
-    router.push("/lobby");
+    // The lobby sent us here with `dismissTo`, so it is still underneath:
+    // pushing a second one is how "switch shop" grew the stack every time.
+    router.dismissTo("/lobby");
   };
 
   if (loading) {
