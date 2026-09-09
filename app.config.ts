@@ -180,7 +180,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     googleIosClientId: `${getGoogleIosClientId()}.apps.googleusercontent.com`,
     googleWebClientId: GOOGLE_WEB_CLIENT_ID,
-    appVariant: process.env.APP_VARIANT || 'production',
+    // EAS profiles set this explicitly. Plain `expo start` leaves it absent so
+    // runtime Sentry setup can derive development from `__DEV__` instead of
+    // misclassifying local Metro errors as production incidents.
+    ...(process.env.APP_VARIANT ? { appVariant: process.env.APP_VARIANT } : {}),
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     eas: {
       projectId: "90b8f436-1de4-47ba-ad18-c897db0ab688"
