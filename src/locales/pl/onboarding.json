@@ -1,0 +1,26 @@
+{
+  "skip": "Pomiń",
+  "next": "Dalej",
+  "done": "Zacznij skanować",
+  "replay": "Jak się skanuje",
+  "counterQr": {
+    "title": "Kod na twoim ladzie",
+    "body": "Klient bez karty skanuje kod QR z ekranu głównego. Karta trafia od razu do portfela w jego telefonie, bez instalowania aplikacji."
+  },
+  "scanning": {
+    "title": "Skanowanie klienta",
+    "body": "Naciśnij Skanuj i wyceluj aparatem w kartę w portfelu klienta. To wszystko."
+  },
+  "stamp": {
+    "title": "Dodawanie pieczątek",
+    "body": "Jedno naciśnięcie dodaje jedną pieczątkę. Większe zamówienie? Użyj selektora, żeby dodać kilka naraz. Gdy karta się zapełni, pojawia się nagroda do wydania."
+  },
+  "points": {
+    "title": "Dodawanie punktów",
+    "body": "Wpisz kwotę z paragonu na klawiaturze, punkty naliczą się same. Żeby wydać nagrodę, wybierz ją z listy nagród."
+  },
+  "locations": {
+    "title": "Wybór lokalu",
+    "body": "Pracujesz w kilku miejscach: przed skanowaniem wybierz właściwy lokal u góry ekranu głównego. Każde skanowanie trafia właśnie tam."
+  }
+}

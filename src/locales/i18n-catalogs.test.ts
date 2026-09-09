@@ -27,22 +27,31 @@ import { join } from "node:path";
 const LOCALES_DIR = import.meta.dir;
 const SOURCE_LOCALE = "en";
 const I18N_SOURCE = readFileSync(join(LOCALES_DIR, "i18n.ts"), "utf8");
+// The language list moved to a react-native-free module; the `ns:` list did not.
+const SUPPORTED_SOURCE = readFileSync(join(LOCALES_DIR, "supported.ts"), "utf8");
 
 /** `['en', 'fr', ...]` out of a TS array literal. */
-function parseStringArray(label: string, pattern: RegExp): string[] {
-  const match = I18N_SOURCE.match(pattern);
-  if (!match) throw new Error(`could not find ${label} in src/locales/i18n.ts`);
+function parseStringArray(source: string, file: string, label: string, pattern: RegExp): string[] {
+  const match = source.match(pattern);
+  if (!match) throw new Error(`could not find ${label} in src/locales/${file}`);
   return [...match[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]);
 }
 
-/** Every language the app ships, straight from the constant `i18n.ts` exports. */
+/** Every language the app ships, straight from the `supported.ts` constant. */
 const SUPPORTED_LOCALES = parseStringArray(
+  SUPPORTED_SOURCE,
+  "supported.ts",
   "SUPPORTED_LOCALES",
   /export const SUPPORTED_LOCALES\s*=\s*\[([^\]]*)\]/,
 );
 
 /** Every namespace registered with i18next. A folder i18next never loads is dead. */
-const NAMESPACES = parseStringArray("the `ns:` init option", /\bns:\s*\[([^\]]*)\]/);
+const NAMESPACES = parseStringArray(
+  I18N_SOURCE,
+  "i18n.ts",
+  "the `ns:` init option",
+  /\bns:\s*\[([^\]]*)\]/,
+);
 
 const OTHER_LOCALES = SUPPORTED_LOCALES.filter((l) => l !== SOURCE_LOCALE);
 
@@ -51,6 +60,20 @@ const PLURAL_SUFFIXES = ["one", "few", "many", "other"] as const;
 
 /** i18next interpolation: `{{count}}`. */
 const INTERPOLATION = /\{\{\s*([\w.]+)\s*\}\}/g;
+
+/**
+ * A lone `{business}` where `{{business}}` was meant. i18next's default prefix
+ * is `{{`, and `init` does not override it, so a single brace is never
+ * interpolated: the employee reads the literal word "{business}" in the middle
+ * of a sentence. Nothing throws, so only this test notices.
+ *
+ * The lookarounds keep a correct `{{business}}` from matching on its inner
+ * braces. Built fresh per call: a shared /g regex carries `lastIndex` between
+ * calls, so every other `.test()` answers the previous string's question.
+ */
+function lonePlaceholders(message: string): string[] {
+  return message.match(/(?<!\{)\{\s*[\w.]+\s*\}(?!\})/g) ?? [];
+}
 
 type Catalog = Record<string, string>;
 
@@ -111,6 +134,34 @@ describe("the locale set and the namespace set line up with what is on disk", ()
           `so i18next never loads it`,
       );
     expect(orphans).toEqual([]);
+  });
+});
+
+describe("placeholders use the double braces i18next interpolates", () => {
+  test.each(SUPPORTED_LOCALES)("%s writes {{name}}, never {name}", (locale) => {
+    const offenders: string[] = [];
+    for (const namespace of NAMESPACES) {
+      for (const [key, value] of Object.entries(load(locale, namespace))) {
+        const lone = lonePlaceholders(value);
+        if (lone.length) {
+          offenders.push(
+            `src/locales/${locale}/${namespace}.json "${key}" has ${lone.join(", ")} — ` +
+              `i18next needs {{double}} braces, so this renders literally: ${value.slice(0, 60)}`,
+          );
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test.each([
+    ["Join {business}?", true],
+    ["Send again in {seconds}s", true],
+    ["Join {{business}}?", false],
+    ["Nothing to interpolate here", false],
+    ["A brace with { a space } and words", false],
+  ])("the guard on %p is %p", (text, flagged) => {
+    expect(lonePlaceholders(text as string).length > 0).toBe(flagged as boolean);
   });
 });
 

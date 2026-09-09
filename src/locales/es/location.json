@@ -7,7 +7,8 @@
   "scanningAt": "Estás escaneando en {{name}}",
   "noneAssigned": {
     "title": "Sin establecimiento asignado",
-    "body": "Todavía no estás asignado a ningún establecimiento. Pide al dueño del comercio que te asigne uno antes de escanear."
+    "body": "Todavía no estás asignado a ningún local, así que no puedes escanear.",
+    "bodyNamed": "Todavía no estás asignado a ningún local. Pídele a {{manager}} que te asigne uno y podrás escanear enseguida."
   },
   "permission": {
     "title": "¿Usar tu ubicación?",

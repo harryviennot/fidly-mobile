@@ -5,6 +5,8 @@
   "retry": "Reintentar",
   "goBack": "Volver",
   "goHome": "Inicio",
+  "showPassword": "Mostrar contraseña",
+  "hidePassword": "Ocultar contraseña",
   "signOut": "Cerrar sesión",
   "signOutConfirmTitle": "¿Seguro?",
   "signOutConfirmMessage": "Vas a cerrar la sesión.",

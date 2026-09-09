@@ -5,6 +5,8 @@
   "retry": "Retry",
   "goBack": "Go Back",
   "goHome": "Go Home",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
   "signOut": "Sign Out",
   "signOutConfirmTitle": "Are you sure?",
   "signOutConfirmMessage": "You will be logged out.",

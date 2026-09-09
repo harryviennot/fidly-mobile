@@ -16,6 +16,7 @@ import { AlertProvider } from "@/contexts/alert-context";
 import { LocationProvider } from "@/contexts/location-context";
 import { UpdateGateProvider, useUpdateGate } from "@/contexts/update-gate-context";
 import { ForceUpdateScreen } from "@/components/ForceUpdateScreen";
+import { AUTH_TRANSITION } from "@/lib/transitions";
 
 const sentryDsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
 const appVariant = (Constants.expoConfig?.extra?.appVariant as string) ?? "production";
@@ -87,7 +88,7 @@ function RootNavigator() {
   return (
     <>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+      <Stack screenOptions={{ headerShown: false, ...AUTH_TRANSITION }}>
         <Stack.Protected guard={isLoggedIn}>
           <Stack.Screen name="(protected)" />
         </Stack.Protected>

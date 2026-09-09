@@ -7,7 +7,8 @@
   "scanningAt": "Scanning at {{name}}",
   "noneAssigned": {
     "title": "No location assigned",
-    "body": "You're not assigned to any location yet. Ask the business owner to assign you one before scanning."
+    "body": "You're not assigned to a shop yet, so scanning is off until someone sets that.",
+    "bodyNamed": "You're not assigned to a shop yet. Ask {{manager}} to assign you one, and you can start scanning straight away."
   },
   "permission": {
     "title": "Use your location?",

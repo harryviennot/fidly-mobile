@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   type ReactNode,
@@ -19,6 +20,13 @@ interface BusinessContextType {
   currentBusiness: Business | null;
   currentMembership: Membership | null;
   loading: boolean;
+  /**
+   * True once the membership list has actually been fetched for the current
+   * user. An empty `memberships` only means "on no team" when this is true:
+   * before the first fetch it means "not asked yet", and routing on the
+   * difference is what stranded scanners on the join screen.
+   */
+  membershipsResolved: boolean;
   error: string | null;
   selectBusiness: (businessId: string) => void;
   refreshMemberships: () => Promise<void>;
@@ -60,25 +68,40 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [currentMembership, setCurrentMembership] =
     useState<Membership | null>(null);
   const [loading, setLoading] = useState(true);
+  // The user whose memberships the state currently reflects.
+  const [resolvedFor, setResolvedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectBusiness = useCallback(
-    (businessId: string) => {
-      const membership = memberships.find((m) => m.business_id === businessId);
-      if (membership) {
-        setCurrentMembership(membership);
-        setCurrentBusiness(membership.business ?? null);
-        setStoredBusinessId(businessId);
-      }
-    },
-    [memberships]
-  );
+  // The list `selectBusiness` looks in, kept in a ref rather than read out of
+  // state. Joining a shop refreshes the memberships and then selects the new
+  // one in the same tick, and state does not exist yet at that point: the
+  // callback still closed over the list from before the fetch, found no
+  // membership for the shop just joined, and silently did nothing. An employee
+  // adding a second shop stayed on the first one's lobby.
+  const membershipsRef = useRef<Membership[]>([]);
+
+  const applyMemberships = useCallback((data: Membership[]) => {
+    membershipsRef.current = data;
+    setMemberships(data);
+  }, []);
+
+  const selectBusiness = useCallback((businessId: string) => {
+    const membership = membershipsRef.current.find(
+      (m) => m.business_id === businessId
+    );
+    if (membership) {
+      setCurrentMembership(membership);
+      setCurrentBusiness(membership.business ?? null);
+      setStoredBusinessId(businessId);
+    }
+  }, []);
 
   const refreshMemberships = useCallback(async () => {
     if (!userId) {
-      setMemberships([]);
+      applyMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
+      setResolvedFor(null);
       setLoading(false);
       return;
     }
@@ -88,7 +111,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
     try {
       const data = await getUserMemberships(userId);
-      setMemberships(data);
+      applyMemberships(data);
 
       // Try to restore previously selected business
       const storedBusinessId = await getStoredBusinessId();
@@ -115,9 +138,12 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load businesses");
     } finally {
+      // Resolved either way: a failed fetch is still an answer, and leaving it
+      // unresolved would freeze routing behind a transient network error.
+      setResolvedFor(userId);
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, applyMemberships]);
 
   // Fetch memberships when user changes
   useEffect(() => {
@@ -127,17 +153,19 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   // Clear business when user logs out
   useEffect(() => {
     if (!userId) {
-      setMemberships([]);
+      applyMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
+      setResolvedFor(null);
       removeStoredBusinessId();
     }
-  }, [userId]);
+  }, [userId, applyMemberships]);
 
   return (
     <BusinessContext.Provider
       value={{
         memberships,
+        membershipsResolved: !!userId && resolvedFor === userId,
         currentBusiness,
         currentMembership,
         loading,

@@ -1,0 +1,26 @@
+{
+  "skip": "Passer",
+  "next": "Suivant",
+  "done": "Commencer à scanner",
+  "replay": "Comment scanner",
+  "counterQr": {
+    "title": "Le code sur votre comptoir",
+    "body": "Un client sans carte scanne le QR affiché sur l'écran d'accueil. Sa carte arrive directement dans le portefeuille de son téléphone, sans rien à installer."
+  },
+  "scanning": {
+    "title": "Scanner un client",
+    "body": "Appuyez sur Scanner, puis visez la carte dans le portefeuille du client. C'est tout."
+  },
+  "stamp": {
+    "title": "Ajouter des tampons",
+    "body": "Un appui ajoute un tampon. Une tournée ? Utilisez le sélecteur pour en ajouter plusieurs d'un coup. Quand la carte est pleine, la récompense apparaît et vous la remettez."
+  },
+  "points": {
+    "title": "Ajouter des points",
+    "body": "Saisissez le montant du ticket sur le clavier, les points se calculent tout seuls. Pour offrir une récompense, choisissez-la plutôt dans la liste des récompenses."
+  },
+  "locations": {
+    "title": "Choisir votre établissement",
+    "body": "Vous travaillez dans plusieurs endroits : choisissez le bon en haut de l'écran d'accueil avant de scanner. Chaque scan y est rattaché."
+  }
+}

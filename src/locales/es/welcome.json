@@ -1,0 +1,16 @@
+{
+  "title": "Listo para escanear.",
+  "subtitle": "Stampeo convierte el teléfono de tus clientes en una tarjeta de fidelidad. Tú escaneas, ellos acumulan.",
+  "joinTitle": "Unirme a mi equipo",
+  "joinSubtitle": "Tengo un código de equipo",
+  "signInTitle": "Iniciar sesión",
+  "signInSubtitle": "Ya tengo una cuenta",
+  "businessLink": "¿Vas a abrir un comercio?",
+  "business": {
+    "title": "¿Vas a lanzar un comercio nuevo?",
+    "body": "Los comercios se crean en stampeo.app: allí eliges tu tarjeta, tus recompensas y tu plan.",
+    "employeeNote": "¿Trabajas en un comercio que ya usa Stampeo? Pide un código de equipo a tu responsable. No tienes que crear nada.",
+    "codeCta": "Tengo un código de equipo",
+    "continueCta": "Continuar en stampeo.app"
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,10 +12,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
-import { useAuth } from "@/contexts/auth-context";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
-import { CaretRight, SignOutIcon } from "phosphor-react-native";
+import { CaretRight, PlusIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
+import { JoinBusinessSheet } from "@/components/join/JoinBusinessSheet";
 import { selectPluralForm } from "@/utils/plural";
 import type { Membership } from "@/types/api";
 
@@ -90,10 +91,12 @@ export default function BusinessesScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation("businesses");
   const { t: tCommon } = useTranslation("common");
+  const { t: tJoin } = useTranslation("join");
   const { memberships, loading, error, selectBusiness, refreshMemberships } =
     useBusiness();
-  const { signOut } = useAuth();
+  const signOutToWelcome = useSignOut();
   const { alert } = useAlert();
+  const [joinSheetOpen, setJoinSheetOpen] = useState(false);
 
   const handleSignOut = () => {
     alert(
@@ -101,7 +104,7 @@ export default function BusinessesScreen() {
       tCommon("signOutConfirmMessage"),
       [
         { text: tCommon("signOutConfirmNo"), style: "cancel" },
-        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOut },
+        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOutToWelcome },
       ]
     );
   };
@@ -110,13 +113,15 @@ export default function BusinessesScreen() {
   useEffect(() => {
     if (!loading && memberships.length === 1 && memberships[0].business_id) {
       selectBusiness(memberships[0].business_id);
-      router.replace("/lobby");
+      router.dismissTo("/lobby");
     }
   }, [loading, memberships, selectBusiness, router]);
 
   const handleSelectBusiness = (businessId: string) => {
     selectBusiness(businessId);
-    router.push("/lobby");
+    // The lobby sent us here with `dismissTo`, so it is still underneath:
+    // pushing a second one is how "switch shop" grew the stack every time.
+    router.dismissTo("/lobby");
   };
 
   if (loading) {
@@ -147,21 +152,13 @@ export default function BusinessesScreen() {
     );
   }
 
-  if (memberships.length === 0) {
-    return (
-      <SafeAreaView style={styles.centered} edges={["top"]}>
-        <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
-        <Text style={styles.emptyText}>
-          {t("empty.message")}
-        </Text>
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutButtonText}>{tCommon("signOut")}</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  if (memberships.length === 1) {
+  // Nobody with an empty list stays here: the protected layout sends them to
+  // the code screen, which is the same place they get sent from anywhere else
+  // in the app. This screen used to answer that case itself, with its own
+  // wording and its own buttons, so which screen a memberless employee saw
+  // depended on whether they had just signed in or just reopened the app.
+  // Blank for the one frame before the redirect lands.
+  if (memberships.length === 0 || memberships.length === 1) {
     return (
       <View style={styles.container} />
     )
@@ -169,8 +166,12 @@ export default function BusinessesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Title and actions stack rather than sharing a row. Crammed onto one
+          line the join button sat flush against the heading at 402pt, and a
+          longer translation ("Vos établissements") pushed sign out off the
+          edge entirely — a documented exit, gone. */}
       <View style={styles.headerRow}>
-        <View>
+        <View style={styles.headerTitleBlock}>
           <Text style={styles.headerTitle}>{t("header")}</Text>
           <Text style={styles.headerSubtitle}>
             {t(`subtitle_${selectPluralForm(i18n.language, memberships.length)}`, {
@@ -178,8 +179,24 @@ export default function BusinessesScreen() {
             })}
           </Text>
         </View>
-        <TouchableOpacity style={styles.signOutIconButton} hitSlop={12} onPress={handleSignOut}>
-          <SignOutIcon size={20} color="#6b7280" />
+      </View>
+
+      <View style={styles.headerActions}>
+        {/* Adding a shop belongs at the top, next to the list it changes. As a
+            footer link under the last card it was below the fold for anyone
+            with more than a couple of shops. */}
+        <TouchableOpacity
+          style={styles.addBusinessButton}
+          hitSlop={8}
+          onPress={() => setJoinSheetOpen(true)}
+        >
+          <PlusIcon size={16} color="#2d3436" weight="bold" />
+          <Text style={styles.addBusinessButtonText} numberOfLines={1}>
+            {tJoin("addBusiness")}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.signOutTextButton} hitSlop={8} onPress={handleSignOut}>
+          <Text style={styles.signOutTextButtonText}>{tCommon("signOut")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -195,6 +212,11 @@ export default function BusinessesScreen() {
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
+
+      <JoinBusinessSheet
+        visible={joinSheetOpen}
+        onClose={() => setJoinSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -203,6 +225,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f0efe9",
+  },
+  headerTitleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  addBusinessButton: {
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#2d3436",
+    backgroundColor: "#faf9f6",
+  },
+  signOutTextButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  signOutTextButtonText: {
+    color: "#6b7280",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  addBusinessButtonText: {
+    color: "#2d3436",
+    fontSize: 14,
+    fontWeight: "600",
   },
   centered: {
     flex: 1,
@@ -320,31 +380,5 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontWeight: "600",
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#2d3436",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  signOutButton: {
-    backgroundColor: "#dc2626",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 9999,
-  },
-  signOutButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  signOutIconButton: {
-    padding: 8,
   },
 });

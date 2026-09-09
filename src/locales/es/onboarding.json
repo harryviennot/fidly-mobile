@@ -1,0 +1,26 @@
+{
+  "skip": "Saltar",
+  "next": "Siguiente",
+  "done": "Empezar a escanear",
+  "replay": "Cómo se escanea",
+  "counterQr": {
+    "title": "El código de tu mostrador",
+    "body": "Un cliente sin tarjeta escanea el QR de la pantalla de inicio. Su tarjeta llega directamente a la cartera de su teléfono, sin instalar nada."
+  },
+  "scanning": {
+    "title": "Escanear a un cliente",
+    "body": "Pulsa Escanear y apunta la cámara a la tarjeta en la cartera del cliente. Eso es todo."
+  },
+  "stamp": {
+    "title": "Añadir sellos",
+    "body": "Una pulsación añade un sello. ¿Una ronda? Usa el selector para añadir varios de una vez. Cuando la tarjeta se llena, aparece la recompensa y se la entregas."
+  },
+  "points": {
+    "title": "Añadir puntos",
+    "body": "Escribe el importe del ticket en el teclado y los puntos se calculan solos. Para dar una recompensa, elígela en la lista de recompensas."
+  },
+  "locations": {
+    "title": "Elegir tu establecimiento",
+    "body": "Trabajas en más de un sitio: elige el correcto arriba en la pantalla de inicio antes de escanear. Cada escaneo se registra ahí."
+  }
+}

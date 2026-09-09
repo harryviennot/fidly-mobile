@@ -5,6 +5,8 @@
   "retry": "Réessayer",
   "goBack": "Retour",
   "goHome": "Accueil",
+  "showPassword": "Afficher le mot de passe",
+  "hidePassword": "Masquer le mot de passe",
   "signOut": "Déconnexion",
   "signOutConfirmTitle": "Êtes-vous sûr ?",
   "signOutConfirmMessage": "Vous allez être déconnecté.",

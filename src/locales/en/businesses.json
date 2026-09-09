@@ -5,9 +5,5 @@
   "subtitle_few": "{{count}} businesses",
   "subtitle_many": "{{count}} businesses",
   "subtitle_other": "{{count}} businesses",
-  "empty": {
-    "title": "No Businesses",
-    "message": "You have not been added to any businesses yet.\nContact your manager to get an invitation."
-  },
   "signOutLink": "Sign out"
 }

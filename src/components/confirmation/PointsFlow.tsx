@@ -269,7 +269,8 @@ export function PointsFlow({
     router.back();
   }
   function handleGoHome() {
-    router.replace("/lobby");
+    // Unwinds the scanner too: the lobby is below both of these.
+    router.dismissTo("/lobby");
   }
 
   const styles = useMemo(

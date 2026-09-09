@@ -1,0 +1,326 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import {
+  AuthScreen,
+  BlockButton,
+  colors,
+  radius,
+  spacing,
+  type,
+} from "@/components/auth-ui";
+import { JoinCodeInput } from "./JoinCodeInput";
+import { useAuth } from "@/contexts/auth-context";
+import { useBusiness } from "@/contexts/business-context";
+import {
+  checkJoinCode,
+  previewJoinCode,
+  redeemJoinCode,
+  type JoinCodePreview,
+} from "@/api/invitations";
+import { ApiError } from "@/api/errors";
+import {
+  JOIN_CODE_LENGTH,
+  isValidJoinCode,
+  joinErrorKey,
+  keepPendingCodeAfterFailure,
+  sanitizeJoinCodeInput,
+  shouldResumeParkedCode,
+} from "@/lib/join-code";
+import {
+  clearPendingJoinCode,
+  readPendingJoinCode,
+  savePendingJoinCode,
+} from "@/lib/pending-join-code";
+
+// No "auth" phase: signing in belongs to the sign-in screen, which owns
+// the provider list. Having one here too meant the same three buttons twice.
+type Phase = "code" | "confirm" | "joining";
+
+interface JoinCodeFlowProps {
+  /** Code carried in from the emailed link, if any. */
+  initialCode?: string;
+  onJoined: (result: {
+    businessId: string;
+    businessName: string;
+    programType: "stamp" | "points" | null;
+  }) => void;
+  onCancel?: () => void;
+  /**
+   * Extra links under the actions. The signed-in memberless case uses this for
+   * its way out (create a business, or sign out), since it has no cancel.
+   */
+  footer?: ReactNode;
+}
+
+/**
+ * Code -> preview -> (auth) -> redeem.
+ *
+ * Code first, on purpose. Auth first asks a stranger to create an account with
+ * no idea what for; showing "Join Café Lumière?" before the ask is the whole
+ * point of handing someone a code across the counter. The cost is that the code
+ * has to survive the OAuth round trip, which is what pending-join-code is for.
+ */
+export function JoinCodeFlow({
+  initialCode,
+  onJoined,
+  onCancel,
+  footer,
+}: JoinCodeFlowProps) {
+  const router = useRouter();
+  const { t } = useTranslation("join");
+  const { t: tCommon } = useTranslation("common");
+  const { user } = useAuth();
+  const { refreshMemberships, selectBusiness } = useBusiness();
+
+  const [phase, setPhase] = useState<Phase>("code");
+  const [code, setCode] = useState(() => sanitizeJoinCodeInput(initialCode ?? ""));
+  const [preview, setPreview] = useState<JoinCodePreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const showError = useCallback(
+    (err: unknown) => {
+      const apiError = err instanceof ApiError ? err : null;
+      setError(t(joinErrorKey(apiError?.code) as "errors.GENERIC"));
+      // Unpark the code once the server has answered about it. The parked copy
+      // only exists to survive the sign-in detour, and leaving a rejected code
+      // in storage turns the resume effect into a replay: the same red error on
+      // every cold start until the TTL runs out. The typed code stays in the
+      // field either way, so the employee can still fix their typo in place.
+      if (!keepPendingCodeAfterFailure(apiError?.status)) {
+        void clearPendingJoinCode();
+      }
+    },
+    [t]
+  );
+
+  /** Look the code up. Needs a session, so signed-out users detour via auth. */
+  const lookup = useCallback(
+    async (candidate: string) => {
+      if (!isValidJoinCode(candidate)) return;
+      setError(null);
+
+      if (!user) {
+        // Check the code BEFORE sending anyone off to make an account. Every
+        // other lookup needs a session, which used to put the account before
+        // the answer: one mistyped character cost a signup, an email
+        // verification, and only then "that code doesn't exist".
+        setBusy(true);
+        try {
+          const check = await checkJoinCode(candidate);
+          if (!check.usable) {
+            setError(t(joinErrorKey(check.reason ?? undefined) as "errors.GENERIC"));
+            return;
+          }
+        } catch {
+          // Offline or the check itself failed: say nothing and carry on. The
+          // code is probably fine, and refusing to continue over a network
+          // blip would be worse than the wasted signup we are avoiding.
+        } finally {
+          setBusy(false);
+        }
+
+        // Park the code so it survives an OAuth cold launch, then hand the
+        // whole choice to the sign-in screen. This flow used to show its own
+        // provider list first, which meant choosing email led to the same
+        // three buttons again — walking past the duplicate forwards still left
+        // it there for the back button to reveal.
+        await savePendingJoinCode(candidate);
+        router.push("/(auth)/login?phase=signup");
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const result = await previewJoinCode(candidate);
+        setPreview(result);
+        setPhase("confirm");
+      } catch (err) {
+        showError(err);
+        setPhase("code");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [user, showError, t, router]
+  );
+
+  // A code arrived in the link: look it up straight away rather than showing
+  // the employee a pre-filled field and asking them to press a button.
+  const autoLookedUp = useRef(false);
+  useEffect(() => {
+    if (autoLookedUp.current) return;
+    const seeded = sanitizeJoinCodeInput(initialCode ?? "");
+    if (!isValidJoinCode(seeded)) return;
+    autoLookedUp.current = true;
+    void lookup(seeded);
+    // `lookup` is recreated when the session lands, which is exactly when the
+    // parked-code effect below takes over; re-running here would double-fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
+
+  // Coming back from the sign-in detour: pick the parked code up and continue
+  // where the employee left off, rather than making them retype it.
+  //
+  // Only ever when this screen was opened with nothing in hand. A code that
+  // arrived with the route is the one the person is asking about right now, and
+  // resuming over it swapped their shop for someone else's: typing PTNA45 in
+  // the sheet produced "Join Aurevo?" off a code left in storage minutes
+  // earlier. A parked code is a fallback, never an override.
+  useEffect(() => {
+    const resume = shouldResumeParkedCode({
+      signedIn: !!user,
+      phase,
+      hasInitialCode: isValidJoinCode(sanitizeJoinCodeInput(initialCode ?? "")),
+    });
+    if (!resume) return;
+    let active = true;
+
+    (async () => {
+      const pending = await readPendingJoinCode();
+      if (!active || !pending) return;
+      setCode(pending);
+      await lookup(pending);
+    })();
+
+    return () => {
+      active = false;
+    };
+    // `lookup` is stable per user; re-running on every keystroke would refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const handleJoin = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    setPhase("joining");
+    try {
+      const result = await redeemJoinCode(code);
+      await clearPendingJoinCode();
+      await refreshMemberships();
+      selectBusiness(result.business_id);
+      onJoined({
+        businessId: result.business_id,
+        businessName: result.business_name,
+        programType: result.program_type,
+      });
+    } catch (err) {
+      showError(err);
+      setPhase("confirm");
+    } finally {
+      setBusy(false);
+    }
+  }, [code, refreshMemberships, selectBusiness, onJoined, showError]);
+
+  const handleReset = useCallback(() => {
+    setPreview(null);
+    setCode("");
+    setError(null);
+    setPhase("code");
+    void clearPendingJoinCode();
+  }, []);
+
+  if ((phase === "confirm" || phase === "joining") && preview) {
+    return (
+      <AuthScreen
+        title={t("confirmTitle", { business: preview.business_name })}
+        subtitle={t("confirmRole")}
+        error={error}
+        onBack={busy ? undefined : handleReset}
+        backLabel={t("confirmCancel")}
+        footer={footer}
+        body={
+          <View style={styles.identity}>
+            {preview.business_logo_url ? (
+              <Image
+                source={preview.business_logo_url}
+                style={styles.logo}
+                contentFit="contain"
+              />
+            ) : null}
+            <Text style={styles.invitedBy}>
+              {t("confirmInvitedBy", { inviter: preview.inviter_name })}
+            </Text>
+          </View>
+        }
+      >
+        <BlockButton
+          variant="primary"
+          title={busy ? t("joining") : t("confirmSubmit")}
+          onPress={handleJoin}
+          loading={busy}
+          disabled={busy}
+        />
+        <BlockButton
+          variant="quiet"
+          title={t("confirmCancel")}
+          onPress={handleReset}
+          disabled={busy}
+        />
+      </AuthScreen>
+    );
+  }
+
+  return (
+    <AuthScreen
+      title={t("codeTitle")}
+      subtitle={t("codeSubtitle")}
+      error={error}
+      footer={footer}
+      body={
+        <>
+          <JoinCodeInput
+            value={code}
+            onChange={(next) => {
+              setCode(next);
+              if (error) setError(null);
+            }}
+            onComplete={lookup}
+            disabled={busy}
+            hasError={!!error}
+          />
+          <Text style={styles.helper}>{t("codeHelper")}</Text>
+        </>
+      }
+    >
+      <BlockButton
+        variant="primary"
+        title={t("codeSubmit")}
+        onPress={() => lookup(code)}
+        loading={busy}
+        disabled={code.length < JOIN_CODE_LENGTH || busy}
+      />
+
+      {onCancel ? (
+        <BlockButton variant="quiet" title={tCommon("cancel")} onPress={onCancel} />
+      ) : null}
+    </AuthScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  identity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  logo: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.block,
+    backgroundColor: colors.surface,
+  },
+  invitedBy: {
+    ...type.body,
+    color: colors.inkSoft,
+    flex: 1,
+  },
+  helper: {
+    ...type.body,
+    color: colors.inkFaint,
+  },
+});

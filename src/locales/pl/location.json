@@ -7,7 +7,8 @@
   "scanningAt": "Skanujesz w lokalu {{name}}",
   "noneAssigned": {
     "title": "Brak przypisanego lokalu",
-    "body": "Nie masz jeszcze przypisanego lokalu. Poproś właściciela firmy o przypisanie, zanim zaczniesz skanować."
+    "body": "Nie masz jeszcze przypisanego lokalu, więc skanowanie jest wyłączone.",
+    "bodyNamed": "Nie masz jeszcze przypisanego lokalu. Poproś {{manager}} o przypisanie, a od razu zaczniesz skanować."
   },
   "permission": {
     "title": "Użyć twojej lokalizacji?",
