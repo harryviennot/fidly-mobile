@@ -9,7 +9,7 @@ export default function ProtectedLayout() {
   const router = useRouter();
   const segments: string[] = useSegments();
   const { user } = useAuth();
-  const { currentBusiness, memberships, membershipsResolved } = useBusiness();
+  const { currentBusiness, memberships, membershipsResolved, error } = useBusiness();
 
   // Redirect to the right screen within the protected group. The rules live in
   // protectedLanding — including the two that matter most here: a signed-out
@@ -18,6 +18,8 @@ export default function ProtectedLayout() {
   const destination = protectedLanding({
     signedIn: !!user,
     membershipsResolved,
+    // An empty list after a failed request is not an empty team.
+    membershipsFailed: !!error,
     // segments[0] = "(protected)"; no second segment means the group root.
     atGroupRoot: !segments[1],
     hasCurrentBusiness: !!currentBusiness,

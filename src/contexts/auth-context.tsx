@@ -18,6 +18,7 @@ import * as Sentry from "@sentry/react-native";
 import { supabase } from "@/lib/supabase";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { writeLastLogin } from "@/lib/last-login";
+import { clearPendingJoinCode } from "@/lib/pending-join-code";
 import { loadOptionalModule } from "@/lib/optional-native";
 
 export type OAuthProvider = "apple" | "google";
@@ -195,6 +196,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("[Auth] session expired, clearing");
           // Token is expired — clear the stale session
           supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          // Same reasoning as the explicit sign-out below: the session this
+          // code was typed under is gone, so the code goes with it.
+          void clearPendingJoinCode();
           setSession(null);
           setUser(null);
           setLoading(false);
@@ -518,6 +522,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     // Then clean up Supabase storage in the background
     supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    // The parked join code belongs to the person who typed it, and they are
+    // leaving. It outlived them: signing out from the join screen (the only
+    // exit a memberless employee has) left the code in storage, so the next
+    // memberless person to sign in on this phone resumed it -- shown another
+    // shop's name and its inviter, one tap from burning that single-use
+    // invitation on an account it was never sent to.
+    void clearPendingJoinCode();
   }, []);
 
   return (

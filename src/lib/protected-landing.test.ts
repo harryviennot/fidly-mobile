@@ -4,6 +4,7 @@ import { protectedLanding } from "./protected-landing";
 const base = {
   signedIn: true,
   membershipsResolved: true,
+  membershipsFailed: false,
   atGroupRoot: true,
   hasCurrentBusiness: false,
   membershipCount: 0,
@@ -38,6 +39,38 @@ describe("protectedLanding", () => {
         membershipCount: 1,
       }),
     ).toBeNull();
+  });
+
+  describe("when the membership fetch failed", () => {
+    // A failed request resolves the list too -- the alternative was freezing
+    // routing behind a network blip -- so `membershipCount` is 0 for a reason
+    // that has nothing to do with who this employee works for. Reading that as
+    // "on no team" put a scanner of four months on a code field, offline, with
+    // no way back: the join screen's only exits are creating a business and
+    // signing out.
+    const failed = { ...base, membershipsFailed: true };
+
+    test("an empty list is not read as being on no team", () => {
+      expect(protectedLanding(failed)).not.toBe("/join");
+    });
+
+    test("it goes to the picker, which shows the error and a retry", () => {
+      expect(protectedLanding(failed)).toBe("/businesses");
+      // From any screen, like every other rule that answers an empty list.
+      expect(protectedLanding({ ...failed, atGroupRoot: false })).toBe("/businesses");
+    });
+
+    test("a shop is still selected, so nothing moves", () => {
+      // Refreshing in place failed; the employee keeps working with what the
+      // app already had rather than being sent anywhere.
+      expect(
+        protectedLanding({ ...failed, hasCurrentBusiness: true }),
+      ).toBeNull();
+    });
+
+    test("a list that came back empty still means no team", () => {
+      expect(protectedLanding({ ...base, membershipsFailed: false })).toBe("/join");
+    });
   });
 
   test("NO TEAM IS ANSWERED THE SAME WAY FROM EVERY SCREEN", () => {
