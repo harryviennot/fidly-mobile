@@ -12,7 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
-import { useAuth } from "@/contexts/auth-context";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
 import { useLocation } from "@/contexts/location-context";
 import {
@@ -27,8 +27,11 @@ import { QRCodeSkeleton } from "@/components/skeleton";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
+import { JoinBusinessSheet } from "@/components/join/JoinBusinessSheet";
 import { getLocationQR } from "@/api/locations";
 import { maybeRequestReviewOnLobby } from "@/lib/app-rating";
+import { hasSeenOnboarding } from "@/lib/onboarding-store";
+import { shouldAutoShowOnboarding, type ProgramType } from "@/lib/scanner-onboarding";
 
 // Whether we've shown the location explainer this app session. Deliberately
 // in-memory (not persisted): if the user dismisses with "Not now" we don't nag
@@ -42,15 +45,17 @@ export default function LobbyScreen() {
   const { t } = useTranslation("lobby");
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
+  const { t: tOnboarding } = useTranslation("onboarding");
   const { currentBusiness, currentMembership, memberships } = useBusiness();
-  const { theme, signupQR, qrLoading } = useTheme();
-  const { signOut } = useAuth();
+  const { theme, design, signupQR, qrLoading } = useTheme();
+  const signOutToWelcome = useSignOut();
   const { alert } = useAlert();
   const {
     scannableLocations,
     requiresLocation,
     selectedLocation,
     isStranded,
+    managerName,
     selectLocation,
     proximitySuggestion,
     dismissSuggestion,
@@ -60,6 +65,7 @@ export default function LobbyScreen() {
 
   const [locationQR, setLocationQR] = useState<string | null>(null);
   const [locationQRLoading, setLocationQRLoading] = useState(false);
+  const [joinSheetOpen, setJoinSheetOpen] = useState(false);
 
   const hasMultipleBusinesses = memberships.length > 1;
   const isPaused = currentMembership?.is_paused ?? false;
@@ -76,6 +82,27 @@ export default function LobbyScreen() {
   const handleStartScanning = () => {
     router.push("/scan");
   };
+
+  // First visit to this shop: run the short tour before anything else. Gated on
+  // knowing the program type, because the tour describes a stamp stepper or a
+  // points keypad and guessing wrong is worse than showing it a visit later.
+  const programType = (design?.card_type as ProgramType | undefined) ?? null;
+  useEffect(() => {
+    if (!currentBusiness?.id || !programType) return;
+    let active = true;
+
+    (async () => {
+      const seen = await hasSeenOnboarding(currentBusiness.id, programType);
+      if (!active) return;
+      if (shouldAutoShowOnboarding({ seen, programType, businessId: currentBusiness.id })) {
+        router.replace("/onboarding");
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [currentBusiness?.id, programType, router]);
 
   // Ask for an app rating once the employee is back on the lobby, calm and done
   // scanning — never mid-flow. No-op unless a scan armed it (and only once ever).
@@ -168,17 +195,20 @@ export default function LobbyScreen() {
       tCommon("signOutConfirmMessage"),
       [
         { text: tCommon("signOutConfirmNo"), style: "cancel" },
-        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOut },
+        { text: tCommon("signOutConfirmYes"), style: "destructive", onPress: signOutToWelcome },
       ]
     );
   };
 
-  // Redirect to businesses screen if no business selected
+  // Redirect to the picker if no business is selected. Not for someone with no
+  // team at all: the picker has nothing to pick, and the protected layout is
+  // already sending them to the code screen. Racing it would land them on an
+  // empty list instead.
   useEffect(() => {
-    if (!currentBusiness) {
+    if (!currentBusiness && memberships.length > 0) {
       router.replace("/businesses");
     }
-  }, [currentBusiness, router]);
+  }, [currentBusiness, memberships.length, router]);
 
   // Memoize dynamic styles based on theme
   const dynamicStyles = useMemo(
@@ -300,10 +330,14 @@ export default function LobbyScreen() {
     <SafeAreaView style={dynamicStyles.container} edges={["top"]}>
       {/* Business Banner */}
       <View style={dynamicStyles.banner}>
+        {/* On one team the banner opens the join sheet, on several it opens
+            the picker (which carries its own join button). Never the sheet
+            when there are other shops to reach: that tap is how you get to
+            them. */}
         <TouchableOpacity
           style={styles.bannerTouchable}
-          onPress={hasMultipleBusinesses ? handleSwitchBusiness : undefined}
-          activeOpacity={hasMultipleBusinesses ? 0.7 : 1}
+          onPress={hasMultipleBusinesses ? handleSwitchBusiness : () => setJoinSheetOpen(true)}
+          activeOpacity={0.7}
         >
           {currentBusiness.logo_url ? (
             <View style={styles.logoContainer}>
@@ -388,6 +422,17 @@ export default function LobbyScreen() {
           <Text style={dynamicStyles.qrLabel}>
             {t("qrLabel")}
           </Text>
+
+          {/* The tour is one-shot per shop, so keep a way back to it. */}
+          <TouchableOpacity
+            style={styles.replayButton}
+            onPress={() => router.push("/onboarding")}
+            hitSlop={8}
+          >
+            <Text style={[styles.replayText, { color: theme.textSecondary }]}>
+              {tOnboarding("replay")}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={dynamicStyles.divider} />
@@ -409,7 +454,14 @@ export default function LobbyScreen() {
           <View style={styles.strandedCard}>
             <WarningCircleIcon size={28} color="#D97706" weight="fill" />
             <Text style={styles.strandedTitle}>{tLocation("noneAssigned.title")}</Text>
-            <Text style={styles.strandedBody}>{tLocation("noneAssigned.body")}</Text>
+            <Text style={styles.strandedBody}>
+              {/* Name the person when the server knows who they are: at a
+                  multi-site shop "ask the business owner" leaves a new hire
+                  guessing which of the people around them that is. */}
+              {managerName
+                ? tLocation("noneAssigned.bodyNamed", { manager: managerName })
+                : tLocation("noneAssigned.body")}
+            </Text>
           </View>
         ) : (
           /* Scan Button */
@@ -443,12 +495,27 @@ export default function LobbyScreen() {
         }
         onKeep={dismissSuggestion}
       />
+
+      <JoinBusinessSheet
+        visible={joinSheetOpen}
+        onClose={() => setJoinSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }
 
 // Static styles that don't depend on theme
 const styles = StyleSheet.create({
+  replayButton: {
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  replayText: {
+    fontSize: 13,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
   locationHeader: {
     paddingHorizontal: 16,
     paddingBottom: 12,

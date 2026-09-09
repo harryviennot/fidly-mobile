@@ -1,16 +1,16 @@
-import { useState, type ReactNode } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
+import { useState } from "react";
+import { View, StyleSheet } from "react-native";
 import Svg, { Path, G } from "react-native-svg";
 import { useTranslation } from "react-i18next";
-import { CaretRightIcon, EnvelopeSimpleIcon } from "phosphor-react-native";
-import { useAuth, type OAuthProvider } from "@/contexts/auth-context";
+import { EnvelopeSimpleIcon } from "phosphor-react-native";
+import {
+  isGoogleSignInAvailable,
+  useAuth,
+  type OAuthProvider,
+} from "@/contexts/auth-context";
+import { classifyAuthError } from "@/lib/auth-errors";
 import { useLastLogin } from "@/lib/last-login";
+import { BlockButton, colors, spacing } from "@/components/auth-ui";
 
 interface AuthMethodChooserProps {
   disabled?: boolean;
@@ -36,7 +36,14 @@ export function AuthMethodChooser({
       const { error, cancelled } = await signInWithProvider(provider);
       if (cancelled) return;
       if (error) {
-        onError(t("errors.oauthFailed"));
+        // Don't flatten every failure into "try again": a misconfigured
+        // provider can never succeed on a retry, and the employee needs to be
+        // pointed at email instead (STA-246).
+        const key = classifyAuthError(
+          error.message,
+          (error as { code?: string }).code
+        );
+        onError(t(`errors.${key}` as "errors.generic"));
         return;
       }
       onSuccess();
@@ -51,74 +58,37 @@ export function AuthMethodChooser({
 
   return (
     <View style={styles.container}>
-      <MethodButton
-        onPress={() => handleOAuth("google")}
-        disabled={isDisabled("google")}
-        loading={pending === "google"}
-        loadingLabel={t("oauth.connecting")}
-        icon={<GoogleIcon />}
-        label={t("continueGoogle")}
-        lastUsedLabel={lastUsed === "google" ? lastUsedLabel : undefined}
-      />
-      <MethodButton
+      {/* Offering Google on a build without the native module would be a
+          button that can only ever fail. Email and Apple are still there. */}
+      {isGoogleSignInAvailable ? (
+        <BlockButton
+          variant="outline"
+          onPress={() => handleOAuth("google")}
+          disabled={isDisabled("google")}
+          loading={pending === "google"}
+          icon={<GoogleIcon />}
+          title={pending === "google" ? t("oauth.connecting") : t("continueGoogle")}
+          badge={lastUsed === "google" ? lastUsedLabel : undefined}
+        />
+      ) : null}
+      <BlockButton
+        variant="outline"
         onPress={() => handleOAuth("apple")}
         disabled={isDisabled("apple")}
         loading={pending === "apple"}
-        loadingLabel={t("oauth.connecting")}
         icon={<AppleIcon />}
-        label={t("continueApple")}
-        lastUsedLabel={lastUsed === "apple" ? lastUsedLabel : undefined}
+        title={pending === "apple" ? t("oauth.connecting") : t("continueApple")}
+        badge={lastUsed === "apple" ? lastUsedLabel : undefined}
       />
-      <MethodButton
+      <BlockButton
+        variant="outline"
         onPress={onChooseEmail}
         disabled={isDisabled("email")}
-        icon={<EnvelopeSimpleIcon size={20} color="#2d3436" weight="regular" />}
-        label={t("continueEmail")}
-        lastUsedLabel={lastUsed === "email" ? lastUsedLabel : undefined}
+        icon={<EnvelopeSimpleIcon size={22} color={colors.ink} weight="regular" />}
+        title={t("continueEmail")}
+        badge={lastUsed === "email" ? lastUsedLabel : undefined}
       />
     </View>
-  );
-}
-
-interface MethodButtonProps {
-  onPress: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  loadingLabel?: string;
-  icon: ReactNode;
-  label: string;
-  lastUsedLabel?: string;
-}
-
-function MethodButton({
-  onPress,
-  disabled,
-  loading,
-  loadingLabel,
-  icon,
-  label,
-  lastUsedLabel,
-}: MethodButtonProps) {
-  return (
-    <TouchableOpacity
-      style={[styles.button, disabled && styles.buttonDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.7}
-    >
-      <View style={styles.iconWrap}>
-        {loading ? <ActivityIndicator color="#2d3436" /> : icon}
-      </View>
-      <Text style={styles.label} numberOfLines={1}>
-        {loading && loadingLabel ? loadingLabel : label}
-      </Text>
-      {lastUsedLabel ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{lastUsedLabel}</Text>
-        </View>
-      ) : null}
-      <CaretRightIcon size={16} color="#9ca3af" weight="bold" />
-    </TouchableOpacity>
   );
 }
 
@@ -149,47 +119,6 @@ function GoogleIcon() {
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    gap: 10,
-  },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    height: 56,
-    paddingHorizontal: 18,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "#ddd9d0",
-    backgroundColor: "#faf9f6",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  iconWrap: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  label: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#2d3436",
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: "rgba(245, 158, 11, 0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.20)",
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    color: "#d97706",
+    gap: spacing.md,
   },
 });

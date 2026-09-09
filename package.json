@@ -1,7 +1,7 @@
 {
   "name": "scanner-app2",
   "main": "expo-router/entry",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "scripts": {
     "start": "expo start",
     "dev": "APP_VARIANT=development npx expo start",
@@ -75,9 +75,11 @@
   "private": true,
   "overrides": {
     "@babel/core": "^7.29.7",
-    "@xmldom/xmldom": "^0.8.13",
+    "@humanfs/node": "^0.16.8",
+    "@xmldom/xmldom": "^0.8.15",
     "brace-expansion": "~2.1.3",
-    "fast-uri": "^3.1.5",
+    "browserslist": "^4.28.7",
+    "fast-uri": "^3.1.6",
     "flatted": ">=3.4.0",
     "js-yaml": "^4.3.1",
     "minimatch": "^9.0.6",

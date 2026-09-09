@@ -1,41 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  ScrollView,
-  Linking,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftIcon } from "phosphor-react-native";
 import { useAuth } from "@/contexts/auth-context";
-import { StampeoLogo } from "@/components/ui/StampeoLogo";
 import { AuthMethodChooser } from "@/components/auth/AuthMethodChooser";
+import { EmailSignUpForm } from "@/components/auth/EmailSignUpForm";
+import { CreateBusinessSheet } from "@/components/auth/CreateBusinessSheet";
+import {
+  AuthScreen,
+  AuthTextField,
+  BlockButton,
+  colors,
+  spacing,
+  type,
+} from "@/components/auth-ui";
 import { supabase } from "@/lib/supabase";
 import { writeLastLogin, type LastLoginMethod } from "@/lib/last-login";
 import { getUserMemberships } from "@/api/memberships";
-import { resolveSupportedLocale } from "@/locales/i18n";
-
-const SHOWCASE_BASE_URL = "https://stampeo.app";
-
-type Phase = "choose" | "credentials";
+import { classifyAuthError } from "@/lib/auth-errors";
+import { shouldDropParkedCodeAfterSignIn } from "@/lib/join-code";
+import { clearPendingJoinCode, readPendingJoinCode } from "@/lib/pending-join-code";
+import { backFromPhase, initialAuthPhase, type AuthPhase } from "@/lib/login-phase";
 
 export default function LoginScreen() {
-  const { t, i18n } = useTranslation("login");
+  const { t } = useTranslation("login");
+  const { t: tWelcome } = useTranslation("welcome");
   const router = useRouter();
   const { signIn } = useAuth();
-  const [phase, setPhase] = useState<Phase>("choose");
+  // `?phase=` lets a caller that already knows what someone needs skip the
+  // chooser — the join flow sends code holders straight to sign-up rather than
+  // showing them the same three providers a second time.
+  const { phase: phaseParam } = useLocalSearchParams<{ phase?: string }>();
+  const seededPhase = useRef(initialAuthPhase(phaseParam)).current;
+  const [phase, setPhase] = useState<AuthPhase>(seededPhase);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
   const [oauthCallbackInFlight, setOauthCallbackInFlight] = useState(
     () =>
       Platform.OS === "web" &&
@@ -43,49 +45,51 @@ export default function LoginScreen() {
       /[?&](code|error)=/.test(window.location.search)
   );
   const oauthHandledRef = useRef(false);
-
-  // Send the owner to the onboarding in the language they are already reading.
-  const locale = resolveSupportedLocale(i18n.language);
-  const onboardingUrl = `${SHOWCASE_BASE_URL}/${locale}/onboarding`;
+  // Someone arriving from the join flow has already typed a code and handed it
+  // to us. The screen that used to say so is gone, and losing that reassurance
+  // would leave them wondering whether they have to start over.
+  const [codeParked, setCodeParked] = useState(false);
+  useEffect(() => {
+    let active = true;
+    readPendingJoinCode()
+      .then((pending) => {
+        if (active) setCodeParked(!!pending);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Translate raw Supabase error messages into friendly, localised copy.
+  // The classification itself lives in a pure module so the OAuth path in
+  // AuthMethodChooser uses exactly the same rules (STA-246: it used to have
+  // none, and flattened every provider failure into "try again").
   const translateError = useCallback(
-    (message: string) => {
-      const msg = message.toLowerCase();
-      if (
-        msg.includes("invalid") &&
-        (msg.includes("credentials") || msg.includes("password") || msg.includes("login"))
-      ) {
-        return t("errors.invalidCredentials");
-      }
-      if (msg.includes("rate") || msg.includes("too many") || msg.includes("429")) {
-        return t("errors.tooManyRequests");
-      }
-      if (msg.includes("user not found") || msg.includes("no user")) {
-        return t("errors.userNotFound");
-      }
-      if (msg.includes("network") || msg.includes("fetch")) {
-        return t("errors.networkError");
-      }
-      return t("errors.generic");
-    },
+    (message: string, code?: string) =>
+      t(`errors.${classifyAuthError(message, code)}` as "errors.generic"),
     [t]
   );
 
   // After ANY successful auth, ensure the user has at least one membership.
-  // Scanner-app is invite-only — orphan auth users (no business) are signed
-  // out and routed to the no-account screen.
+  // Scanner-app is still invite-only, but a memberless user is no longer signed
+  // back out: they keep the session and land on the join screen, one field away
+  // from being in (STA-246). Signing them out was the dead end that made a
+  // *successful* Google sign-in look like a failed one.
   const enforceInviteOnly = useCallback(async (): Promise<boolean> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     try {
       const memberships = await getUserMemberships(user.id);
-      if (memberships.length === 0) {
-        await supabase.auth.signOut({ scope: "local" });
-        router.replace("/(auth)/no-account");
-        return false;
+      if (shouldDropParkedCodeAfterSignIn(memberships.length)) {
+        // This session is not the one the parked code was typed for: they are
+        // going to their own lobby, so the code would just sit in storage
+        // waiting for whoever picks the phone up next.
+        void clearPendingJoinCode();
+        return true;
       }
-      return true;
+      router.replace("/join");
+      return false;
     } catch {
       // If membership fetch fails, leave the session intact and let the
       // protected layout handle the error. Don't block login on transient
@@ -175,274 +179,155 @@ export default function LoginScreen() {
     }
   };
 
-  const handleOpenOnboarding = () => {
-    if (Platform.OS === "web") {
-      globalThis.location.href = onboardingUrl;
-    } else {
-      Linking.openURL(onboardingUrl).catch(() => {});
+  // Back goes one phase at a time, and out to the welcome screen from the
+  // first: this screen is pushed from there, so leaving it must feel like
+  // stepping back rather than landing somewhere new.
+  const handleBack = () => {
+    setError(null);
+    if (backFromPhase({ phase, seeded: seededPhase !== "choose" }) === "leave") {
+      router.back();
+      return;
     }
+    setPhase("choose");
   };
 
-  const handleBackToChoose = () => {
-    setPhase("choose");
-    setError(null);
-  };
+  if (oauthCallbackInFlight) {
+    return (
+      <AuthScreen>
+        <View style={styles.connecting}>
+          <ActivityIndicator size="large" color={colors.brand} />
+          <Text style={styles.connectingText}>{t("oauth.connecting")}</Text>
+        </View>
+      </AuthScreen>
+    );
+  }
+
+  // Deliberately NOT "Get started": next to "Create an account" (which makes an
+  // employee account right here) a second vague CTA is how someone ends up
+  // owning an empty business by accident. This one names the audience.
+  const businessFooter = (
+    <BlockButton
+      variant="quiet"
+      title={tWelcome("businessLink")}
+      onPress={() => setBusinessSheetOpen(true)}
+    />
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+    <>
+      {phase === "choose" ? (
+        <AuthScreen
+          title={t("title")}
+          subtitle={t("subtitle")}
+          onBack={handleBack}
+          backLabel={t("back")}
+          error={error}
+          footer={businessFooter}
         >
-          <View style={styles.logoWrap}>
-            <StampeoLogo size={48} color="#000000" />
-          </View>
-
-          <View style={styles.card}>
-            {oauthCallbackInFlight ? (
-              <View style={styles.oauthCallback}>
-                <ActivityIndicator size="large" color="#f97316" />
-                <Text style={styles.subtitle}>{t("oauth.connecting")}</Text>
-              </View>
-            ) : phase === "choose" ? (
-              <>
-                <View style={styles.heading}>
-                  <Text style={styles.title}>{t("title")}</Text>
-                  <Text style={styles.subtitle}>{t("subtitle")}</Text>
-                </View>
-
-                {error ? (
-                  <View style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                ) : null}
-
-                <AuthMethodChooser
-                  disabled={loading}
-                  onChooseEmail={() => {
-                    setPhase("credentials");
-                    setError(null);
-                  }}
-                  onSuccess={enforceInviteOnly}
-                  onError={(message) => setError(message)}
-                />
-              </>
-            ) : (
-              <>
-                <View style={styles.headingRow}>
-                  <TouchableOpacity
-                    onPress={handleBackToChoose}
-                    style={styles.backButton}
-                    hitSlop={12}
-                    accessibilityLabel={t("back")}
-                  >
-                    <ArrowLeftIcon size={20} color="#6b7280" weight="bold" />
-                  </TouchableOpacity>
-                  <View style={styles.headingCenter}>
-                    <Text style={styles.title}>{t("emailTitle")}</Text>
-                    <Text style={styles.subtitle}>{t("emailSubtitle")}</Text>
-                  </View>
-                </View>
-
-                {error ? (
-                  <View style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>{t("email")}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t("emailPlaceholder")}
-                    placeholderTextColor="#9ca3af"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoComplete="email"
-                    editable={!loading}
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>{t("password")}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t("passwordPlaceholder")}
-                    placeholderTextColor="#9ca3af"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    autoComplete="password"
-                    editable={!loading}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
-                  onPress={handleEmailLogin}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t("signIn")}</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>{t("signupPrompt")} </Text>
-              <TouchableOpacity onPress={handleOpenOnboarding} hitSlop={6}>
-                <Text style={styles.footerLink}>{t("getStarted")}</Text>
-              </TouchableOpacity>
+          <AuthMethodChooser
+            disabled={loading}
+            onChooseEmail={() => {
+              setPhase("credentials");
+              setError(null);
+            }}
+            onSuccess={enforceInviteOnly}
+            onError={(message) => setError(message)}
+          />
+        </AuthScreen>
+      ) : phase === "signup" ? (
+        <AuthScreen
+          onBack={handleBack}
+          backLabel={t("back")}
+          // The form carries its own heading and actions for both of its
+          // steps, so it goes in the body slot as one block rather than being
+          // split across the frame's head and actions.
+          body={
+            <EmailSignUpForm
+              // A brand-new employee has no memberships, so this lands them
+              // on the join screen with the code still to enter.
+              onSuccess={enforceInviteOnly}
+              // Says "we've kept your code" in the form's own subtitle rather
+              // than in a second box above it saying the same thing.
+              codeParked={codeParked}
+              onSwitchToSignIn={() => {
+                setPhase("credentials");
+                setError(null);
+              }}
+            />
+          }
+        />
+      ) : (
+        <AuthScreen
+          title={t("emailTitle")}
+          subtitle={t("emailSubtitle")}
+          onBack={handleBack}
+          backLabel={t("back")}
+          error={error}
+          footer={businessFooter}
+          body={
+            <View style={styles.fields}>
+              <AuthTextField
+                label={t("email")}
+                placeholder={t("emailPlaceholder")}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                editable={!loading}
+              />
+              <AuthTextField
+                label={t("password")}
+                placeholder={t("passwordPlaceholder")}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+                editable={!loading}
+              />
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          }
+        >
+          <BlockButton
+            variant="primary"
+            title={t("signIn")}
+            onPress={handleEmailLogin}
+            loading={loading}
+            disabled={loading}
+          />
+          <BlockButton
+            variant="quiet"
+            title={t("signupCta")}
+            onPress={() => {
+              setPhase("signup");
+              setError(null);
+            }}
+          />
+        </AuthScreen>
+      )}
+
+      <CreateBusinessSheet
+        visible={businessSheetOpen}
+        onClose={() => setBusinessSheetOpen(false)}
+        onUseCode={() => router.push("/join")}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0efe9",
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 32,
-    gap: 24,
-  },
-  logoWrap: {
-    alignItems: "center",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 460,
-    backgroundColor: "#faf9f6",
-    borderWidth: 1,
-    borderColor: "#ddd9d0",
-    borderRadius: 24,
-    padding: 24,
-    gap: 20,
-    shadowColor: "#2d3436",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  heading: {
-    alignItems: "center",
-    gap: 6,
-  },
-  oauthCallback: {
+  connecting: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
-    paddingVertical: 32,
+    gap: spacing.lg,
+    paddingVertical: spacing.xxl,
   },
-  headingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: 48,
+  connectingText: {
+    ...type.body,
+    color: colors.inkSoft,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headingCenter: {
-    flex: 1,
-    alignItems: "center",
-    gap: 4,
-    marginRight: 36,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#2d3436",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    textAlign: "center",
-  },
-  errorBox: {
-    backgroundColor: "rgba(220, 38, 38, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(220, 38, 38, 0.20)",
-    borderRadius: 16,
-    padding: 12,
-  },
-  errorText: {
-    color: "#dc2626",
-    fontSize: 13,
-    textAlign: "center",
-  },
-  inputContainer: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#2d3436",
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd9d0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#2d3436",
-  },
-  primaryButton: {
-    backgroundColor: "#f97316",
-    borderRadius: 9999,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    paddingTop: 4,
-  },
-  footerText: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  footerLink: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#d97706",
+  fields: {
+    gap: spacing.lg,
+    paddingBottom: spacing.xs,
   },
 });

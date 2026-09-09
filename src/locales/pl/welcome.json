@@ -1,0 +1,16 @@
+{
+  "title": "Wszystko gotowe do skanowania.",
+  "subtitle": "Stampeo zamienia telefon klienta w kartę lojalnościową. Ty skanujesz, klienci zbierają pieczątki.",
+  "joinTitle": "Dołącz do zespołu",
+  "joinSubtitle": "Mam kod zespołu",
+  "signInTitle": "Zaloguj się",
+  "signInSubtitle": "Mam już konto",
+  "businessLink": "Zakładasz firmę?",
+  "business": {
+    "title": "Zakładasz nową firmę?",
+    "body": "Firmę tworzy się na stampeo.app: tam wybierzesz kartę, nagrody i plan.",
+    "employeeNote": "Pracujesz w firmie, która już korzysta ze Stampeo? Poproś osobę zarządzającą o kod zespołu. Nie musisz nic zakładać.",
+    "codeCta": "Mam kod zespołu",
+    "continueCta": "Przejdź na stampeo.app"
+  }
+}

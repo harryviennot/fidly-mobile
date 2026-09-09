@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: getAppName(),
   slug: "stampeo-scanner",
-  version: "2.1.1",
+  version: "2.2.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "stampeo-scanner",
@@ -61,6 +61,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: getUniqueIdentifier(),
     icon: "./assets/stampeo.icon",
     usesAppleSignIn: true,
+    // Universal Links for emailed join codes: https://stampeo.app/join/ABCD3F
+    // opens straight at the join screen. The matching AASA file is served by
+    // the showcase at /.well-known/apple-app-site-association, and claims only
+    // the /join/* path so ordinary marketing links still open in the browser.
+    associatedDomains: ["applinks:stampeo.app"],
     infoPlist: {
       NSCameraUsageDescription: "This app needs camera access to scan customer loyalty card QR codes",
       ITSAppUsesNonExemptEncryption: false
@@ -79,6 +84,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: getUniqueIdentifier(),
+    // The Android half of the same link. `autoVerify` makes the OS fetch
+    // /.well-known/assetlinks.json; until the signing fingerprints are
+    // published there the link simply opens the web fallback instead.
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [{ scheme: "https", host: "stampeo.app", pathPrefix: "/join" }],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
     permissions: [
       "android.permission.RECORD_AUDIO",
       "android.permission.CAMERA",

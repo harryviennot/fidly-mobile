@@ -1,0 +1,16 @@
+{
+  "title": "Let's get you scanning.",
+  "subtitle": "Stampeo turns your customers' phones into loyalty cards. You scan, they collect.",
+  "joinTitle": "Join my team",
+  "joinSubtitle": "I have a team code",
+  "signInTitle": "Sign in",
+  "signInSubtitle": "I already have an account",
+  "businessLink": "Setting up a business?",
+  "business": {
+    "title": "Setting up a new business?",
+    "body": "Creating a business happens on stampeo.app, where you'll pick your card, your rewards and your plan.",
+    "employeeNote": "Working at a shop that already uses Stampeo? Ask whoever runs it for a team code. You don't need to create anything.",
+    "codeCta": "I have a team code",
+    "continueCta": "Continue to stampeo.app"
+  }
+}
