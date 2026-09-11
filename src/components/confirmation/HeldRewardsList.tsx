@@ -24,6 +24,12 @@ interface HeldRewardsListProps {
   redeemingId: string | null;
   /** Namespace to read strings from — both stamp and points carry the block. */
   namespace?: "stamp" | "points";
+  /**
+   * Which string to head the list with. Inside the rewards menu the sheet
+   * already says "Rewards", so the list names the GROUP instead ("Already
+   * earned") rather than repeating it or going unlabelled.
+   */
+  titleKey?: string;
 }
 
 /**
@@ -43,6 +49,7 @@ export function HeldRewardsList({
   onRedeem,
   redeemingId,
   namespace = "stamp",
+  titleKey = "heldRewards.title",
 }: HeldRewardsListProps) {
   const { t, i18n } = useTranslation(namespace);
   const { theme } = useTheme();
@@ -88,9 +95,12 @@ export function HeldRewardsList({
       cta: {
         backgroundColor: theme.primary,
         borderRadius: 999,
-        paddingVertical: 8,
+        paddingVertical: 12,
         paddingHorizontal: 16,
         minWidth: 84,
+        // 44pt is the smallest comfortable touch target, and this is pressed
+        // with one hand across a counter.
+        minHeight: 44,
         alignItems: "center",
         justifyContent: "center",
       },
@@ -102,7 +112,9 @@ export function HeldRewardsList({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.title}>{t("heldRewards.title")}</Text>
+      {/* Same cast the plural lookup below uses: the key is chosen by the
+          caller, so it cannot be checked against the literal key union. */}
+      <Text style={styles.title}>{(t as (k: string) => string)(titleKey)}</Text>
       {sorted.map((reward) => {
         const expiry = formatExpiry(reward);
         const urgent = expiresSoon(reward);

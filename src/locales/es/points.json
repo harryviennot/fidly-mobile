@@ -50,6 +50,8 @@
     "expiresIn_other": "Caduca en {{count}} días",
     "expired": "Caducada",
     "gift": "Regalo",
-    "redeem": "Canjear"
-  }
+    "redeem": "Canjear",
+    "groupTitle": "Ya conseguidas"
+  },
+  "ladderTitle": "Con puntos"
 }

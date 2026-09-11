@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { blendColors } from "@/utils/colors";
 import { Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { addStamp, redeemReward } from "@/api/customers";
@@ -294,7 +296,29 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     () =>
       StyleSheet.create({
         root: { flex: 1, width: "100%" },
-        topGroup: { gap: 12 },
+        screen: {
+          flex: 1,
+          width: "100%",
+          maxWidth: 480,
+          alignSelf: "center",
+          backgroundColor: theme.background,
+        },
+        scroll: { flex: 1 },
+        header: { paddingHorizontal: 20, paddingTop: 20 },
+        // Most customers hold no reward, and then there is nothing to scroll:
+        // let the card breathe in the middle of the screen as it used to.
+        headerCentred: { flex: 1, justifyContent: "center" },
+        scrollContent: { paddingHorizontal: 20, paddingBottom: 12 },
+        actionBar: {
+          paddingHorizontal: 20,
+          paddingTop: 14,
+          paddingBottom: 8,
+          gap: 12,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: blendColors(theme.text, theme.background, 0.86),
+          backgroundColor: theme.background,
+        },
+        topGroup: { gap: 12, paddingBottom: 32 },
         chip: {
           flexDirection: "row",
           alignItems: "center",
@@ -308,7 +332,16 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         chipText: { color: "#fff", fontSize: 15, fontWeight: "700" },
         // The card sits in the flexible middle, vertically centered like the
         // points amount, so the controls below never move between screens.
-        middle: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+        // Content-sized, not flex:1 — a sticky child cannot absorb slack, and
+        // fixed generous padding reads more predictably than stretched space.
+        // Opaque, so the rewards list passes underneath rather than through.
+        middle: {
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
+          paddingVertical: 20,
+          backgroundColor: theme.background,
+        },
         countRow: { flexDirection: "row", alignItems: "flex-end" },
         countBig: { fontSize: 56, fontWeight: "700", color: theme.text, lineHeight: 60 },
         countTotal: {
@@ -320,9 +353,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         },
         // Fixed height: the pending line appears and disappears as the quantity
         // changes and must not shove the card up and down.
-        pendingRow: { height: 26, justifyContent: "center" },
-        pendingText: { fontSize: 17, fontWeight: "700", color: theme.primaryOnSurface },
-        completeText: { fontSize: 17, fontWeight: "700", color: UNLOCK_AMBER },
+        pendingRow: { height: 26, justifyContent: "center", alignItems: "center", alignSelf: "stretch" },
+        pendingText: { fontSize: 17, fontWeight: "700", color: theme.primaryOnSurface, textAlign: "center" },
+        completeText: { fontSize: 17, fontWeight: "700", color: UNLOCK_AMBER, textAlign: "center" },
         bottomGroup: { gap: 12 },
         stampButton: {
           backgroundColor: theme.primary,
@@ -666,8 +699,16 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   // Entry state: set the quantity, watch the card fill, commit in one press.
   return (
-    <ConfirmationScaffold>
-      <View style={styles.root}>
+    <SafeAreaView style={styles.screen}>
+      {/* Everything above the action bar scrolls. With five held rewards the
+          old fixed layout had nowhere to put them: `middle` collapsed to zero
+          and the stamp grid drew on top of the rewards chip. */}
+      {/* Three zones: who + progress pinned at the top, rewards scrolling in
+          the middle, stamping pinned at the bottom. Tried RN's
+          stickyHeaderIndices first — it re-positions the pinned child over the
+          list rather than at the top, so the progress row simply lives outside
+          the ScrollView instead. */}
+      <View style={[styles.header, !hasBankedRewards && styles.headerCentred]}>
         <View style={styles.topGroup}>
           <CustomerHeader
             name={customer.name}
@@ -710,49 +751,58 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             </Animated.View>
           )}
         </View>
-
-        <View style={styles.bottomGroup}>
-          <StampStepper
-            value={quantity}
-            max={maxQuantity}
-            onChange={setQuantity}
-            disabled={stamping || redeeming}
-          />
-
-          <PressableScale
-            style={[styles.stampButton, stamping && styles.buttonDisabled]}
-            haptic="medium"
-            onPress={() => handleAddStamp()}
-            disabled={stamping || redeeming}
-          >
-            {stamping ? (
-              <ActivityIndicator color={theme.primaryText} />
-            ) : (
-              <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
-                {t(`addStamp_${plural(quantity)}`, { count: quantity })}
-              </Animated.Text>
-            )}
-          </PressableScale>
-
-          {/* Named rewards the customer holds, one row each so the employee
-              hands over the right thing. Falls back to the single generic
-              redeem CTA when the backend sent no instance list (older API). */}
-          {hasBankedRewards &&
-            (heldRewards.length > 0 ? (
-              <HeldRewardsList
-                rewards={heldRewards}
-                onRedeem={handleRedeemReward}
-                redeemingId={redeemingId}
-              />
-            ) : (
-              renderRedeemButton(stamping)
-            ))}
-
-          <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-            <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </ConfirmationScaffold>
+
+      {/* Named rewards the customer holds, one row each so the employee
+          hands over the right thing. Falls back to the single generic
+          redeem CTA when the backend sent no instance list (older API). */}
+      {hasBankedRewards && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {heldRewards.length > 0 ? (
+            <HeldRewardsList
+              rewards={heldRewards}
+              onRedeem={handleRedeemReward}
+              redeemingId={redeemingId}
+            />
+          ) : (
+            renderRedeemButton(stamping)
+          )}
+        </ScrollView>
+      )}
+
+      {/* Stamping is the reason this screen exists, so it stays put at the
+          bottom no matter how many rewards are listed above it. */}
+      <View style={styles.actionBar}>
+        <StampStepper
+          value={quantity}
+          max={maxQuantity}
+          onChange={setQuantity}
+          disabled={stamping || redeeming}
+        />
+
+        <PressableScale
+          style={[styles.stampButton, stamping && styles.buttonDisabled]}
+          haptic="medium"
+          onPress={() => handleAddStamp()}
+          disabled={stamping || redeeming}
+        >
+          {stamping ? (
+            <ActivityIndicator color={theme.primaryText} />
+          ) : (
+            <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
+              {t(`addStamp_${plural(quantity)}`, { count: quantity })}
+            </Animated.Text>
+          )}
+        </PressableScale>
+
+        <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
+          <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }

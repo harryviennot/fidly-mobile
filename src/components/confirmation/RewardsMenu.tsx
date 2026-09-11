@@ -118,6 +118,14 @@ export function RewardsMenu({
         },
         redeemText: { color: theme.primaryText, fontWeight: "700", fontSize: 14 },
         heldSection: { marginBottom: 20 },
+        groupLabel: {
+          fontSize: 13,
+          fontWeight: "700",
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          color: theme.textSecondary,
+          marginBottom: 10,
+        },
       });
   }, [theme, windowHeight, insets.bottom]);
 
@@ -139,8 +147,15 @@ export function RewardsMenu({
               onRedeem={onRedeemHeld}
               redeemingId={redeemingHeldId}
               namespace="points"
+              titleKey="heldRewards.groupTitle"
             />
           </View>
+        )}
+        {/* The priced menu gets its own label once held rewards sit above it,
+            so the two groups read as "what they have" then "what they can buy"
+            — the same split the dashboard's redeem dialog uses. */}
+        {heldRewards.length > 0 && onRedeemHeld && sorted.length > 0 && (
+          <Text style={styles.groupLabel}>{t("ladderTitle")}</Text>
         )}
         {sorted.map((reward, index) => {
           const affordable = balance >= reward.threshold;
