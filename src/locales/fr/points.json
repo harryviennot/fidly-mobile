@@ -40,5 +40,16 @@
     "upcoming": "Bonus dès {{amount}}{{currency}}",
     "active": "Bonus actif : +{{count}} pts",
     "successNote": "{{base}} pts + {{bonus}} de bonus"
+  },
+  "heldRewards": {
+    "title": "Récompenses à utiliser",
+    "expiresToday": "Expire aujourd'hui",
+    "expiresIn_one": "Expire dans 1 jour",
+    "expiresIn_few": "Expire dans {{count}} jours",
+    "expiresIn_many": "Expire dans {{count}} jours",
+    "expiresIn_other": "Expire dans {{count}} jours",
+    "expired": "Expirée",
+    "gift": "Cadeau",
+    "redeem": "Utiliser"
   }
 }

@@ -71,5 +71,16 @@
     "partialTitle": "Limite atteinte",
     "partialDay": "{{added}} sur {{requested}} ajoutés. C'est tout ce que ce client peut collecter aujourd'hui.",
     "partialWeek": "{{added}} sur {{requested}} ajoutés. C'est tout ce que ce client peut collecter cette semaine."
+  },
+  "heldRewards": {
+    "title": "Récompenses à utiliser",
+    "expiresToday": "Expire aujourd'hui",
+    "expiresIn_one": "Expire dans 1 jour",
+    "expiresIn_few": "Expire dans {{count}} jours",
+    "expiresIn_many": "Expire dans {{count}} jours",
+    "expiresIn_other": "Expire dans {{count}} jours",
+    "expired": "Expirée",
+    "gift": "Cadeau",
+    "redeem": "Utiliser"
   }
 }

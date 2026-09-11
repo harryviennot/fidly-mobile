@@ -71,5 +71,16 @@
     "partialTitle": "Limit osiągnięty",
     "partialDay": "Dodano {{added}} z {{requested}}. Tyle ten klient może dziś zebrać.",
     "partialWeek": "Dodano {{added}} z {{requested}}. Tyle ten klient może zebrać w tym tygodniu."
+  },
+  "heldRewards": {
+    "title": "Nagrody do odebrania",
+    "expiresToday": "Wygasa dzisiaj",
+    "expiresIn_one": "Wygasa za 1 dzień",
+    "expiresIn_few": "Wygasa za {{count}} dni",
+    "expiresIn_many": "Wygasa za {{count}} dni",
+    "expiresIn_other": "Wygasa za {{count}} dnia",
+    "expired": "Wygasła",
+    "gift": "Prezent",
+    "redeem": "Odbierz"
   }
 }

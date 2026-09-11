@@ -82,7 +82,8 @@ export async function redeemReward(
   businessId: string,
   enrollmentId: string,
   locationId?: string | null,
-  rewardId?: string | null
+  rewardId?: string | null,
+  customerRewardId?: string | null
 ): Promise<StampResponse> {
   const headers = getAuthHeaders();
 
@@ -90,10 +91,15 @@ export async function redeemReward(
   // for multi-reward programs (the points menu), the chosen reward_id. Lenient
   // server-side: omitting location records NULL; omitting reward_id claims the
   // natural default. Send a body whenever either is present.
+  //
+  // customer_reward_id names ONE reward the customer already holds (STA-264).
+  // It is the only way to redeem a granted item, which has no ladder entry for
+  // reward_id to point at, and it stops a mis-tap spending the wrong gift.
   const init: RequestInit = { method: "POST", headers };
   const reqBody: Record<string, unknown> = {};
   if (locationId) reqBody.location_id = locationId;
   if (rewardId) reqBody.reward_id = rewardId;
+  if (customerRewardId) reqBody.customer_reward_id = customerRewardId;
   if (Object.keys(reqBody).length > 0) {
     init.body = JSON.stringify(reqBody);
   }

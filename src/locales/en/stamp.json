@@ -71,5 +71,16 @@
     "partialTitle": "Limit reached",
     "partialDay": "{{added}} of {{requested}} added. That is all this customer can collect today.",
     "partialWeek": "{{added}} of {{requested}} added. That is all this customer can collect this week."
+  },
+  "heldRewards": {
+    "title": "Rewards to redeem",
+    "expiresToday": "Expires today",
+    "expiresIn_one": "Expires in 1 day",
+    "expiresIn_few": "Expires in {{count}} days",
+    "expiresIn_many": "Expires in {{count}} days",
+    "expiresIn_other": "Expires in {{count}} days",
+    "expired": "Expired",
+    "gift": "Gift",
+    "redeem": "Redeem"
   }
 }

@@ -50,6 +50,30 @@ export interface ProgramSnapshot {
    * boosted total live and name the threshold still to come.
    */
   basket_boost?: { tiers: BoostTier[] } | null;
+  /**
+   * The named rewards this customer HOLDS right now, soonest-expiring first
+   * (STA-264). Distinct from `rewards` above, which is the ladder of what
+   * COULD be earned: these are real, already-earned or granted rewards, and a
+   * granted item ("free cake" on sign-up) sits on no ladder at all.
+   *
+   * Always claimable regardless of balance or stamp count — the customer
+   * already has them. Redeem one by passing its `id` as `customer_reward_id`.
+   * Optional because older backends do not send it.
+   */
+  banked_rewards?: BankedReward[];
+}
+
+/** One reward instance the customer holds (backend `customer_rewards` row). */
+export interface BankedReward {
+  /** The customer_rewards row id — pass this to redeem THIS reward. */
+  id: string;
+  /** Ladder reward id, or null for a free-text grant. */
+  reward_id: string | null;
+  /** Snapshot of the name at grant time; never re-translated. */
+  name: string;
+  source: "signup_bonus" | "checkpoint" | "points_redemption" | "manual";
+  /** ISO timestamp, or null when it never expires. */
+  expires_at: string | null;
 }
 
 /** One rung of a basket booster, as the scanner receives it. */

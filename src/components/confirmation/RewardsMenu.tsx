@@ -8,7 +8,8 @@ import { useTheme } from "@/contexts/theme-context";
 import { BottomSheet } from "@/components/BottomSheet";
 import { PressableScale } from "@/components/PressableScale";
 import { blendColors, getContrastingTextColor } from "@/utils/colors";
-import type { ProgramReward } from "@/types/api";
+import { HeldRewardsList } from "@/components/confirmation/HeldRewardsList";
+import type { BankedReward, ProgramReward } from "@/types/api";
 
 interface RewardsMenuProps {
   visible: boolean;
@@ -19,6 +20,14 @@ interface RewardsMenuProps {
   onRedeem: (rewardId: string) => void;
   /** The reward id currently being redeemed (shows a spinner), or null. */
   redeemingRewardId: string | null;
+  /**
+   * Rewards the customer already HOLDS (STA-264) — granted items and any
+   * banked reward. Listed above the priced ladder and always claimable: they
+   * are already theirs, so the balance has no say.
+   */
+  heldRewards?: BankedReward[];
+  onRedeemHeld?: (reward: BankedReward) => void;
+  redeemingHeldId?: string | null;
 }
 
 /**
@@ -33,6 +42,9 @@ export function RewardsMenu({
   balance,
   onRedeem,
   redeemingRewardId,
+  heldRewards = [],
+  onRedeemHeld,
+  redeemingHeldId = null,
 }: RewardsMenuProps) {
   const { t } = useTranslation("points");
   const { theme } = useTheme();
@@ -42,7 +54,7 @@ export function RewardsMenu({
     () => [...rewards].sort((a, b) => a.threshold - b.threshold),
     [rewards]
   );
-  const busy = redeemingRewardId != null;
+  const busy = redeemingRewardId != null || redeemingHeldId != null;
 
   const styles = useMemo(() => {
     // Pale brand-tint badge, but with a contrast-safe label: raw `theme.primary`
@@ -105,6 +117,7 @@ export function RewardsMenu({
           alignItems: "center",
         },
         redeemText: { color: theme.primaryText, fontWeight: "700", fontSize: 14 },
+        heldSection: { marginBottom: 20 },
       });
   }, [theme, windowHeight, insets.bottom]);
 
@@ -117,6 +130,18 @@ export function RewardsMenu({
         </View>
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* What the customer HAS, before what they could buy. These are not
+            affordability-gated — a granted cake is theirs at any balance. */}
+        {heldRewards.length > 0 && onRedeemHeld && (
+          <View style={styles.heldSection}>
+            <HeldRewardsList
+              rewards={heldRewards}
+              onRedeem={onRedeemHeld}
+              redeemingId={redeemingHeldId}
+              namespace="points"
+            />
+          </View>
+        )}
         {sorted.map((reward, index) => {
           const affordable = balance >= reward.threshold;
           const isRedeeming = redeemingRewardId === reward.id;

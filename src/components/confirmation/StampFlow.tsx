@@ -12,7 +12,8 @@ import { useTheme } from "@/contexts/theme-context";
 import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
-import type { Customer, StampResponse } from "@/types/api";
+import { HeldRewardsList } from "@/components/confirmation/HeldRewardsList";
+import type { BankedReward, Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
@@ -51,6 +52,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   const [stamping, setStamping] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  // Which held reward is mid-redeem, so only that row shows a spinner.
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPausedError, setIsPausedError] = useState(false);
   const [success, setSuccess] = useState<StampResponse | null>(null);
@@ -77,7 +80,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const totalStamps = customer.total_stamps ?? design?.total_stamps ?? 10;
   const stackable = customer.stackable_rewards ?? false;
   const maxStack = customer.max_stacked_rewards ?? null;
-  const rewards = customer.rewards ?? 0;
+  // Reward INSTANCES the customer holds (STA-264). The scalar `rewards` count
+  // stays as the fallback for backends that predate the snapshot field.
+  const heldRewards: BankedReward[] = customer.program?.banked_rewards ?? [];
+  const rewards = heldRewards.length || (customer.rewards ?? 0);
   const currentStamps = customer.stamps || 0;
   const cardFull = currentStamps >= totalStamps;
   // Blocked at the stack cap: behaves exactly like the classic full card.
@@ -233,12 +239,21 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     setCapError(null);
   }
 
-  async function handleRedeemReward() {
+  async function handleRedeemReward(instance?: BankedReward) {
     if (redeeming) return;
     try {
       setRedeeming(true);
+      setRedeemingId(instance?.id ?? null);
       setError(null);
-      const result = await redeemReward(businessId, enrollmentId, selectedLocation?.id);
+      // Naming the instance is what lets a granted item be redeemed at all —
+      // a gift sits on no ladder, so there is no reward_id to send instead.
+      const result = await redeemReward(
+        businessId,
+        enrollmentId,
+        selectedLocation?.id,
+        null,
+        instance?.id ?? null
+      );
       // Banked redemptions keep stamp progress; only the classic full-card
       // redemption resets to 0. Trust the server's response either way.
       setCustomer((prev) =>
@@ -262,6 +277,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setRedeeming(false);
+      setRedeemingId(null);
     }
   }
 
@@ -412,7 +428,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     <PressableScale
       style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
       haptic="medium"
-      onPress={handleRedeemReward}
+      onPress={() => handleRedeemReward()}
       disabled={redeeming || alsoDisabled}
     >
       {redeeming ? (
@@ -718,7 +734,19 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             )}
           </PressableScale>
 
-          {hasBankedRewards && renderRedeemButton(stamping)}
+          {/* Named rewards the customer holds, one row each so the employee
+              hands over the right thing. Falls back to the single generic
+              redeem CTA when the backend sent no instance list (older API). */}
+          {hasBankedRewards &&
+            (heldRewards.length > 0 ? (
+              <HeldRewardsList
+                rewards={heldRewards}
+                onRedeem={handleRedeemReward}
+                redeemingId={redeemingId}
+              />
+            ) : (
+              renderRedeemButton(stamping)
+            ))}
 
           <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
             <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
