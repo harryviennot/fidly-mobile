@@ -47,7 +47,11 @@
     "goHome": "Go Home",
     "programNowPoints": "This program switched to points. Scan the card again to enter the amount.",
     "billingRequired": "This business's subscription is paused. The owner needs to update the payment method before you can scan.",
-    "accessDenied": "You do not have access to this business. Ask the owner to check your invitation."
+    "accessDenied": "You do not have access to this business. Ask the owner to check your invitation.",
+    "rewardUnavailable": "That reward is no longer available. It may have expired or already been used.",
+    "notEligible": "This customer doesn't have a reward to claim yet.",
+    "cardNotRecognised": "This card isn't recognised. Ask the customer to open it in their wallet, then scan again.",
+    "unauthorized": "Your session has expired. Sign in again to keep scanning."
   },
   "rewardsBadge_one": "1 reward to redeem",
   "rewardsBadge_few": "{{count}} rewards to redeem",
@@ -71,5 +75,16 @@
     "partialTitle": "Limit reached",
     "partialDay": "{{added}} of {{requested}} added. That is all this customer can collect today.",
     "partialWeek": "{{added}} of {{requested}} added. That is all this customer can collect this week."
+  },
+  "heldRewards": {
+    "title": "Rewards to redeem",
+    "expiresToday": "Expires today",
+    "expiresIn_one": "Expires in 1 day",
+    "expiresIn_few": "Expires in {{count}} days",
+    "expiresIn_many": "Expires in {{count}} days",
+    "expiresIn_other": "Expires in {{count}} days",
+    "expired": "Expired",
+    "gift": "Gift",
+    "redeem": "Redeem"
   }
 }

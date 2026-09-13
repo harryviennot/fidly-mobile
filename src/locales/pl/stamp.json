@@ -47,7 +47,11 @@
     "goHome": "Ekran główny",
     "programNowPoints": "Ten program działa teraz na punktach. Zeskanuj kartę ponownie, żeby wpisać kwotę.",
     "billingRequired": "Subskrypcja tej firmy jest wstrzymana. Właściciel musi zaktualizować metodę płatności, zanim znów zaczniesz skanować.",
-    "accessDenied": "Nie masz dostępu do tej firmy. Poproś właściciela o sprawdzenie zaproszenia."
+    "accessDenied": "Nie masz dostępu do tej firmy. Poproś właściciela o sprawdzenie zaproszenia.",
+    "rewardUnavailable": "Ta nagroda nie jest już dostępna. Mogła wygasnąć albo zostać już wykorzystana.",
+    "notEligible": "Ten klient nie ma jeszcze nagrody do odebrania.",
+    "cardNotRecognised": "Nie rozpoznajemy tej karty. Poproś o otwarcie karty w portfelu i zeskanuj ponownie.",
+    "unauthorized": "Twoja sesja wygasła. Zaloguj się ponownie, aby dalej skanować."
   },
   "rewardsBadge_one": "1 nagroda do odebrania",
   "rewardsBadge_few": "{{count}} nagrody do odebrania",
@@ -71,5 +75,16 @@
     "partialTitle": "Limit osiągnięty",
     "partialDay": "Dodano {{added}} z {{requested}}. Tyle ten klient może dziś zebrać.",
     "partialWeek": "Dodano {{added}} z {{requested}}. Tyle ten klient może zebrać w tym tygodniu."
+  },
+  "heldRewards": {
+    "title": "Nagrody do odebrania",
+    "expiresToday": "Wygasa dzisiaj",
+    "expiresIn_one": "Wygasa za 1 dzień",
+    "expiresIn_few": "Wygasa za {{count}} dni",
+    "expiresIn_many": "Wygasa za {{count}} dni",
+    "expiresIn_other": "Wygasa za {{count}} dnia",
+    "expired": "Wygasła",
+    "gift": "Prezent",
+    "redeem": "Odbierz"
   }
 }

@@ -17,9 +17,13 @@ import { LocationProvider } from "@/contexts/location-context";
 import { UpdateGateProvider, useUpdateGate } from "@/contexts/update-gate-context";
 import { ForceUpdateScreen } from "@/components/ForceUpdateScreen";
 import { AUTH_TRANSITION } from "@/lib/transitions";
+import { resolveSentryEnvironment } from "@/lib/sentry-environment";
 
 const sentryDsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
-const appVariant = (Constants.expoConfig?.extra?.appVariant as string) ?? "production";
+const appVariant = resolveSentryEnvironment(
+  Constants.expoConfig?.extra?.appVariant,
+  __DEV__
+);
 const release = `${Constants.expoConfig?.name ?? "stampeo-scanner"}@${Constants.expoConfig?.version ?? "0.0.0"}`;
 const tracesSampleRate = appVariant === "production" ? 0.1 : 1.0;
 

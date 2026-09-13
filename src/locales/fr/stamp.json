@@ -47,7 +47,11 @@
     "goHome": "Retour à l'accueil",
     "programNowPoints": "Ce programme est passé aux points. Scannez à nouveau la carte pour saisir le montant.",
     "billingRequired": "L'abonnement de ce commerce est en pause. Le responsable doit mettre à jour le moyen de paiement avant que vous puissiez scanner.",
-    "accessDenied": "Vous n'avez pas accès à ce commerce. Demandez au responsable de vérifier votre invitation."
+    "accessDenied": "Vous n'avez pas accès à ce commerce. Demandez au responsable de vérifier votre invitation.",
+    "rewardUnavailable": "Cette récompense n'est plus disponible. Elle a peut-être expiré ou déjà été utilisée.",
+    "notEligible": "Ce client n'a pas encore de récompense à utiliser.",
+    "cardNotRecognised": "Cette carte n'est pas reconnue. Demandez à ouvrir la carte dans le portefeuille, puis scannez à nouveau.",
+    "unauthorized": "Votre session a expiré. Reconnectez-vous pour continuer à scanner."
   },
   "rewardsBadge_one": "1 récompense à utiliser",
   "rewardsBadge_few": "{{count}} récompenses à utiliser",
@@ -71,5 +75,16 @@
     "partialTitle": "Limite atteinte",
     "partialDay": "{{added}} sur {{requested}} ajoutés. C'est tout ce que ce client peut collecter aujourd'hui.",
     "partialWeek": "{{added}} sur {{requested}} ajoutés. C'est tout ce que ce client peut collecter cette semaine."
+  },
+  "heldRewards": {
+    "title": "Récompenses à utiliser",
+    "expiresToday": "Expire aujourd'hui",
+    "expiresIn_one": "Expire dans 1 jour",
+    "expiresIn_few": "Expire dans {{count}} jours",
+    "expiresIn_many": "Expire dans {{count}} jours",
+    "expiresIn_other": "Expire dans {{count}} jours",
+    "expired": "Expirée",
+    "gift": "Cadeau",
+    "redeem": "Utiliser"
   }
 }

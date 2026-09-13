@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { blendColors } from "@/utils/colors";
+import { Check, Confetti, Gift, PauseCircle, X } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { addStamp, redeemReward } from "@/api/customers";
+import { redeemErrorKey, stampErrorKey } from "@/utils/apiErrors";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
 import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
-import type { Customer, StampResponse } from "@/types/api";
+import { HeldRewardsList } from "@/components/confirmation/HeldRewardsList";
+import type { BankedReward, Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
@@ -51,6 +55,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   const [stamping, setStamping] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  // Which held reward is mid-redeem, so only that row shows a spinner.
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPausedError, setIsPausedError] = useState(false);
   const [success, setSuccess] = useState<StampResponse | null>(null);
@@ -77,7 +83,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const totalStamps = customer.total_stamps ?? design?.total_stamps ?? 10;
   const stackable = customer.stackable_rewards ?? false;
   const maxStack = customer.max_stacked_rewards ?? null;
-  const rewards = customer.rewards ?? 0;
+  // Reward INSTANCES the customer holds (STA-264). The scalar `rewards` count
+  // stays as the fallback for backends that predate the snapshot field.
+  const heldRewards: BankedReward[] = customer.program?.banked_rewards ?? [];
+  const rewards = heldRewards.length || (customer.rewards ?? 0);
   const currentStamps = customer.stamps || 0;
   const cardFull = currentStamps >= totalStamps;
   // Blocked at the stack cap: behaves exactly like the classic full card.
@@ -202,7 +211,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         setError(t("errors.programNowPoints"));
         refreshTheme(true);
       } else {
-        setError(err instanceof Error ? err.message : t("errors.stampFailed"));
+        setError(t(stampErrorKey(err) as never));
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -233,12 +242,21 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     setCapError(null);
   }
 
-  async function handleRedeemReward() {
+  async function handleRedeemReward(instance?: BankedReward) {
     if (redeeming) return;
     try {
       setRedeeming(true);
+      setRedeemingId(instance?.id ?? null);
       setError(null);
-      const result = await redeemReward(businessId, enrollmentId, selectedLocation?.id);
+      // Naming the instance is what lets a granted item be redeemed at all —
+      // a gift sits on no ladder, so there is no reward_id to send instead.
+      const result = await redeemReward(
+        businessId,
+        enrollmentId,
+        selectedLocation?.id,
+        null,
+        instance?.id ?? null
+      );
       // Banked redemptions keep stamp progress; only the classic full-card
       // redemption resets to 0. Trust the server's response either way.
       setCustomer((prev) =>
@@ -257,11 +275,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       } else if ((err as any)?.code === "ACCESS_DENIED") {
         setError(t("errors.accessDenied"));
       } else {
-        setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
+        // NEVER `err.message`: it is the backend's English, and this screen is
+        // in front of a French or Polish counter. The code picks the copy.
+        setError(t(redeemErrorKey(err) as never));
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setRedeeming(false);
+      setRedeemingId(null);
     }
   }
 
@@ -278,7 +299,47 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     () =>
       StyleSheet.create({
         root: { flex: 1, width: "100%" },
-        topGroup: { gap: 12 },
+        screen: {
+          flex: 1,
+          width: "100%",
+          maxWidth: 480,
+          alignSelf: "center",
+          backgroundColor: theme.background,
+        },
+        scroll: { flex: 1 },
+        header: { paddingHorizontal: 20, paddingTop: 10 },
+        // Identity and the way out share one row, so the X has the avatar and
+        // the name to align to instead of hanging in empty space.
+        headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+        // Takes the slack so the name truncates before it can reach the X.
+        headerIdentity: { flex: 1, minWidth: 0 },
+        closeButton: {
+          width: 44,
+          height: 44,
+          alignItems: "center",
+          justifyContent: "center",
+          // The glyph is centred in a 44pt target, which would leave it 42pt
+          // from the screen edge while the avatar starts at 20. Pulling the
+          // target out optically lines the X up with the content edge without
+          // shrinking it.
+          marginRight: -10,
+        },
+        // Most customers hold no reward, and then there is nothing to scroll:
+        // let the card breathe in the middle of the screen. Applied to the CARD
+        // zone, not the whole header — centring the header took the customer
+        // block down with it, leaving the X aligned to nothing.
+        middleFill: { flex: 1 },
+        scrollContent: { paddingHorizontal: 20, paddingBottom: 12 },
+        actionBar: {
+          paddingHorizontal: 20,
+          paddingTop: 14,
+          paddingBottom: 8,
+          gap: 12,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: blendColors(theme.text, theme.background, 0.86),
+          backgroundColor: theme.background,
+        },
+        topGroup: { gap: 12, paddingBottom: 32 },
         chip: {
           flexDirection: "row",
           alignItems: "center",
@@ -292,7 +353,16 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         chipText: { color: "#fff", fontSize: 15, fontWeight: "700" },
         // The card sits in the flexible middle, vertically centered like the
         // points amount, so the controls below never move between screens.
-        middle: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+        // Content-sized, not flex:1 — a sticky child cannot absorb slack, and
+        // fixed generous padding reads more predictably than stretched space.
+        // Opaque, so the rewards list passes underneath rather than through.
+        middle: {
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
+          paddingVertical: 20,
+          backgroundColor: theme.background,
+        },
         countRow: { flexDirection: "row", alignItems: "flex-end" },
         countBig: { fontSize: 56, fontWeight: "700", color: theme.text, lineHeight: 60 },
         countTotal: {
@@ -304,9 +374,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         },
         // Fixed height: the pending line appears and disappears as the quantity
         // changes and must not shove the card up and down.
-        pendingRow: { height: 26, justifyContent: "center" },
-        pendingText: { fontSize: 17, fontWeight: "700", color: theme.primaryOnSurface },
-        completeText: { fontSize: 17, fontWeight: "700", color: UNLOCK_AMBER },
+        pendingRow: { height: 26, justifyContent: "center", alignItems: "center", alignSelf: "stretch" },
+        pendingText: { fontSize: 17, fontWeight: "700", color: theme.primaryOnSurface, textAlign: "center" },
+        completeText: { fontSize: 17, fontWeight: "700", color: UNLOCK_AMBER, textAlign: "center" },
         bottomGroup: { gap: 12 },
         stampButton: {
           backgroundColor: theme.primary,
@@ -331,7 +401,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           gap: 12,
         },
         redeemButtonText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
-        cancelButton: { padding: 12, alignItems: "center" },
         cancelText: { color: theme.textSecondary, fontSize: 16 },
         skipButton: { padding: 14, alignItems: "center" },
         // A scan the earning limit truncated, and the banner saying so while
@@ -412,7 +481,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     <PressableScale
       style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
       haptic="medium"
-      onPress={handleRedeemReward}
+      onPress={() => handleRedeemReward()}
       disabled={redeeming || alsoDisabled}
     >
       {redeeming ? (
@@ -650,15 +719,48 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   // Entry state: set the quantity, watch the card fill, commit in one press.
   return (
-    <ConfirmationScaffold>
-      <View style={styles.root}>
+    <SafeAreaView style={styles.screen}>
+      {/* Everything above the action bar scrolls. With five held rewards the
+          old fixed layout had nowhere to put them: `middle` collapsed to zero
+          and the stamp grid drew on top of the rewards chip. */}
+      {/* Three zones: who + progress pinned at the top, rewards scrolling in
+          the middle, stamping pinned at the bottom. Tried RN's
+          stickyHeaderIndices first — it re-positions the pinned child over the
+          list rather than at the top, so the progress row simply lives outside
+          the ScrollView instead. */}
+      {/* Leaving lives on the customer's own row. It used to be a full-width
+          "Cancel" at the foot of the action bar, which cost ~56pt of the one
+          thing this screen is short of — room for the rewards list — to say
+          what the X says in the corner. On a row of its own it had nothing to
+          align to and read as floating. */}
+      <View style={styles.header}>
         <View style={styles.topGroup}>
-          <CustomerHeader
-            name={customer.name}
-            balance={t("stampsCount", { current: currentStamps, total: totalStamps })}
-            loading={false}
-          />
-          {hasBankedRewards && (
+          <View style={styles.headerRow}>
+            {/* min-w-0 equivalent: the name truncates before it reaches the X,
+                so a long one can never push the close button off. */}
+            <View style={styles.headerIdentity}>
+              <CustomerHeader
+                name={customer.name}
+                balance={t("stampsCount", { current: currentStamps, total: totalStamps })}
+                loading={false}
+              />
+            </View>
+            <PressableScale
+              style={styles.closeButton}
+              haptic="light"
+              onPress={handleDone}
+              accessibilityRole="button"
+              accessibilityLabel={tCommon("close")}
+            >
+              <X size={22} color={theme.textSecondary} weight="bold" />
+            </PressableScale>
+          </View>
+          {/* Only when the list below CANNOT name them. A count above a list
+              that shows each reward by name, with its own deadline and its own
+              button, is the same fact written twice — and it cost a row of
+              scroll to say the weaker half. The fallback path (an API that
+              sent no instance list) has nothing but the count, so it keeps it. */}
+          {hasBankedRewards && heldRewards.length === 0 && (
             <Animated.View entering={SOFT_ENTER} style={styles.chip}>
               <Gift size={18} color="#fff" weight="fill" />
               <Text style={styles.chipText}>
@@ -667,8 +769,12 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             </Animated.View>
           )}
         </View>
+      </View>
 
-        <View style={styles.middle}>
+      {/* Outside the header so the identity row above stays pinned while THIS
+          zone is the one that absorbs slack. Centring the header as a whole
+          used to float the customer block down the screen with the card. */}
+      <View style={[styles.middle, !hasBankedRewards && styles.middleFill]}>
           <StampGrid total={totalStamps} filled={currentStamps} pending={quantity} />
           <View style={styles.pendingRow}>
             {/* Keyed so the line re-animates as the promise changes, and the
@@ -693,38 +799,54 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               <Text style={styles.inlineErrorText}>{error}</Text>
             </Animated.View>
           )}
-        </View>
-
-        <View style={styles.bottomGroup}>
-          <StampStepper
-            value={quantity}
-            max={maxQuantity}
-            onChange={setQuantity}
-            disabled={stamping || redeeming}
-          />
-
-          <PressableScale
-            style={[styles.stampButton, stamping && styles.buttonDisabled]}
-            haptic="medium"
-            onPress={() => handleAddStamp()}
-            disabled={stamping || redeeming}
-          >
-            {stamping ? (
-              <ActivityIndicator color={theme.primaryText} />
-            ) : (
-              <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
-                {t(`addStamp_${plural(quantity)}`, { count: quantity })}
-              </Animated.Text>
-            )}
-          </PressableScale>
-
-          {hasBankedRewards && renderRedeemButton(stamping)}
-
-          <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-            <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </ConfirmationScaffold>
+
+      {/* Named rewards the customer holds, one row each so the employee
+          hands over the right thing. Falls back to the single generic
+          redeem CTA when the backend sent no instance list (older API). */}
+      {hasBankedRewards && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {heldRewards.length > 0 ? (
+            <HeldRewardsList
+              rewards={heldRewards}
+              onRedeem={handleRedeemReward}
+              redeemingId={redeemingId}
+            />
+          ) : (
+            renderRedeemButton(stamping)
+          )}
+        </ScrollView>
+      )}
+
+      {/* Stamping is the reason this screen exists, so it stays put at the
+          bottom no matter how many rewards are listed above it. */}
+      <View style={styles.actionBar}>
+        <StampStepper
+          value={quantity}
+          max={maxQuantity}
+          onChange={setQuantity}
+          disabled={stamping || redeeming}
+        />
+
+        <PressableScale
+          style={[styles.stampButton, stamping && styles.buttonDisabled]}
+          haptic="medium"
+          onPress={() => handleAddStamp()}
+          disabled={stamping || redeeming}
+        >
+          {stamping ? (
+            <ActivityIndicator color={theme.primaryText} />
+          ) : (
+            <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
+              {t(`addStamp_${plural(quantity)}`, { count: quantity })}
+            </Animated.Text>
+          )}
+        </PressableScale>
+      </View>
+    </SafeAreaView>
   );
 }
