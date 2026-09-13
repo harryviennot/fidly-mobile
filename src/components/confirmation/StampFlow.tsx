@@ -5,9 +5,10 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { blendColors } from "@/utils/colors";
-import { Confetti, Check, Gift, PauseCircle } from "phosphor-react-native";
+import { Check, Confetti, Gift, PauseCircle, X } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { addStamp, redeemReward } from "@/api/customers";
+import { redeemErrorKey, stampErrorKey } from "@/utils/apiErrors";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -210,7 +211,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         setError(t("errors.programNowPoints"));
         refreshTheme(true);
       } else {
-        setError(err instanceof Error ? err.message : t("errors.stampFailed"));
+        setError(t(stampErrorKey(err) as never));
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -274,7 +275,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       } else if ((err as any)?.code === "ACCESS_DENIED") {
         setError(t("errors.accessDenied"));
       } else {
-        setError(err instanceof Error ? err.message : t("errors.redeemFailed"));
+        // NEVER `err.message`: it is the backend's English, and this screen is
+        // in front of a French or Polish counter. The code picks the copy.
+        setError(t(redeemErrorKey(err) as never));
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -304,10 +307,28 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           backgroundColor: theme.background,
         },
         scroll: { flex: 1 },
-        header: { paddingHorizontal: 20, paddingTop: 20 },
+        header: { paddingHorizontal: 20, paddingTop: 10 },
+        // Identity and the way out share one row, so the X has the avatar and
+        // the name to align to instead of hanging in empty space.
+        headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+        // Takes the slack so the name truncates before it can reach the X.
+        headerIdentity: { flex: 1, minWidth: 0 },
+        closeButton: {
+          width: 44,
+          height: 44,
+          alignItems: "center",
+          justifyContent: "center",
+          // The glyph is centred in a 44pt target, which would leave it 42pt
+          // from the screen edge while the avatar starts at 20. Pulling the
+          // target out optically lines the X up with the content edge without
+          // shrinking it.
+          marginRight: -10,
+        },
         // Most customers hold no reward, and then there is nothing to scroll:
-        // let the card breathe in the middle of the screen as it used to.
-        headerCentred: { flex: 1, justifyContent: "center" },
+        // let the card breathe in the middle of the screen. Applied to the CARD
+        // zone, not the whole header — centring the header took the customer
+        // block down with it, leaving the X aligned to nothing.
+        middleFill: { flex: 1 },
         scrollContent: { paddingHorizontal: 20, paddingBottom: 12 },
         actionBar: {
           paddingHorizontal: 20,
@@ -380,7 +401,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           gap: 12,
         },
         redeemButtonText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
-        cancelButton: { padding: 12, alignItems: "center" },
         cancelText: { color: theme.textSecondary, fontSize: 16 },
         skipButton: { padding: 14, alignItems: "center" },
         // A scan the earning limit truncated, and the banner saying so while
@@ -708,14 +728,39 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           stickyHeaderIndices first — it re-positions the pinned child over the
           list rather than at the top, so the progress row simply lives outside
           the ScrollView instead. */}
-      <View style={[styles.header, !hasBankedRewards && styles.headerCentred]}>
+      {/* Leaving lives on the customer's own row. It used to be a full-width
+          "Cancel" at the foot of the action bar, which cost ~56pt of the one
+          thing this screen is short of — room for the rewards list — to say
+          what the X says in the corner. On a row of its own it had nothing to
+          align to and read as floating. */}
+      <View style={styles.header}>
         <View style={styles.topGroup}>
-          <CustomerHeader
-            name={customer.name}
-            balance={t("stampsCount", { current: currentStamps, total: totalStamps })}
-            loading={false}
-          />
-          {hasBankedRewards && (
+          <View style={styles.headerRow}>
+            {/* min-w-0 equivalent: the name truncates before it reaches the X,
+                so a long one can never push the close button off. */}
+            <View style={styles.headerIdentity}>
+              <CustomerHeader
+                name={customer.name}
+                balance={t("stampsCount", { current: currentStamps, total: totalStamps })}
+                loading={false}
+              />
+            </View>
+            <PressableScale
+              style={styles.closeButton}
+              haptic="light"
+              onPress={handleDone}
+              accessibilityRole="button"
+              accessibilityLabel={tCommon("close")}
+            >
+              <X size={22} color={theme.textSecondary} weight="bold" />
+            </PressableScale>
+          </View>
+          {/* Only when the list below CANNOT name them. A count above a list
+              that shows each reward by name, with its own deadline and its own
+              button, is the same fact written twice — and it cost a row of
+              scroll to say the weaker half. The fallback path (an API that
+              sent no instance list) has nothing but the count, so it keeps it. */}
+          {hasBankedRewards && heldRewards.length === 0 && (
             <Animated.View entering={SOFT_ENTER} style={styles.chip}>
               <Gift size={18} color="#fff" weight="fill" />
               <Text style={styles.chipText}>
@@ -724,8 +769,12 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             </Animated.View>
           )}
         </View>
+      </View>
 
-        <View style={styles.middle}>
+      {/* Outside the header so the identity row above stays pinned while THIS
+          zone is the one that absorbs slack. Centring the header as a whole
+          used to float the customer block down the screen with the card. */}
+      <View style={[styles.middle, !hasBankedRewards && styles.middleFill]}>
           <StampGrid total={totalStamps} filled={currentStamps} pending={quantity} />
           <View style={styles.pendingRow}>
             {/* Keyed so the line re-animates as the promise changes, and the
@@ -750,7 +799,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               <Text style={styles.inlineErrorText}>{error}</Text>
             </Animated.View>
           )}
-        </View>
       </View>
 
       {/* Named rewards the customer holds, one row each so the employee
@@ -798,10 +846,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             </Animated.Text>
           )}
         </PressableScale>
-
-        <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
-          <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

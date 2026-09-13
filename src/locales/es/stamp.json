@@ -47,7 +47,11 @@
     "goHome": "Volver al inicio",
     "programNowPoints": "Este programa ahora funciona con puntos. Vuelve a escanear la tarjeta para introducir el importe.",
     "billingRequired": "La suscripción de este comercio está en pausa. El responsable tiene que actualizar el método de pago antes de que puedas escanear.",
-    "accessDenied": "No tienes acceso a este comercio. Pide al responsable que revise tu invitación."
+    "accessDenied": "No tienes acceso a este comercio. Pide al responsable que revise tu invitación.",
+    "rewardUnavailable": "Esta recompensa ya no está disponible. Puede que haya caducado o que ya se haya canjeado.",
+    "notEligible": "Este cliente todavía no tiene ninguna recompensa que canjear.",
+    "cardNotRecognised": "No reconocemos esta tarjeta. Pide que se abra en la cartera y vuelve a escanear.",
+    "unauthorized": "Tu sesión ha caducado. Inicia sesión de nuevo para seguir escaneando."
   },
   "rewardsBadge_one": "1 recompensa por canjear",
   "rewardsBadge_few": "{{count}} recompensas por canjear",

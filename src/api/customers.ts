@@ -1,5 +1,20 @@
 import { apiFetch, getAuthHeaders, API_BASE_URL } from "./client";
+import { ApiError, toApiError } from "./errors";
 import type { Customer, StampResponse } from "../types/api";
+
+/**
+ * Throw a CODE, never a sentence.
+ *
+ * Every string thrown from this file used to be English, and the screens
+ * rendered `err.message` straight into the banner — so a French counter got
+ * "Failed to redeem reward". Message and code are the same token here, so even
+ * a careless render shows something obviously untranslated rather than
+ * plausible English. See utils/apiErrors for the code -> copy mapping.
+ */
+function coded(code: string, status: number): ApiError {
+  return new ApiError(code, status, code);
+}
+
 
 export async function getCustomer(businessId: string, customerId: string): Promise<Customer> {
   return apiFetch<Customer>(`/customers/${businessId}/${customerId}`);
@@ -36,7 +51,7 @@ export async function addStamp(
 
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error("Not authorized to add stamps");
+      throw coded("UNAUTHORIZED", 401);
     }
     const body = await response.json().catch(() => ({}));
     const code: string | undefined = body?.detail?.code;
@@ -70,9 +85,9 @@ export async function addStamp(
       throw err;
     }
     if (response.status === 404) {
-      throw new Error("Enrollment not found");
+      throw coded("ENROLLMENT_NOT_FOUND", 404);
     }
-    throw new Error("Failed to add stamp");
+    throw coded("STAMP_FAILED", response.status);
   }
 
   return response.json();
@@ -111,7 +126,7 @@ export async function redeemReward(
 
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error("Not authorized to redeem rewards");
+      throw coded("UNAUTHORIZED", 401);
     }
     // Card-upfront checkout gate (402) and billing pause (403): re-raise so the
     // screen can explain what the owner needs to do.
@@ -134,13 +149,22 @@ export async function redeemReward(
       }
     }
     if (response.status === 404) {
-      throw new Error("Enrollment not found");
+      throw coded("ENROLLMENT_NOT_FOUND", 404);
     }
     if (response.status === 400) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || "Customer not ready for reward");
+      const body = await response.json().catch(() => ({}));
+      // The backend answers a refused redemption with {code, message}. This
+      // used to do `new Error(error.detail)` on that object, which renders as
+      // "[object Object]" — and before that it never got here at all, because
+      // the route 500ed on a missing import. Both are why an expired reward
+      // showed a generic red banner instead of saying it had expired.
+      const err = toApiError(body, 400, "NOT_ELIGIBLE");
+      // The only plain-string 400 this route raises is "Not eligible for
+      // redemption", which arrives with no code. Give it one so the screen can
+      // say something better than "it failed".
+      throw err.code ? err : coded("NOT_ELIGIBLE", 400);
     }
-    throw new Error("Failed to redeem reward");
+    throw coded("REDEEM_FAILED", response.status);
   }
 
   return response.json();

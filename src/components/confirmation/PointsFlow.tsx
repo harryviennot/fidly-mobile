@@ -7,6 +7,7 @@ import { CaretRight, Check, Confetti, Gift, PauseCircle } from "phosphor-react-n
 import * as Haptics from "expo-haptics";
 import { addPoints } from "@/api/points";
 import { redeemReward } from "@/api/customers";
+import { redeemErrorKey } from "@/utils/apiErrors";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -188,7 +189,12 @@ export function PointsFlow({
     } else if (code === "LOCATION_REQUIRED" || code === "LOCATION_NOT_FOUND") {
       setError(tLocation("errors.locationRequired"));
     } else {
-      setError(err instanceof Error && err.message ? err.message : t(fallbackKey));
+      // Never the server's own words — see StampFlow. An unmapped code falls
+      // through to this screen's own fallback.
+      const mapped = redeemErrorKey(err);
+      setError(
+        mapped === "errors.redeemFailed" ? t(fallbackKey) : tStamp(mapped as never)
+      );
     }
   }
 

@@ -6,7 +6,12 @@ import { Gift, Clock } from "phosphor-react-native";
 import { useTheme } from "@/contexts/theme-context";
 import { PressableScale } from "@/components/PressableScale";
 import { blendColors } from "@/utils/colors";
-import { expiresSoon, formatExpiry, sortBankedRewards } from "@/utils/rewardInstances";
+import {
+  expiresSoon,
+  formatExpiry,
+  groupBankedRewards,
+  sortBankedRewards,
+} from "@/utils/rewardInstances";
 import { selectPluralForm } from "@/utils/plural";
 import type { BankedReward } from "@/types/api";
 
@@ -53,7 +58,13 @@ export function HeldRewardsList({
 }: HeldRewardsListProps) {
   const { t, i18n } = useTranslation(namespace);
   const { theme } = useTheme();
-  const sorted = useMemo(() => sortBankedRewards(rewards), [rewards]);
+  // Sorted into drain order, then collapsed: six of the same reward is one
+  // fact, and six rows of it pushed the stamp buttons off the screen. The
+  // dashboard already groups; the counter should not disagree with it.
+  const groups = useMemo(
+    () => groupBankedRewards(sortBankedRewards(rewards)),
+    [rewards]
+  );
   const busy = redeemingId != null;
 
   const styles = useMemo(() => {
@@ -88,7 +99,7 @@ export function HeldRewardsList({
       // Fills the row so the expiry line sits under the name rather than
       // beside it; a long reward name must wrap, not push the CTA off-screen.
       body: { flex: 1, gap: 2 },
-      name: { fontSize: 16, fontWeight: "600", color: theme.text },
+      name: { fontSize: 16, fontWeight: "600", color: theme.text, flexShrink: 1 },
       meta: { flexDirection: "row", alignItems: "center", gap: 4 },
       metaText: { fontSize: 13, color: theme.textSecondary },
       metaUrgent: { color: URGENT_COLOR, fontWeight: "600" },
@@ -105,32 +116,53 @@ export function HeldRewardsList({
         justifyContent: "center",
       },
       ctaText: { fontSize: 14, fontWeight: "700", color: theme.primaryText },
+      nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+      countBadge: {
+        backgroundColor: theme.primary,
+        borderRadius: 999,
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+      },
+      countBadgeText: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: theme.primaryText,
+        fontVariant: ["tabular-nums"],
+      },
     });
   }, [theme]);
 
-  if (sorted.length === 0) return null;
+  if (groups.length === 0) return null;
 
   return (
     <View style={styles.section}>
       {/* Same cast the plural lookup below uses: the key is chosen by the
           caller, so it cannot be checked against the literal key union. */}
       <Text style={styles.title}>{(t as (k: string) => string)(titleKey)}</Text>
-      {sorted.map((reward) => {
+      {groups.map((group) => {
+        const reward = group.first;
         const expiry = formatExpiry(reward);
         const urgent = expiresSoon(reward);
         const isRedeeming = redeemingId === reward.id;
         return (
           <View
-            key={reward.id}
+            key={group.key}
             style={[styles.row, busy && !isRedeeming && styles.rowDisabled]}
           >
             <View style={styles.icon}>
               <Gift size={22} color={theme.primaryText} weight="fill" />
             </View>
             <View style={styles.body}>
-              <Text style={styles.name} numberOfLines={2}>
-                {reward.name}
-              </Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.name} numberOfLines={2}>
+                  {reward.name}
+                </Text>
+                {group.count > 1 && (
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{`\u00d7${group.count}`}</Text>
+                  </View>
+                )}
+              </View>
               {expiry && (
                 <View style={styles.meta}>
                   <Clock
