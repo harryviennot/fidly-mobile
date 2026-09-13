@@ -645,6 +645,11 @@ export function PointsFlow({
           </Animated.View>
         </View>
 
+        {/* Held rewards belong here as much as on the entry screen: canRedeem
+            above is true when the customer holds one even if nothing on the
+            ladder is affordable, so without these the "Redeem now" they just
+            tapped opens a sheet of locked prices and no way to hand over the
+            reward the customer is visibly holding. */}
         <RewardsMenu
           visible={rewardsMenuOpen}
           onClose={() => setRewardsMenuOpen(false)}
@@ -652,6 +657,9 @@ export function PointsFlow({
           balance={after}
           onRedeem={handleRedeem}
           redeemingRewardId={redeemingRewardId}
+          heldRewards={heldRewards}
+          onRedeemHeld={handleRedeemHeld}
+          redeemingHeldId={redeemingHeldId}
         />
       </ConfirmationScaffold>
     );
