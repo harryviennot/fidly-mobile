@@ -7,10 +7,11 @@ import { CaretRight, Check, Confetti, Gift, PauseCircle } from "phosphor-react-n
 import * as Haptics from "expo-haptics";
 import { addPoints } from "@/api/points";
 import { redeemReward } from "@/api/customers";
+import { redeemErrorKey } from "@/utils/apiErrors";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
-import type { Customer, ProgramReward, StampResponse } from "@/types/api";
+import type { BankedReward, Customer, ProgramReward, StampResponse } from "@/types/api";
 import {
   applyKeypadInput,
   getCurrencySymbol,
@@ -78,6 +79,8 @@ export function PointsFlow({
   const [amount, setAmount] = useState("");
   const [adding, setAdding] = useState(false);
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
+  // Which HELD reward is mid-redeem (separate from the menu spinner).
+  const [redeemingHeldId, setRedeemingHeldId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPausedError, setIsPausedError] = useState(false);
   const [addResult, setAddResult] = useState<StampResponse | null>(null);
@@ -89,6 +92,11 @@ export function PointsFlow({
 
   const program = customer?.program ?? null;
   const ladder = useMemo(() => program?.rewards ?? [], [program]);
+  // Rewards already earned or gifted, claimable regardless of balance.
+  const heldRewards: BankedReward[] = useMemo(
+    () => program?.banked_rewards ?? [],
+    [program]
+  );
   const rate = program?.points_per_currency_unit ?? fallbackRate ?? null;
   const separator = getDecimalSeparator();
   const currency = getCurrencySymbol();
@@ -104,7 +112,10 @@ export function PointsFlow({
   // Live balance: after an action use its result, else the snapshot.
   const balance = redeemResult ? valueOf(redeemResult) : addResult ? valueOf(addResult) : program?.primary_value ?? 0;
   const affordableCount = ladder.filter((r) => r.threshold <= balance).length;
-  const rewardReady = affordableCount > 0;
+  // A held reward makes the menu worth opening even at a zero balance: the
+  // customer owns it outright, so affordability has nothing to say about it.
+  const redeemableCount = affordableCount + heldRewards.length;
+  const rewardReady = redeemableCount > 0;
 
   // The add CTA fades between enabled/disabled instead of jumping. Gated on
   // the customer snapshot having arrived: the keypad opens optimistically from
@@ -178,7 +189,12 @@ export function PointsFlow({
     } else if (code === "LOCATION_REQUIRED" || code === "LOCATION_NOT_FOUND") {
       setError(tLocation("errors.locationRequired"));
     } else {
-      setError(err instanceof Error && err.message ? err.message : t(fallbackKey));
+      // Never the server's own words — see StampFlow. An unmapped code falls
+      // through to this screen's own fallback.
+      const mapped = redeemErrorKey(err);
+      setError(
+        mapped === "errors.redeemFailed" ? t(fallbackKey) : tStamp(mapped as never)
+      );
     }
   }
 
@@ -262,6 +278,40 @@ export function PointsFlow({
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setRedeemingRewardId(null);
+    }
+  }
+
+  /**
+   * Redeem one reward the customer already HOLDS.
+   *
+   * Distinct from handleRedeem above: that one buys off the menu and debits
+   * the balance, this one consumes a reward they were already given, so the
+   * balance is untouched and no ladder reward is involved.
+   */
+  async function handleRedeemHeld(instance: BankedReward) {
+    if (redeemingRewardId || redeemingHeldId) return;
+    try {
+      setRedeemingHeldId(instance.id);
+      setError(null);
+      setBalanceBeforeRedeem(balance);
+      setRedeemedRewardName(instance.name);
+      const result = await redeemReward(
+        businessId,
+        enrollmentId,
+        selectedLocation?.id,
+        null,
+        instance.id
+      );
+      setRedeemResult(result);
+      setRewardsMenuOpen(false);
+      syncBalance(valueOf(result));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      setRewardsMenuOpen(false);
+      mapActionError(err, "errors.redeemFailed");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setRedeemingHeldId(null);
     }
   }
 
@@ -504,7 +554,7 @@ export function PointsFlow({
     const after = valueOf(addResult);
     const earned = Math.max(0, after - balanceBeforeAdd);
     const justCrossed = ladder.some((r) => balanceBeforeAdd < r.threshold && r.threshold <= after);
-    const canRedeem = ladder.some((r) => r.threshold <= after);
+    const canRedeem = ladder.some((r) => r.threshold <= after) || heldRewards.length > 0;
     const next = nextReward(ladder, after);
     return (
       <ConfirmationScaffold>
@@ -595,6 +645,11 @@ export function PointsFlow({
           </Animated.View>
         </View>
 
+        {/* Held rewards belong here as much as on the entry screen: canRedeem
+            above is true when the customer holds one even if nothing on the
+            ladder is affordable, so without these the "Redeem now" they just
+            tapped opens a sheet of locked prices and no way to hand over the
+            reward the customer is visibly holding. */}
         <RewardsMenu
           visible={rewardsMenuOpen}
           onClose={() => setRewardsMenuOpen(false)}
@@ -602,6 +657,9 @@ export function PointsFlow({
           balance={after}
           onRedeem={handleRedeem}
           redeemingRewardId={redeemingRewardId}
+          heldRewards={heldRewards}
+          onRedeemHeld={handleRedeemHeld}
+          redeemingHeldId={redeemingHeldId}
         />
       </ConfirmationScaffold>
     );
@@ -633,8 +691,8 @@ export function PointsFlow({
               >
                 <Gift size={18} color={theme.primaryText} weight="fill" />
                 <Text style={styles.chipText}>
-                  {t(`rewardsAvailable_${selectPluralForm(i18n.language, affordableCount)}`, {
-                    count: affordableCount,
+                  {t(`rewardsAvailable_${selectPluralForm(i18n.language, redeemableCount)}`, {
+                    count: redeemableCount,
                   })}
                 </Text>
                 <CaretRight size={16} color={theme.primaryText} weight="bold" />
@@ -715,6 +773,9 @@ export function PointsFlow({
         balance={balance}
         onRedeem={handleRedeem}
         redeemingRewardId={redeemingRewardId}
+        heldRewards={heldRewards}
+        onRedeemHeld={handleRedeemHeld}
+        redeemingHeldId={redeemingHeldId}
       />
     </ConfirmationScaffold>
   );

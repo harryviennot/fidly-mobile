@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { loadErrorKey } from "@/utils/apiErrors";
 import { useLocalSearchParams, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { WarningCircle } from "phosphor-react-native";
@@ -48,7 +49,9 @@ export default function StampScreen() {
       const data = await getCustomer(currentBusiness.id, id);
       setCustomer(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadFailed"));
+      // The backend's 404 detail is the English "Customer not found"; rendering
+      // it put an English banner on a French screen. Map the code instead.
+      setError(t(loadErrorKey(err) as never));
     } finally {
       setLoading(false);
     }

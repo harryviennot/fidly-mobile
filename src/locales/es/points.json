@@ -40,5 +40,18 @@
     "upcoming": "Bonus desde {{amount}}{{currency}}",
     "active": "Bonus activo: +{{count}} pts",
     "successNote": "{{base}} pts + {{bonus}} de bonus"
-  }
+  },
+  "heldRewards": {
+    "title": "Recompensas por canjear",
+    "expiresToday": "Caduca hoy",
+    "expiresIn_one": "Caduca en 1 día",
+    "expiresIn_few": "Caduca en {{count}} días",
+    "expiresIn_many": "Caduca en {{count}} días",
+    "expiresIn_other": "Caduca en {{count}} días",
+    "expired": "Caducada",
+    "gift": "Regalo",
+    "redeem": "Canjear",
+    "groupTitle": "Ya conseguidas"
+  },
+  "ladderTitle": "Con puntos"
 }

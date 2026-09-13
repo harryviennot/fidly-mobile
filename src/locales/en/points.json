@@ -40,5 +40,18 @@
     "upcoming": "Boost from {{amount}}{{currency}}",
     "active": "Boost on: +{{count}} pts",
     "successNote": "{{base}} pts + {{bonus}} boost"
-  }
+  },
+  "heldRewards": {
+    "title": "Rewards to redeem",
+    "expiresToday": "Expires today",
+    "expiresIn_one": "Expires in 1 day",
+    "expiresIn_few": "Expires in {{count}} days",
+    "expiresIn_many": "Expires in {{count}} days",
+    "expiresIn_other": "Expires in {{count}} days",
+    "expired": "Expired",
+    "gift": "Gift",
+    "redeem": "Redeem",
+    "groupTitle": "Already earned"
+  },
+  "ladderTitle": "With points"
 }

@@ -2,6 +2,7 @@
   "loading": "Cargando...",
   "error": "Error",
   "cancel": "Cancelar",
+  "close": "Cerrar",
   "retry": "Reintentar",
   "goBack": "Volver",
   "goHome": "Inicio",
