@@ -69,9 +69,16 @@ export function StatusScreen({
           fontSize: 16,
           fontWeight: "600",
         },
+        // 12pt of padding around a 16pt line lands at ~43pt, a hair under the
+        // 44pt floor. This slot now carries Retry on the scan load-error
+        // screen, which is a button pressed one-handed across a counter.
         secondaryButton: {
           marginTop: 16,
-          padding: 12,
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          minHeight: 44,
+          alignItems: "center",
+          justifyContent: "center",
         },
         secondaryText: {
           color: theme.textSecondary,

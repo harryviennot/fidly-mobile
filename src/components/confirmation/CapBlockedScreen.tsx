@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Prohibit } from "phosphor-react-native";
 import { useAlert } from "@/contexts/alert-context";
 import { useBusiness } from "@/contexts/business-context";
+import { useLockedDim } from "@/hooks/use-locked-dim";
 import type { EarningCapSnapshot } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -56,6 +57,8 @@ export function CapBlockedScreen({
   const { t } = useTranslation("stamp");
   const { currentMembership } = useBusiness();
   const { alert } = useAlert();
+  // Same rule as the flows: a control locked by a request in flight says so.
+  const lockedDim = useLockedDim(overriding);
 
   const isDay = cap.scope === "day";
   const role = currentMembership?.role;
@@ -125,7 +128,11 @@ export function CapBlockedScreen({
           {/* The way out is the safe answer, so it gets a real button rather
               than a grey line of text — especially now that "Add anyway"
               commits the scan on the spot. */}
-          <PressableScale style={styles.doneButton} onPress={onDone} disabled={overriding}>
+          <PressableScale
+            style={[styles.doneButton, lockedDim]}
+            onPress={onDone}
+            disabled={overriding}
+          >
             <Text style={styles.doneText}>{t("cap.done")}</Text>
           </PressableScale>
         </Animated.View>

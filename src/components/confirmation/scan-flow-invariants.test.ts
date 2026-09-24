@@ -27,6 +27,9 @@ const FLOWS = ["StampFlow.tsx", "PointsFlow.tsx"];
 const SOURCES: Record<string, string> = {
   ...Object.fromEntries(FLOWS.map((f) => [f, readFileSync(join(HERE, f), "utf8")])),
   "RewardsMenu.tsx": readFileSync(join(HERE, "RewardsMenu.tsx"), "utf8"),
+  "StampStepper.tsx": readFileSync(join(HERE, "StampStepper.tsx"), "utf8"),
+  "CapBlockedScreen.tsx": readFileSync(join(HERE, "CapBlockedScreen.tsx"), "utf8"),
+  "Keypad.tsx": readFileSync(join(HERE, "../Keypad.tsx"), "utf8"),
   route: readFileSync(ROUTE, "utf8"),
 };
 
@@ -97,13 +100,45 @@ describe("the ways out are locked while a request is in flight", () => {
   test.each([
     ["StampFlow.tsx", "styles.closeButton"],
     ["PointsFlow.tsx", "styles.cancelButton"],
-    ["PointsFlow.tsx", "styles.chip, inFlight"],
+    ["PointsFlow.tsx", "styles.chip, lockedDim"],
   ])("%s: the control at %s is disabled AND dimmed", (file, marker) => {
     const tag = openingTagAround(SOURCES[file], marker);
     expect(tag).toContain("disabled={inFlight}");
     // Dimmed, not hidden: a control that vanishes mid-request rearranges the
     // screen under the employee's thumb.
-    expect(tag).toContain("lockedExit");
+    expect(tag).toContain("lockedDim");
+  });
+
+  test.each([
+    ["StampStepper.tsx", "styles.row, lockedDim"],
+    ["Keypad.tsx", "styles.grid, lockedDim"],
+    ["CapBlockedScreen.tsx", "styles.doneButton, lockedDim"],
+  ])("%s dims itself while it is locked", (file, marker) => {
+    // These three are `disabled` by a prop, and `Pressable disabled` also
+    // kills the press-scale and the haptic — so without the dim they are
+    // completely inert while looking completely live, for as long as a write
+    // plus its reconcile takes.
+    expect(() => openingTagAround(SOURCES[file], marker)).not.toThrow();
+  });
+
+  test.each(["StampStepper.tsx", "Keypad.tsx", "CapBlockedScreen.tsx"])(
+    "%s drives its dim from the shared rule",
+    (file) => {
+      // One rule for all six locked controls. Three of them dimmed and two
+      // did not, at a value picked separately from the rest of the app, which
+      // is what a hand-rolled opacity per control buys you.
+      expect(SOURCES[file]).toContain("useLockedDim(");
+    }
+  );
+
+  test("the locked value is defined once, and matches the app's own", () => {
+    // 0.35 on secondary-colour text read as nearly invisible rather than as
+    // disabled; 0.5 is what HeldRewardsList's disabled row already uses.
+    const hook = readFileSync(join(HERE, "../../hooks/use-locked-dim.ts"), "utf8");
+    expect(hook).toMatch(/LOCKED_OPACITY\s*=\s*0\.5/);
+    for (const file of [...FLOWS, "StampStepper.tsx", "Keypad.tsx"]) {
+      expect(SOURCES[file]).not.toContain("lockedExit");
+    }
   });
 
   test.each(FLOWS)("%s publishes the in-flight signal to the route", (file) => {
@@ -278,9 +313,23 @@ describe("the key survives everything that should not mint a new one", () => {
   });
 });
 
-describe("the load-error screen can be retried", () => {
-  test("the dispatcher's secondary action re-runs the fetch", () => {
-    const tag = openingTagAround(SOURCES.route, "secondary={{ label: tCommon(\"retry\")");
-    expect(tag).toContain("onPress: loadCustomer");
+describe("the load-error screen ranks its actions by what the employee does next", () => {
+  // A stale QR and a card from another business are the two commonest load
+  // errors, and neither is fixed by asking the server again: the next move is
+  // the next card. So the camera gets the filled button and Retry the quiet
+  // one.
+  const actions = sliceBetween(SOURCES.route, "primary={{", "/>");
+
+  test("the primary action goes back to the camera", () => {
+    expect(actions).toContain('primary={{ label: tCommon("goBack"), onPress: handleGoBack }}');
+  });
+
+  test("the secondary action re-runs the fetch", () => {
+    expect(actions).toContain('secondary={{ label: tCommon("retry"), onPress: loadCustomer }}');
+  });
+
+  test("going home is not one of this screen's two actions", () => {
+    // It stays on the paused-member screen, where it is genuinely the answer.
+    expect(actions).not.toContain("goHome");
   });
 });

@@ -27,6 +27,7 @@ import {
   type ScanPhase,
 } from "@/utils/scanRecovery";
 import { useScanLock } from "@/contexts/scan-lock-context";
+import { useLockedDim } from "@/hooks/use-locked-dim";
 import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
@@ -191,6 +192,8 @@ export function PointsFlow({
   // The route reads this to turn off the swipe-back gesture and swallow the
   // Android back button while a request is in flight.
   const { setLocked } = useScanLock();
+  // One rule, one value, for every control this screen locks.
+  const lockedDim = useLockedDim(inFlight);
   useEffect(() => {
     setLocked(inFlight);
     return () => setLocked(false);
@@ -715,8 +718,6 @@ export function PointsFlow({
           color: theme.textSecondary,
           textAlign: "center",
         },
-        // Locked, not hidden, while a request is in flight.
-        lockedExit: { opacity: 0.35 },
         inlineError: {
           backgroundColor: "#fef2f2",
           padding: 12,
@@ -996,7 +997,7 @@ export function PointsFlow({
               {/* Locked mid-request: opening the reward picker now would let a
                   redemption start on top of an add whose outcome is unknown. */}
               <PressableScale
-                style={[styles.chip, inFlight && styles.lockedExit]}
+                style={[styles.chip, lockedDim]}
                 scaleTo={0.95}
                 disabled={inFlight}
                 onPress={() => setRewardsMenuOpen(true)}
@@ -1016,10 +1017,18 @@ export function PointsFlow({
         <View style={styles.middle}>
           <AmountDisplay amount={amount} currencySymbol={currency} pointsPreview={pointsPreview} />
           {/* Reserved whether or not there is anything to say, so a slow
-              network never shoves the keypad down mid-tap. */}
+              network never shoves the keypad down mid-tap. The line is held to
+              ONE line: at a large system text size the fr/es strings otherwise
+              wrap out of the 26pt slot and paint over the amount above and the
+              keypad below. */}
           <View style={styles.hintRow}>
             {hintKey && (
-              <Animated.Text key={hintKey} entering={SOFT_ENTER} style={styles.hintText}>
+              <Animated.Text
+                key={hintKey}
+                entering={SOFT_ENTER}
+                numberOfLines={1}
+                style={styles.hintText}
+              >
                 {tStamp(hintKey as never)}
               </Animated.Text>
             )}
@@ -1089,7 +1098,7 @@ export function PointsFlow({
           {/* Locked while a request is in flight: leaving now and rescanning
               would mint a new key for the same ticket. */}
           <TouchableOpacity
-            style={[styles.cancelButton, inFlight && styles.lockedExit]}
+            style={[styles.cancelButton, lockedDim]}
             onPress={handleDone}
             disabled={inFlight}
           >

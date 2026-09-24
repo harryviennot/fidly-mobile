@@ -86,9 +86,10 @@ function ConfirmationRoute() {
     return () => subscription.remove();
   }, [locked]);
 
-  function handleGoHome() {
-    // Unwinds the scanner too: the lobby is below both of these.
-    router.dismissTo("/lobby");
+  function handleGoBack() {
+    // Back to the camera, which is what an employee holding an unreadable card
+    // actually does next.
+    router.back();
   }
 
   // Program type: the fresh per-customer snapshot is authoritative; the
@@ -119,10 +120,13 @@ function ConfirmationRoute() {
         iconColor="#dc2626"
         title={tCommon("error")}
         message={error}
-        primary={{ label: tCommon("goHome"), onPress: handleGoHome }}
-        // Retry, not Go back. A failed load is usually a dropped request, and
-        // the fix for that is the same request again, not walking back to the
-        // camera to rescan the card that is already in our hand.
+        // Scanning the next card is the answer to the two commonest load
+        // errors, a stale QR and a card from another business, and neither is
+        // fixed by asking the server the same question again. So the camera
+        // gets the filled button and Retry gets the quiet one. Going home is
+        // not offered here: it walks the employee further from the queue, and
+        // the lobby is one more tap behind the camera anyway.
+        primary={{ label: tCommon("goBack"), onPress: handleGoBack }}
         secondary={{ label: tCommon("retry"), onPress: loadCustomer }}
       />
     );

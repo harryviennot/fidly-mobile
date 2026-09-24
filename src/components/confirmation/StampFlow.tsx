@@ -28,6 +28,7 @@ import {
   type ScanPhase,
 } from "@/utils/scanRecovery";
 import { useScanLock } from "@/contexts/scan-lock-context";
+import { useLockedDim } from "@/hooks/use-locked-dim";
 import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
@@ -168,6 +169,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   // Android back button. Leaving mid-request and rescanning is what mints a
   // second key for one tap.
   const { setLocked } = useScanLock();
+  // One rule, one value, for every control this screen locks.
+  const lockedDim = useLockedDim(inFlight);
+  const redeemingDim = useLockedDim(redeeming);
   useEffect(() => {
     setLocked(inFlight);
     return () => setLocked(false);
@@ -679,9 +683,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           color: theme.textSecondary,
           textAlign: "center",
         },
-        // Locked, not hidden. The X stays where it was so the screen does not
-        // rearrange itself under the employee's thumb mid-request.
-        lockedExit: { opacity: 0.35 },
         bottomGroup: { gap: 12 },
         stampButton: {
           backgroundColor: theme.primary,
@@ -781,9 +782,12 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     [theme]
   );
 
-  // Which control, if any, may offer to re-send. A named reward's retry lives
-  // on its own row in the list, not here: this button redeems the DEFAULT
-  // reward and pressing it would send a different request.
+  // Which control, if any, may offer to re-send. This button redeems the
+  // DEFAULT reward, so it may only advertise the default redemption's retry:
+  // relabelling it for a NAMED reward would send a different request under the
+  // same word. A named reward needs no relabel of its own — its row rebuilds
+  // the same fingerprint, so tapping it again reuses that key and IS the
+  // retry, which is also how the held-reward rows already behave.
   const retriesAdd = ownsRetry(retry, { kind: "stamp" });
   const retriesDefaultRedeem = ownsRetry(retry, { kind: "redeem", instanceId: null });
 
@@ -967,7 +971,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             {earnedReward ? (
               <>
                 {renderRedeemButton()}
-                <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+                {/* Locked while the redemption is in flight, and dimmed to say
+                    so — the same treatment the X and Cancel get. Locked with no
+                    visual change is a dead control. */}
+                <TouchableOpacity
+                  style={[styles.skipButton, redeemingDim]}
+                  onPress={handleDone}
+                  disabled={redeeming}
+                >
                   <Text style={styles.cancelText}>
                     {completed ? t("skipForNow") : t("scanNext")}
                   </Text>
@@ -1040,7 +1051,13 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
           <Animated.View entering={ACTION_ENTER} style={styles.successActions}>
             {renderRedeemButton()}
-            <TouchableOpacity style={styles.skipButton} onPress={handleDone} disabled={redeeming}>
+            {/* Same as the success screen: locked mid-redemption, and dimmed
+                so the lock is visible rather than a tap that does nothing. */}
+            <TouchableOpacity
+              style={[styles.skipButton, redeemingDim]}
+              onPress={handleDone}
+              disabled={redeeming}
+            >
               <Text style={styles.cancelText}>{t("skipForNow")}</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -1081,7 +1098,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
                 rescanning would mint a new key for the same scan, and the
                 customer would be stamped twice. */}
             <PressableScale
-              style={[styles.closeButton, inFlight && styles.lockedExit]}
+              style={[styles.closeButton, lockedDim]}
               haptic="light"
               onPress={handleDone}
               disabled={inFlight}
@@ -1120,6 +1137,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             <Animated.Text
               key={hintKey ?? (willCompleteCard ? "complete" : `pending-${quantity}`)}
               entering={FadeIn.duration(160)}
+              // The slot is a fixed 26pt so nothing shifts. The hint lines are
+              // twice the length of the quantity line they replace, so at a
+              // large system text size they wrap out of it and paint over the
+              // card above and the notices below. One line, ellipsised.
+              numberOfLines={1}
               style={
                 hintKey
                   ? styles.hintText
