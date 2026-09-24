@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 
 import { ApiError, toApiError } from "@/api/errors";
-import { errorCode, loadErrorKey, redeemErrorKey, stampErrorKey } from "./apiErrors";
+import {
+  classifyMutationFailure,
+  errorCode,
+  loadErrorKey,
+  redeemErrorKey,
+  stampErrorKey,
+} from "./apiErrors";
 
 function coded(code: string) {
   const err = new Error(code) as Error & { code: string };
@@ -72,6 +78,55 @@ describe("stampErrorKey", () => {
   it("shares the common codes and its own fallback", () => {
     expect(stampErrorKey(coded("ACCESS_DENIED"))).toBe("errors.accessDenied");
     expect(stampErrorKey(new Error("nope"))).toBe("errors.stampFailed");
+  });
+});
+
+describe("classifyMutationFailure", () => {
+  it("sends a timed-out scan to the reconcile, not to an error banner", () => {
+    // The request may well have landed. Telling the employee it failed is how a
+    // customer gets stamped twice.
+    expect(classifyMutationFailure(coded("REQUEST_TIMEOUT"))).toBe("timeout");
+  });
+
+  it("keeps an unreachable server apart from a timed-out one", () => {
+    // Nothing left the phone, so there is nothing to reconcile.
+    expect(classifyMutationFailure(coded("NETWORK_UNREACHABLE"))).toBe("offline");
+  });
+
+  it("calls the key conflict its own thing, never something to retry", () => {
+    // Only reachable through a bug of ours: one key, two different requests.
+    // Retrying it in a loop would hammer a 409 forever.
+    expect(classifyMutationFailure(coded("CLIENT_KEY_CONFLICT"))).toBe("conflict");
+  });
+
+  it("leaves every gate the ladder already explains alone", () => {
+    // These screens are unchanged by STA-340: no reconcile, no Retry relabel.
+    for (const code of [
+      "MEMBER_PAUSED",
+      "EARNING_CAP_REACHED",
+      "CAP_OVERRIDE_NOT_ALLOWED",
+      "CHECKOUT_REQUIRED",
+      "BILLING_REQUIRED",
+      "ACCESS_DENIED",
+      "LOCATION_REQUIRED",
+      "LOCATION_NOT_PERMITTED",
+      "LOCATION_NOT_FOUND",
+      "AMOUNT_REQUIRED",
+      "NOT_ELIGIBLE",
+      "REWARD_UNAVAILABLE",
+      "ENROLLMENT_NOT_FOUND",
+      "CUSTOMER_NOT_FOUND",
+      "UNAUTHORIZED",
+    ]) {
+      expect(classifyMutationFailure(coded(code))).toBe("gate");
+    }
+  });
+
+  it("treats anything else as a server failure, which IS worth retrying", () => {
+    expect(classifyMutationFailure(new ApiError("API error: 500", 500))).toBe("server");
+    expect(classifyMutationFailure(coded("SOMETHING_NEW"))).toBe("server");
+    expect(classifyMutationFailure(new Error("boom"))).toBe("server");
+    expect(classifyMutationFailure(undefined)).toBe("server");
   });
 });
 

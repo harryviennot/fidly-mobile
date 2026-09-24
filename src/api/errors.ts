@@ -31,6 +31,26 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The request was sent and never answered inside its budget.
+ *
+ * NOT a failure: it may well have landed. The confirmation screens answer this
+ * one by re-reading the customer and comparing (see utils/scanRecovery).
+ */
+export const REQUEST_TIMEOUT = "REQUEST_TIMEOUT";
+
+/** Nothing left the phone, so there is nothing to reconcile. */
+export const NETWORK_UNREACHABLE = "NETWORK_UNREACHABLE";
+
+/** Status 0: no response ever existed, as opposed to a refused one. */
+export function timeoutError(): ApiError {
+  return new ApiError(REQUEST_TIMEOUT, 0, REQUEST_TIMEOUT);
+}
+
+export function unreachableError(): ApiError {
+  return new ApiError(NETWORK_UNREACHABLE, 0, NETWORK_UNREACHABLE);
+}
+
 /** Pull the `detail` out of a parsed error body, whatever shape it arrived in. */
 export function toApiError(
   body: unknown,

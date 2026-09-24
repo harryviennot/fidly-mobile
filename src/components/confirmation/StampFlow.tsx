@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
@@ -7,8 +7,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { blendColors } from "@/utils/colors";
 import { Check, Confetti, Gift, PauseCircle, X } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
-import { addStamp, redeemReward } from "@/api/customers";
-import { redeemErrorKey, stampErrorKey } from "@/utils/apiErrors";
+import { addStamp, getCustomer, redeemReward } from "@/api/customers";
+import { classifyMutationFailure, redeemErrorKey, stampErrorKey } from "@/utils/apiErrors";
+import {
+  claimClientKey,
+  releaseClientKey,
+  scanFingerprint,
+  type ClientKeyLedger,
+} from "@/api/idempotency";
+import { mintClientKey } from "@/lib/client-key";
+import {
+  SLOW_HINT_AFTER_MS,
+  hintKeyForPhase,
+  reconcileVerdict,
+  rewardCount,
+  type ReconcileTarget,
+  type ScanPhase,
+} from "@/utils/scanRecovery";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -61,6 +76,24 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const [isPausedError, setIsPausedError] = useState(false);
   const [success, setSuccess] = useState<StampResponse | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
+  // How far along the request in flight is: drives the hint line and locks the
+  // ways out of the screen. See utils/scanRecovery.
+  const [phase, setPhase] = useState<ScanPhase>("idle");
+  // The last attempt failed in a way a second tap could fix, so the CTA says
+  // Retry. A coded gate never sets this: pressing again gets the same answer.
+  const [retryable, setRetryable] = useState(false);
+  // This success was credited by a request we never heard back from. Same
+  // layout, different title, and no second celebration.
+  const [alreadyCounted, setAlreadyCounted] = useState(false);
+  /**
+   * The idempotency key per request body, for the life of this screen.
+   *
+   * A retry of the same request reuses its key and the backend replays the
+   * original answer instead of crediting twice; any change to the body (the
+   * stepper, a waived cap, a different reward) is a different request and gets
+   * a key of its own. See api/idempotency.ts.
+   */
+  const clientKeys = useRef<ClientKeyLedger>({});
   // Card state before the last stamp — detects a rollover (stackable rewards:
   // stamps reset below the goal but a reward was banked) and drives the
   // count-up + the stagger on the dots that were just added.
@@ -120,6 +153,30 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   const willCompleteCard = currentStamps + quantity >= totalStamps;
 
+  // Anything in flight: the spinner is up, and the ways off this screen are
+  // locked. Backing out mid-request and rescanning would mint a NEW key, which
+  // is the one double-credit the idempotency key cannot close.
+  const inFlight = phase !== "idle";
+  const hintKey = hintKeyForPhase(phase);
+
+  // A request that has not answered in three seconds gets a quiet line saying
+  // so, in the slot the quantity line already reserves. No layout shift, and a
+  // healthy scan never shows it.
+  useEffect(() => {
+    if (phase !== "submitting") return;
+    const timer = setTimeout(
+      () => setPhase((current) => (current === "submitting" ? "slow" : current)),
+      SLOW_HINT_AFTER_MS
+    );
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  // A different quantity is a different request, so the CTA stops offering to
+  // retry the old one. The banner stays: what happened is still worth reading.
+  useEffect(() => {
+    setRetryable(false);
+  }, [quantity]);
+
   // Explicit plural key selection: we know the count, so never show a "(s)"
   // guess. (The form is picked in JS rather than by i18next, whose resolver is
   // built on Intl.PluralRules and unreliable on Hermes. Polish needs one/few/
@@ -149,15 +206,58 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     }
   }
 
+  /** The one tap a reconciled success is allowed. No cascade, no reward beat. */
+  async function acknowledge() {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  /**
+   * Go and find out what happened.
+   *
+   * Exactly ONE read, never a re-send: a write we cannot account for is not
+   * something to repeat on the customer's behalf. Returns null when even the
+   * read fails, which is a different screen (offline) from a read that came
+   * back saying nothing moved.
+   */
+  async function reconcile(): Promise<Customer | null> {
+    setPhase("confirming");
+    try {
+      return await getCustomer(businessId, enrollmentId);
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * `overrideNow` is the manager's just-made decision, passed explicitly because
    * the `capOverride` state it also sets is not readable until the next render.
    */
   async function handleAddStamp(overrideNow?: boolean) {
     if (stamping) return;
+    const override = overrideNow ?? capOverride;
+    // The key is filed under this exact request. Pressing Retry re-sends the
+    // same body and therefore the same key; changing the quantity or waiving
+    // the cap makes it a different request, which mints a new one.
+    const fingerprint = scanFingerprint({
+      action: "stamp",
+      businessId,
+      enrollmentId,
+      locationId: selectedLocation?.id ?? null,
+      quantity,
+      capOverride: override,
+    });
+    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+    clientKeys.current = claim.ledger;
+    const before: ReconcileTarget = { action: "stamp", stamps: currentStamps, rewards };
+
     try {
       setStamping(true);
+      setPhase("submitting");
       setError(null);
+      setRetryable(false);
+      // This attempt is its own: a previous one having been merely confirmed
+      // must not put "already counted" on top of a fresh success.
+      setAlreadyCounted(false);
       setPreStampRewards(rewards);
       setPreStampStamps(currentStamps);
       const result = await addStamp(
@@ -165,19 +265,114 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         enrollmentId,
         selectedLocation?.id,
         quantity,
-        overrideNow ?? capOverride
+        override,
+        claim.key
       );
+      // Settled: from here an identical tap is a second deliberate scan and has
+      // to be credited as one.
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setSuccess(result);
       setCustomer((prev) =>
         prev ? { ...prev, stamps: result.stamps, rewards: result.rewards ?? prev.rewards } : null
       );
-      const added = result.delta ?? Math.max(0, result.stamps - currentStamps);
-      const earned = result.stamps >= totalStamps || (result.rewards ?? 0) > rewards;
-      await celebrate(added, earned);
+      if (result.replayed) {
+        // Our own request, answered a second time. The customer was credited by
+        // the first one, which already ran the banner and the celebration, so
+        // this says "already counted" and taps once. `reward_earned` is
+        // deliberately false on a replay, so the screen reads the BALANCE to
+        // decide whether a reward is owed.
+        setAlreadyCounted(true);
+        await acknowledge();
+      } else {
+        const added = result.delta ?? Math.max(0, result.stamps - currentStamps);
+        const earned = result.stamps >= totalStamps || (result.rewards ?? 0) > rewards;
+        await celebrate(added, earned);
+      }
       // Arm the one-time rating prompt. It is NOT shown here — it fires when the
       // employee next returns to the lobby, so it never interrupts scanning.
       markScanCompleted();
     } catch (err) {
+      await handleAddFailure(err, before, fingerprint);
+    } finally {
+      setStamping(false);
+      setPhase("idle");
+    }
+  }
+
+  /**
+   * What a failed stamp means, and which of the four recoveries it gets.
+   *
+   * The coded gates come first and are untouched by STA-340: the backend
+   * refused on purpose and this screen already explains why. Only the
+   * transport-level outcomes below reach the new states.
+   */
+  async function handleAddFailure(
+    err: unknown,
+    before: ReconcileTarget,
+    fingerprint: string
+  ) {
+    const failure = classifyMutationFailure(err);
+
+    if (failure === "timeout") {
+      // Sent, never answered. It may have landed, so ask before saying anything.
+      const fresh = await reconcile();
+      const verdict = reconcileVerdict(before, fresh);
+      if (verdict === "credited" && fresh) {
+        clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+        setCustomer(fresh);
+        setSuccess({
+          customer_id: fresh.id,
+          name: fresh.name,
+          stamps: fresh.stamps,
+          rewards: rewardCount(fresh),
+          message: "",
+        });
+        setAlreadyCounted(true);
+        await acknowledge();
+        markScanCompleted();
+        return;
+      }
+      // Unchanged: confirmed nothing landed. Unknown: the read failed too, so
+      // the copy promises only that trying again is safe.
+      setError(t(verdict === "unknown" ? "errors.offline" : "errors.timedOut"));
+      setRetryable(true);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "offline") {
+      // Nothing left the phone, so there is nothing to reconcile.
+      setError(t("errors.offline"));
+      setRetryable(true);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "conflict") {
+      // A bug of ours: this key is held by a different request. Retrying it
+      // would 409 forever, so the key is dropped and the next tap mints a new
+      // one (the scan it was meant for was never credited HERE).
+      console.warn("[Scan] client_key conflict on stamp, dropping the key");
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+      setError(t("errors.stampFailed"));
+      setRetryable(false);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "server") {
+      setError(t(stampErrorKey(err) as never));
+      setRetryable(true);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    await applyStampGate(err);
+  }
+
+  /** The gate ladder, unchanged from before this stage. */
+  async function applyStampGate(err: unknown) {
+    {
       const code = (err as any)?.code;
       if (code === "MEMBER_PAUSED") {
         setIsPausedError(true);
@@ -214,8 +409,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         setError(t(stampErrorKey(err) as never));
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setStamping(false);
     }
   }
 
@@ -244,10 +437,33 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
 
   async function handleRedeemReward(instance?: BankedReward) {
     if (redeeming) return;
+    // A redemption's key is its own: one minted for a stamp and replayed here
+    // would be free goods, which is why the backend answers a key crossing
+    // operations with a 409 rather than a replay.
+    const fingerprint = scanFingerprint({
+      action: "redeem",
+      businessId,
+      enrollmentId,
+      locationId: selectedLocation?.id ?? null,
+      customerRewardId: instance?.id ?? null,
+    });
+    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+    clientKeys.current = claim.ledger;
+    const before: ReconcileTarget = {
+      action: "redeem",
+      instanceId: instance?.id ?? null,
+      stamps: currentStamps,
+      rewards,
+      balance: currentStamps,
+    };
+
     try {
       setRedeeming(true);
       setRedeemingId(instance?.id ?? null);
+      setPhase("submitting");
       setError(null);
+      setRetryable(false);
+      setAlreadyCounted(false);
       // Naming the instance is what lets a granted item be redeemed at all —
       // a gift sits on no ladder, so there is no reward_id to send instead.
       const result = await redeemReward(
@@ -255,8 +471,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         enrollmentId,
         selectedLocation?.id,
         null,
-        instance?.id ?? null
+        instance?.id ?? null,
+        claim.key
       );
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       // Banked redemptions keep stamp progress; only the classic full-card
       // redemption resets to 0. Trust the server's response either way.
       setCustomer((prev) =>
@@ -264,26 +482,84 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       );
       setRedeemSuccess(true);
       setSuccess(result);
+      if (result.replayed) {
+        setAlreadyCounted(true);
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      if ((err as any)?.code === "MEMBER_PAUSED") {
-        setIsPausedError(true);
-      } else if ((err as any)?.code === "CHECKOUT_REQUIRED") {
-        setError(t("errors.checkoutRequired"));
-      } else if ((err as any)?.code === "BILLING_REQUIRED") {
-        setError(t("errors.billingRequired"));
-      } else if ((err as any)?.code === "ACCESS_DENIED") {
-        setError(t("errors.accessDenied"));
-      } else {
-        // NEVER `err.message`: it is the backend's English, and this screen is
-        // in front of a French or Polish counter. The code picks the copy.
-        setError(t(redeemErrorKey(err) as never));
-      }
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await handleRedeemFailure(err, before, fingerprint);
     } finally {
       setRedeeming(false);
       setRedeemingId(null);
+      setPhase("idle");
     }
+  }
+
+  async function handleRedeemFailure(
+    err: unknown,
+    before: ReconcileTarget,
+    fingerprint: string
+  ) {
+    const failure = classifyMutationFailure(err);
+
+    if (failure === "timeout") {
+      const fresh = await reconcile();
+      const verdict = reconcileVerdict(before, fresh);
+      if (verdict === "credited" && fresh) {
+        // The reward is already spent. Saying otherwise would hand over a
+        // second one.
+        clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+        setCustomer(fresh);
+        setRedeemSuccess(true);
+        setSuccess({
+          customer_id: fresh.id,
+          name: fresh.name,
+          stamps: fresh.stamps,
+          rewards: rewardCount(fresh),
+          message: "",
+        });
+        setAlreadyCounted(true);
+        await acknowledge();
+        return;
+      }
+      setError(t(verdict === "unknown" ? "errors.offline" : "errors.timedOut"));
+      setRetryable(true);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "offline") {
+      setError(t("errors.offline"));
+      setRetryable(true);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "conflict") {
+      console.warn("[Scan] client_key conflict on redeem, dropping the key");
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+      setError(t("errors.redeemFailed"));
+      setRetryable(false);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if ((err as any)?.code === "MEMBER_PAUSED") {
+      setIsPausedError(true);
+    } else if ((err as any)?.code === "CHECKOUT_REQUIRED") {
+      setError(t("errors.checkoutRequired"));
+    } else if ((err as any)?.code === "BILLING_REQUIRED") {
+      setError(t("errors.billingRequired"));
+    } else if ((err as any)?.code === "ACCESS_DENIED") {
+      setError(t("errors.accessDenied"));
+    } else {
+      // NEVER `err.message`: it is the backend's English, and this screen is
+      // in front of a French or Polish counter. The code picks the copy.
+      setError(t(redeemErrorKey(err) as never));
+      // A generic failure is worth one more tap; a coded refusal is not.
+      if (failure === "server") setRetryable(true);
+    }
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
 
   function handleDone() {
@@ -377,6 +653,17 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         pendingRow: { height: 26, justifyContent: "center", alignItems: "center", alignSelf: "stretch" },
         pendingText: { fontSize: 17, fontWeight: "700", color: theme.primaryOnSurface, textAlign: "center" },
         completeText: { fontSize: 17, fontWeight: "700", color: UNLOCK_AMBER, textAlign: "center" },
+        // The in-flight line takes the same slot as the quantity line. Quiet
+        // and secondary, never red: nothing has gone wrong yet.
+        hintText: {
+          fontSize: 15,
+          fontWeight: "600",
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
+        // Locked, not hidden. The X stays where it was so the screen does not
+        // rearrange itself under the employee's thumb mid-request.
+        lockedExit: { opacity: 0.35 },
         bottomGroup: { gap: 12 },
         stampButton: {
           backgroundColor: theme.primary,
@@ -531,10 +818,19 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               entering={ICON_ENTER}
               style={[styles.successIcon, { backgroundColor: SUCCESS_TINT }]}
             >
-              <Confetti size={36} color={SUCCESS_GREEN} weight="fill" />
+              {/* No confetti for a redemption we are merely CONFIRMING: the
+                  handover already happened, and a second celebration reads as
+                  a second reward. */}
+              {alreadyCounted ? (
+                <Check size={36} color={SUCCESS_GREEN} weight="bold" />
+              ) : (
+                <Confetti size={36} color={SUCCESS_GREEN} weight="fill" />
+              )}
             </Animated.View>
             <Animated.View entering={BODY_ENTER}>
-              <Text style={styles.successTitle}>{t("success.rewardRedeemed")}</Text>
+              <Text style={styles.successTitle}>
+                {alreadyCounted ? t("success.alreadyRedeemed") : t("success.rewardRedeemed")}
+              </Text>
               <Text style={styles.successName} numberOfLines={1}>
                 {customer.name}
               </Text>
@@ -571,13 +867,17 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     // After a rollover the counter restarted, so the count-up runs from 0 in the
     // fresh cycle instead of dropping from the old (higher) number.
     const countFrom = rolledOver ? 0 : preStampStamps;
-    const title = rolledOver
-      ? t("success.rewardBanked")
-      : completed
-        ? t("success.cardComplete")
-        : success.cap_applied
-          ? t("cap.partialTitle")
-          : t(`success.stampAdded_${plural(added)}`, { count: added });
+    // A confirmed-after-the-fact success says so, and says it once. The values
+    // below it are the fresh ones, so the employee still reads the real card.
+    const title = alreadyCounted
+      ? t("success.alreadyCounted")
+      : rolledOver
+        ? t("success.rewardBanked")
+        : completed
+          ? t("success.cardComplete")
+          : success.cap_applied
+            ? t("cap.partialTitle")
+            : t(`success.stampAdded_${plural(added)}`, { count: added });
 
     return (
       <ConfirmationScaffold>
@@ -587,10 +887,16 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               entering={ICON_ENTER}
               style={[
                 styles.successIcon,
-                { backgroundColor: earnedReward ? UNLOCK_TINT : SUCCESS_TINT },
+                {
+                  backgroundColor:
+                    earnedReward && !alreadyCounted ? UNLOCK_TINT : SUCCESS_TINT,
+                },
               ]}
             >
-              {earnedReward ? (
+              {/* The reward, if there is one, was announced by the request this
+                  one repeats. The CTA below still offers it, read off the
+                  balance, but the screen does not celebrate it twice. */}
+              {earnedReward && !alreadyCounted ? (
                 <Confetti size={36} color={UNLOCK_AMBER} weight="fill" />
               ) : (
                 <Check size={36} color={SUCCESS_GREEN} weight="bold" />
@@ -745,10 +1051,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
                 loading={false}
               />
             </View>
+            {/* Locked while a request is in flight. Walking out here and
+                rescanning would mint a new key for the same scan, and the
+                customer would be stamped twice. */}
             <PressableScale
-              style={styles.closeButton}
+              style={[styles.closeButton, inFlight && styles.lockedExit]}
               haptic="light"
               onPress={handleDone}
+              disabled={inFlight}
               accessibilityRole="button"
               accessibilityLabel={tCommon("close")}
             >
@@ -778,15 +1088,25 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           <StampGrid total={totalStamps} filled={currentStamps} pending={quantity} />
           <View style={styles.pendingRow}>
             {/* Keyed so the line re-animates as the promise changes, and the
-                "completes the card" beat lands the moment it becomes true. */}
+                "completes the card" beat lands the moment it becomes true.
+                The in-flight hint borrows this same fixed-height slot, so a
+                slow network moves nothing on the screen. */}
             <Animated.Text
-              key={willCompleteCard ? "complete" : `pending-${quantity}`}
+              key={hintKey ?? (willCompleteCard ? "complete" : `pending-${quantity}`)}
               entering={FadeIn.duration(160)}
-              style={willCompleteCard ? styles.completeText : styles.pendingText}
+              style={
+                hintKey
+                  ? styles.hintText
+                  : willCompleteCard
+                    ? styles.completeText
+                    : styles.pendingText
+              }
             >
-              {willCompleteCard
-                ? t("quantity.completesCard")
-                : t(`quantity.pending_${plural(quantity)}`, { count: quantity })}
+              {hintKey
+                ? t(hintKey as never)
+                : willCompleteCard
+                  ? t("quantity.completesCard")
+                  : t(`quantity.pending_${plural(quantity)}`, { count: quantity })}
             </Animated.Text>
           </View>
           {capOverride && (
@@ -841,8 +1161,17 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           {stamping ? (
             <ActivityIndicator color={theme.primaryText} />
           ) : (
-            <Animated.Text key={quantity} entering={FadeIn.duration(140)} style={styles.stampButtonText}>
-              {t(`addStamp_${plural(quantity)}`, { count: quantity })}
+            <Animated.Text
+              key={retryable ? "retry" : quantity}
+              entering={FadeIn.duration(140)}
+              style={styles.stampButtonText}
+            >
+              {/* Same button, same place under the thumb. It sends the same
+                  body with the same key, so pressing it cannot double-credit
+                  even if the first attempt did land. */}
+              {retryable
+                ? tCommon("retry")
+                : t(`addStamp_${plural(quantity)}`, { count: quantity })}
             </Animated.Text>
           )}
         </PressableScale>

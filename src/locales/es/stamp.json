@@ -29,7 +29,9 @@
     "rewardsWaiting_few": "{{count}} recompensas pendientes de canjear.",
     "rewardsWaiting_many": "{{count}} recompensas pendientes de canjear.",
     "rewardsWaiting_other": "{{count}} recompensas pendientes de canjear.",
-    "progressKept": "{{name}} conserva sus sellos."
+    "progressKept": "{{name}} conserva sus sellos.",
+    "alreadyCounted": "Ya estaba registrado",
+    "alreadyRedeemed": "Ya estaba canjeada"
   },
   "reward": {
     "banner": "¡Recompensa disponible!",
@@ -51,7 +53,11 @@
     "rewardUnavailable": "Esta recompensa ya no está disponible. Puede que haya caducado o que ya se haya canjeado.",
     "notEligible": "Este cliente todavía no tiene ninguna recompensa que canjear.",
     "cardNotRecognised": "No reconocemos esta tarjeta. Pide que se abra en la cartera y vuelve a escanear.",
-    "unauthorized": "Tu sesión ha caducado. Inicia sesión de nuevo para seguir escaneando."
+    "unauthorized": "Tu sesión ha caducado. Inicia sesión de nuevo para seguir escaneando.",
+    "slowNetwork": "Red lenta, seguimos enviando.",
+    "confirming": "Comprobando si se ha registrado.",
+    "offline": "Ahora mismo no hay conexión. Puedes volver a intentarlo, nada se contará dos veces.",
+    "timedOut": "No se ha registrado nada. Vuelve a intentarlo."
   },
   "rewardsBadge_one": "1 recompensa por canjear",
   "rewardsBadge_few": "{{count}} recompensas por canjear",

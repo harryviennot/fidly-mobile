@@ -12,6 +12,8 @@
  *    through here.
  */
 
+import { NETWORK_UNREACHABLE, REQUEST_TIMEOUT } from '@/api/errors';
+
 /** The code an error carries, if it is one of ours.
  *
  *  Works on `ApiError` (which has `code`) and on any error the API client
@@ -60,6 +62,46 @@ const STAMP_ERROR_KEYS: Record<string, string> = {
 export function stampErrorKey(err: unknown): string {
   const code = errorCode(err);
   return (code && STAMP_ERROR_KEYS[code]) || 'errors.stampFailed';
+}
+
+/**
+ * Every code the ladders above and the flows themselves already explain.
+ *
+ * A gate is a decision the backend made on purpose and the screen has copy
+ * for: the customer hit their limit, the subscription lapsed, the wrong
+ * location. Pressing the button again would get the same answer, so these keep
+ * exactly the screens they had before STA-340 — no reconcile, no Retry.
+ */
+const GATE_CODES = new Set([
+  ...Object.keys(STAMP_ERROR_KEYS),
+  'MEMBER_PAUSED',
+  'EARNING_CAP_REACHED',
+  'CAP_OVERRIDE_NOT_ALLOWED',
+  'LOCATION_REQUIRED',
+  'LOCATION_NOT_PERMITTED',
+  'LOCATION_NOT_FOUND',
+]);
+
+/** What kind of recovery a failed counter mutation deserves. */
+export type MutationFailure =
+  /** The backend refused on purpose and the screen already says why. */
+  | 'gate'
+  /** Sent, no answer. It may have landed: re-read before saying anything. */
+  | 'timeout'
+  /** Never left the phone. Nothing to reconcile; retrying is safe. */
+  | 'offline'
+  /** One key, two different requests — our bug, and never a retry loop. */
+  | 'conflict'
+  /** Anything else. Worth one more tap. */
+  | 'server';
+
+export function classifyMutationFailure(err: unknown): MutationFailure {
+  const code = errorCode(err);
+  if (code === REQUEST_TIMEOUT) return 'timeout';
+  if (code === NETWORK_UNREACHABLE) return 'offline';
+  if (code === 'CLIENT_KEY_CONFLICT') return 'conflict';
+  if (code && GATE_CODES.has(code)) return 'gate';
+  return 'server';
 }
 
 /** The HTTP status an `ApiError` carries, if it is one. */

@@ -66,10 +66,6 @@ export default function StampScreen() {
     router.dismissTo("/lobby");
   }
 
-  function handleGoBack() {
-    router.back();
-  }
-
   // Program type: the fresh per-customer snapshot is authoritative; the
   // cached design only covers the gap while the customer loads (keypad-first).
   const programType = customer?.program?.type ?? design?.card_type;
@@ -94,7 +90,10 @@ export default function StampScreen() {
         title={tCommon("error")}
         message={error}
         primary={{ label: tCommon("goHome"), onPress: handleGoHome }}
-        secondary={{ label: tCommon("goBack"), onPress: handleGoBack }}
+        // Retry, not Go back. A failed load is usually a dropped request, and
+        // the fix for that is the same request again, not walking back to the
+        // camera to rescan the card that is already in our hand.
+        secondary={{ label: tCommon("retry"), onPress: loadCustomer }}
       />
     );
   }
