@@ -35,6 +35,18 @@ describe("scanFingerprint", () => {
     );
   });
 
+  it("keeps a value that imitates the encoding from colliding with two fields", () => {
+    // Contrived on purpose: these two are byte-identical once the separators
+    // are gone, because the second value spells out the key and type tag the
+    // first pair would have emitted. Today every value is a uuid, a number or
+    // a boolean and could never do this; the first free-text field could, and
+    // a collision means two different scans sharing one key with the second
+    // swallowed as a replay.
+    expect(scanFingerprint({ a: "stringb", b: "c" })).not.toBe(
+      scanFingerprint({ a: "stringbbstringc" })
+    );
+  });
+
   it("distinguishes the value 1 from the string '1'", () => {
     expect(scanFingerprint({ action: "stamp", quantity: 1 })).not.toBe(
       scanFingerprint({ action: "stamp", quantity: "1" })

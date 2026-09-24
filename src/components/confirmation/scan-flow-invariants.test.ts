@@ -239,11 +239,23 @@ describe("the reconcile reads, and only reads", () => {
 });
 
 describe("the key survives everything that should not mint a new one", () => {
-  test.each(FLOWS)("%s mints inside the try, so a failure is a banner", (file) => {
-    // randomUUID throws on older web builds. Minted outside the try that
+  test.each([
+    ["StampFlow.tsx", "async function handleAddStamp("],
+    ["StampFlow.tsx", "async function handleRedeemReward("],
+    ["PointsFlow.tsx", "async function handleAdd("],
+    ["PointsFlow.tsx", "async function handleRedeem("],
+    ["PointsFlow.tsx", "async function handleRedeemHeld("],
+  ])("%s: %s mints inside its try, so a failure is a banner", (file, handler) => {
+    // randomUUID throws on older web builds. Minted outside the try, that
     // throw escaped the press handler: no spinner, no banner, a dead button.
-    const claim = SOURCES[file].indexOf("claimClientKey(clientKeys.current");
-    const tryStart = SOURCES[file].indexOf("try {");
+    //
+    // Scoped to THIS handler's body. Searching the file found `reconcile`'s
+    // try first, which sits above every handler and made the comparison pass
+    // whatever the handlers did.
+    const body = blockAfter(SOURCES[file], handler);
+    const tryStart = body.indexOf("try {");
+    const claim = body.indexOf("claimClientKey(");
+    expect(tryStart).toBeGreaterThan(-1);
     expect(claim).toBeGreaterThan(tryStart);
   });
 

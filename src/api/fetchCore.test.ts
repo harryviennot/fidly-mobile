@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { requestWithAuthRetry, type FetchCoreDeps } from "./fetchCore";
+import { redactPath, requestWithAuthRetry, type FetchCoreDeps } from "./fetchCore";
 import { errorCode, errorStatus } from "../utils/apiErrors";
 
 type Call = { url: string; init: RequestInit };
@@ -117,6 +117,21 @@ describe("the request budget", () => {
     expect(errorCode(err)).toBe("REQUEST_TIMEOUT");
   });
 
+  it("gives up even when the fetch never honours the abort signal", async () => {
+    // The abort is a courtesy to the socket, not the enforcement. A fetch that
+    // ignores `signal` (a polyfill, a webview, a native module holding the
+    // connection) would otherwise hold the till open forever behind a spinner,
+    // which is the exact bug utils/withTimeout was written for.
+    const fetchImpl = (() =>
+      new Promise<Response>(() => {})) as unknown as FetchCoreDeps["fetchImpl"];
+
+    const err = await requestWithAuthRetry("/deaf", {}, deps({ fetchImpl, timeoutMs: 20 })).catch(
+      (e) => e
+    );
+
+    expect(errorCode(err)).toBe("REQUEST_TIMEOUT");
+  });
+
   it("calls an immediate transport failure unreachable, not a timeout", async () => {
     // Nothing was sent, so there is nothing to reconcile: the two outcomes lead
     // to different screens and must never be confused.
@@ -148,6 +163,23 @@ describe("the request budget", () => {
 
     expect(errorCode(err)).toBe("REQUEST_TIMEOUT");
     expect(seen).toHaveLength(1);
+  });
+});
+
+describe("redactPath", () => {
+  it("keeps the route and drops the ids that name a business and a customer", () => {
+    // Both ids are uuids in real traffic, which is what the 8-character floor
+    // is set for: it has to redact those while leaving route words like
+    // "redeem" and "app-gate" legible.
+    expect(
+      redactPath(
+        "/stamps/3f9a77c2-51bd-4f0e-9f1a-2b7d7c6e5a10/8c2e41d7-0b55-4a19-9e63-1f7ab0c94d22/redeem"
+      )
+    ).toBe("/stamps/:id/:id/redeem");
+  });
+
+  it("leaves a path with nothing to hide alone", () => {
+    expect(redactPath("/public/app-gate")).toBe("/public/app-gate");
   });
 });
 
