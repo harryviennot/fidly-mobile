@@ -20,6 +20,7 @@ import {
   SLOW_HINT_AFTER_MS,
   hintKeyForPhase,
   reconcileVerdict,
+  recoveryErrorKey,
   rewardCount,
   type ReconcileTarget,
   type ScanPhase,
@@ -334,7 +335,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       }
       // Unchanged: confirmed nothing landed. Unknown: the read failed too, so
       // the copy promises only that trying again is safe.
-      setError(t(verdict === "unknown" ? "errors.offline" : "errors.timedOut"));
+      setError(t(recoveryErrorKey(verdict) as never));
       setRetryable(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -522,7 +523,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         await acknowledge();
         return;
       }
-      setError(t(verdict === "unknown" ? "errors.offline" : "errors.timedOut"));
+      setError(t(recoveryErrorKey(verdict) as never));
       setRetryable(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;

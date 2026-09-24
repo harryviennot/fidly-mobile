@@ -57,6 +57,19 @@ function balanceOf(customer: Customer): number {
   return customer.program?.primary_value ?? customer.stamps;
 }
 
+/**
+ * The banner for a reconcile that did not end in a credit.
+ *
+ * The distinction is the whole point of reconciling. `unchanged` means we
+ * looked and the scan is definitely not there, so the screen can say nothing
+ * was recorded. `unknown` means the re-read failed too, and claiming the scan
+ * did not land would be a guess the employee then acts on: that copy promises
+ * only that trying again is safe, which the client key is what guarantees.
+ */
+export function recoveryErrorKey(verdict: ReconcileVerdict): string {
+  return verdict === "unknown" ? "errors.offline" : "errors.timedOut";
+}
+
 /** The pre-action snapshot, per action, of exactly what that action moves. */
 export type ReconcileTarget =
   | { action: "stamp"; stamps: number; rewards: number }

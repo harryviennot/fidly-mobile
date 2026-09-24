@@ -19,6 +19,7 @@ import {
   SLOW_HINT_AFTER_MS,
   hintKeyForPhase,
   reconcileVerdict,
+  recoveryErrorKey,
   type ReconcileTarget,
   type ScanPhase,
 } from "@/utils/scanRecovery";
@@ -366,7 +367,7 @@ export function PointsFlow({
         markScanCompleted();
         return;
       }
-      setError(tStamp(verdict === "unknown" ? "errors.offline" : "errors.timedOut"));
+      setError(tStamp(recoveryErrorKey(verdict) as never));
       setRetryable(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -499,7 +500,7 @@ export function PointsFlow({
         await acknowledge();
         return;
       }
-      setError(tStamp(verdict === "unknown" ? "errors.offline" : "errors.timedOut"));
+      setError(tStamp(recoveryErrorKey(verdict) as never));
       setRetryable(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;

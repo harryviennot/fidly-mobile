@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   SLOW_HINT_AFTER_MS,
   hintKeyForPhase,
+  recoveryErrorKey,
   rewardCount,
   reconcileVerdict,
   type ReconcileTarget,
@@ -73,6 +74,18 @@ describe("rewardCount", () => {
 
   it("is zero when the customer holds nothing either way", () => {
     expect(rewardCount(customer())).toBe(0);
+  });
+});
+
+describe("recoveryErrorKey", () => {
+  it("says nothing was recorded only when we actually looked and saw that", () => {
+    expect(recoveryErrorKey("unchanged")).toBe("errors.timedOut");
+  });
+
+  it("never claims the scan failed when the re-read failed too", () => {
+    // We do not know. Copy that asserts "nothing was recorded" here is a guess
+    // the employee acts on, and the action is stamping the customer again.
+    expect(recoveryErrorKey("unknown")).toBe("errors.offline");
   });
 });
 
@@ -155,6 +168,42 @@ describe("reconcileVerdict — did the scan that timed out actually land?", () =
       balance: 0,
     };
     const after = withProgram(0, [instance("gift-1"), instance("gift-2")]);
+    after.stamps = 3;
+
+    expect(reconcileVerdict(before, after)).toBe("unchanged");
+  });
+
+  it("trusts the instance over a count another till moved underneath it", () => {
+    // Our redemption of gift-1 timed out. While it was in flight, someone
+    // granted this customer a new reward: the COUNT is unchanged at two, so a
+    // scalar comparison says "nothing happened" and sends the employee to hand
+    // the same reward over a second time. The instance is gone, and that is
+    // what actually answers the question.
+    const before: ReconcileTarget = {
+      action: "redeem",
+      instanceId: "gift-1",
+      stamps: 3,
+      rewards: 2,
+      balance: 0,
+    };
+    const after = withProgram(0, [instance("gift-2"), instance("gift-3")]);
+    after.stamps = 3;
+
+    expect(reconcileVerdict(before, after)).toBe("credited");
+  });
+
+  it("does not call ours redeemed because a DIFFERENT reward was spent", () => {
+    // The mirror image, and the dangerous direction: gift-1 is still held, but
+    // another till spent gift-2, so the count dropped. A scalar comparison
+    // would report success and the customer would never get their reward.
+    const before: ReconcileTarget = {
+      action: "redeem",
+      instanceId: "gift-1",
+      stamps: 3,
+      rewards: 2,
+      balance: 0,
+    };
+    const after = withProgram(0, [instance("gift-1")]);
     after.stamps = 3;
 
     expect(reconcileVerdict(before, after)).toBe("unchanged");
