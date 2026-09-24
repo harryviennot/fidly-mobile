@@ -62,14 +62,45 @@ async function fetchOnce(
     controller.abort();
   }, deps.timeoutMs);
 
+  let raced: Response | typeof TIMED_OUT;
   try {
-    return await deps.fetchImpl(url, { ...init, signal: controller.signal });
+    // RACED, not merely aborted. The abort is a courtesy to the socket; the
+    // budget is enforced here, because a fetch that does not honour `signal`
+    // (a polyfill, a webview, a native module holding the connection) would
+    // otherwise hold the till open indefinitely with a spinner on it. Same
+    // reasoning as utils/withTimeout, which exists for the same class of bug.
+    raced = await withTimeout(
+      deps.fetchImpl(url, { ...init, signal: controller.signal }),
+      deps.timeoutMs
+    );
   } catch {
+    clearTimeout(timer);
     if (expired) throw timeoutError();
     throw unreachableError();
-  } finally {
-    clearTimeout(timer);
   }
+  clearTimeout(timer);
+
+  if (raced === TIMED_OUT) {
+    controller.abort();
+    throw timeoutError();
+  }
+  return raced;
+}
+
+/**
+ * A path with its ids taken out, for logging.
+ *
+ * `/stamps/{business}/{enrollment}` names a business and one customer's
+ * enrollment. Breadcrumbs travel to Sentry, so what goes in the log is the
+ * route, not who it was about.
+ */
+export function redactPath(endpoint: string): string {
+  return endpoint
+    .split("/")
+    .map((segment) =>
+      /^[0-9a-f-]{8,}$/i.test(segment) || /^\d+$/.test(segment) ? ":id" : segment
+    )
+    .join("/");
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -91,7 +122,7 @@ export async function requestWithAuthRetry<T>(
 
   // On 401, refresh the session and retry once.
   if (response.status === 401) {
-    console.log(`[API] 401 on ${endpoint}, attempting session refresh...`);
+    console.log(`[API] 401 on ${redactPath(endpoint)}, attempting session refresh...`);
     // Bounded: this is the one await here with no abort behind it, and a stall
     // left the caller's promise pending forever — the screen's `finally` never
     // ran and the employee sat on a skeleton.
@@ -108,7 +139,7 @@ export async function requestWithAuthRetry<T>(
       console.warn(`[API] session refresh failed: ${error?.message || "no session"}`);
       throw toApiError(await parseBody(response), response.status, "Not authenticated");
     }
-    console.log(`[API] session refreshed, retrying ${endpoint}`);
+    console.log(`[API] session refreshed, retrying ${redactPath(endpoint)}`);
 
     // The SAME options: same method, same body, and therefore the same
     // client_key. A refresh in the middle of a scan must not turn one credit

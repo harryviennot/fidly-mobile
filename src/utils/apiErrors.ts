@@ -64,24 +64,6 @@ export function stampErrorKey(err: unknown): string {
   return (code && STAMP_ERROR_KEYS[code]) || 'errors.stampFailed';
 }
 
-/**
- * Every code the ladders above and the flows themselves already explain.
- *
- * A gate is a decision the backend made on purpose and the screen has copy
- * for: the customer hit their limit, the subscription lapsed, the wrong
- * location. Pressing the button again would get the same answer, so these keep
- * exactly the screens they had before STA-340 — no reconcile, no Retry.
- */
-const GATE_CODES = new Set([
-  ...Object.keys(STAMP_ERROR_KEYS),
-  'MEMBER_PAUSED',
-  'EARNING_CAP_REACHED',
-  'CAP_OVERRIDE_NOT_ALLOWED',
-  'LOCATION_REQUIRED',
-  'LOCATION_NOT_PERMITTED',
-  'LOCATION_NOT_FOUND',
-]);
-
 /** What kind of recovery a failed counter mutation deserves. */
 export type MutationFailure =
   /** The backend refused on purpose and the screen already says why. */
@@ -100,7 +82,13 @@ export function classifyMutationFailure(err: unknown): MutationFailure {
   if (code === REQUEST_TIMEOUT) return 'timeout';
   if (code === NETWORK_UNREACHABLE) return 'offline';
   if (code === 'CLIENT_KEY_CONFLICT') return 'conflict';
-  if (code && GATE_CODES.has(code)) return 'gate';
+  // ANY coded refusal is a gate, including one this build has never heard of.
+  // A hardcoded list of known codes went stale the moment the backend added
+  // one: the new code fell through to "server", which put a Retry on a
+  // deliberate refusal and fetched the same answer again. The ladder already
+  // falls back to generic copy for a code it cannot name, which is the right
+  // outcome without the false promise of a retry.
+  if (code) return 'gate';
   return 'server';
 }
 

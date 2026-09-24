@@ -19,12 +19,16 @@ import { mintClientKey } from "@/lib/client-key";
 import {
   SLOW_HINT_AFTER_MS,
   hintKeyForPhase,
+  ownsRetry,
   reconcileVerdict,
+  reconciledResponse,
   recoveryErrorKey,
-  rewardCount,
   type ReconcileTarget,
+  type RetryTarget,
   type ScanPhase,
 } from "@/utils/scanRecovery";
+import { useScanLock } from "@/contexts/scan-lock-context";
+import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -80,9 +84,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   // How far along the request in flight is: drives the hint line and locks the
   // ways out of the screen. See utils/scanRecovery.
   const [phase, setPhase] = useState<ScanPhase>("idle");
-  // The last attempt failed in a way a second tap could fix, so the CTA says
-  // Retry. A coded gate never sets this: pressing again gets the same answer.
-  const [retryable, setRetryable] = useState(false);
+  // WHICH operation a second tap would re-send, or null. Never a bare boolean:
+  // a failed redeem must not put "Retry" on the button that adds a stamp.
+  const [retry, setRetry] = useState<RetryTarget | null>(null);
   // This success was credited by a request we never heard back from. Same
   // layout, different title, and no second celebration.
   const [alreadyCounted, setAlreadyCounted] = useState(false);
@@ -160,6 +164,15 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const inFlight = phase !== "idle";
   const hintKey = hintKeyForPhase(phase);
 
+  // The route reads this to turn off the swipe-back gesture and swallow the
+  // Android back button. Leaving mid-request and rescanning is what mints a
+  // second key for one tap.
+  const { setLocked } = useScanLock();
+  useEffect(() => {
+    setLocked(inFlight);
+    return () => setLocked(false);
+  }, [inFlight, setLocked]);
+
   // A request that has not answered in three seconds gets a quiet line saying
   // so, in the slot the quantity line already reserves. No layout shift, and a
   // healthy scan never shows it.
@@ -173,9 +186,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   }, [phase]);
 
   // A different quantity is a different request, so the CTA stops offering to
-  // retry the old one. The banner stays: what happened is still worth reading.
+  // retry the old one. A pending REDEEM retry is untouched: the stepper has
+  // nothing to do with it. The banner stays either way, since what happened is
+  // still worth reading.
   useEffect(() => {
-    setRetryable(false);
+    setRetry((current) => (current?.kind === "stamp" ? null : current));
   }, [quantity]);
 
   // Explicit plural key selection: we know the count, so never show a "(s)"
@@ -223,7 +238,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   async function reconcile(): Promise<Customer | null> {
     setPhase("confirming");
     try {
-      return await getCustomer(businessId, enrollmentId);
+      return await getCustomer(businessId, enrollmentId, {
+        timeoutMs: MUTATION_TIMEOUT_MS,
+      });
     } catch {
       return null;
     }
@@ -247,20 +264,28 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       quantity,
       capOverride: override,
     });
-    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
-    clientKeys.current = claim.ledger;
-    const before: ReconcileTarget = { action: "stamp", stamps: currentStamps, rewards };
+    const before: ReconcileTarget = {
+      action: "stamp",
+      stamps: currentStamps,
+      rewards,
+      expected: quantity,
+    };
 
     try {
       setStamping(true);
       setPhase("submitting");
       setError(null);
-      setRetryable(false);
+      setRetry(null);
       // This attempt is its own: a previous one having been merely confirmed
       // must not put "already counted" on top of a fresh success.
       setAlreadyCounted(false);
       setPreStampRewards(rewards);
       setPreStampStamps(currentStamps);
+      // Minted INSIDE the try. randomUUID is missing on older web builds and
+      // throws when it is; out here that throw escaped the press handler and
+      // the button did nothing at all, with no spinner and no banner.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       const result = await addStamp(
         businessId,
         enrollmentId,
@@ -321,13 +346,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       if (verdict === "credited" && fresh) {
         clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
         setCustomer(fresh);
-        setSuccess({
-          customer_id: fresh.id,
-          name: fresh.name,
-          stamps: fresh.stamps,
-          rewards: rewardCount(fresh),
-          message: "",
-        });
+        setSuccess(reconciledResponse(fresh));
         setAlreadyCounted(true);
         await acknowledge();
         markScanCompleted();
@@ -336,7 +355,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       // Unchanged: confirmed nothing landed. Unknown: the read failed too, so
       // the copy promises only that trying again is safe.
       setError(t(recoveryErrorKey(verdict) as never));
-      setRetryable(true);
+      setRetry({ kind: "stamp" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -344,7 +363,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     if (failure === "offline") {
       // Nothing left the phone, so there is nothing to reconcile.
       setError(t("errors.offline"));
-      setRetryable(true);
+      setRetry({ kind: "stamp" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -356,14 +375,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       console.warn("[Scan] client_key conflict on stamp, dropping the key");
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setError(t("errors.stampFailed"));
-      setRetryable(false);
+      setRetry(null);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (failure === "server") {
       setError(t(stampErrorKey(err) as never));
-      setRetryable(true);
+      setRetry({ kind: "stamp" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -448,8 +467,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       locationId: selectedLocation?.id ?? null,
       customerRewardId: instance?.id ?? null,
     });
-    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
-    clientKeys.current = claim.ledger;
     const before: ReconcileTarget = {
       action: "redeem",
       instanceId: instance?.id ?? null,
@@ -463,8 +480,11 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       setRedeemingId(instance?.id ?? null);
       setPhase("submitting");
       setError(null);
-      setRetryable(false);
+      setRetry(null);
       setAlreadyCounted(false);
+      // Minted inside the try, for the same reason as the stamp path.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       // Naming the instance is what lets a granted item be redeemed at all —
       // a gift sits on no ladder, so there is no reward_id to send instead.
       const result = await redeemReward(
@@ -502,6 +522,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     fingerprint: string
   ) {
     const failure = classifyMutationFailure(err);
+    // The retry belongs to the control that failed, and for a named reward
+    // that is its own row, not the generic CTA.
+    const instanceId = before.action === "redeem" ? before.instanceId : null;
 
     if (failure === "timeout") {
       const fresh = await reconcile();
@@ -512,26 +535,20 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
         setCustomer(fresh);
         setRedeemSuccess(true);
-        setSuccess({
-          customer_id: fresh.id,
-          name: fresh.name,
-          stamps: fresh.stamps,
-          rewards: rewardCount(fresh),
-          message: "",
-        });
+        setSuccess(reconciledResponse(fresh));
         setAlreadyCounted(true);
         await acknowledge();
         return;
       }
       setError(t(recoveryErrorKey(verdict) as never));
-      setRetryable(true);
+      setRetry({ kind: "redeem", instanceId });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (failure === "offline") {
       setError(t("errors.offline"));
-      setRetryable(true);
+      setRetry({ kind: "redeem", instanceId });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -540,7 +557,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       console.warn("[Scan] client_key conflict on redeem, dropping the key");
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setError(t("errors.redeemFailed"));
-      setRetryable(false);
+      setRetry(null);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -558,7 +575,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       // in front of a French or Polish counter. The code picks the copy.
       setError(t(redeemErrorKey(err) as never));
       // A generic failure is worth one more tap; a coded refusal is not.
-      if (failure === "server") setRetryable(true);
+      if (failure === "server") setRetry({ kind: "redeem", instanceId });
     }
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
@@ -764,6 +781,12 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     [theme]
   );
 
+  // Which control, if any, may offer to re-send. A named reward's retry lives
+  // on its own row in the list, not here: this button redeems the DEFAULT
+  // reward and pressing it would send a different request.
+  const retriesAdd = ownsRetry(retry, { kind: "stamp" });
+  const retriesDefaultRedeem = ownsRetry(retry, { kind: "redeem", instanceId: null });
+
   // Shared redeem CTA (same look everywhere; press-scale + medium haptic).
   const renderRedeemButton = (alsoDisabled = false) => (
     <PressableScale
@@ -777,7 +800,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       ) : (
         <>
           <Gift size={24} color="#fff" weight="bold" />
-          <Text style={styles.redeemButtonText}>{t("redeemReward")}</Text>
+          <Text style={styles.redeemButtonText}>
+            {retriesDefaultRedeem ? tCommon("retry") : t("redeemReward")}
+          </Text>
         </>
       )}
     </PressableScale>
@@ -1163,14 +1188,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             <ActivityIndicator color={theme.primaryText} />
           ) : (
             <Animated.Text
-              key={retryable ? "retry" : quantity}
+              key={retriesAdd ? "retry" : quantity}
               entering={FadeIn.duration(140)}
               style={styles.stampButtonText}
             >
               {/* Same button, same place under the thumb. It sends the same
                   body with the same key, so pressing it cannot double-credit
                   even if the first attempt did land. */}
-              {retryable
+              {retriesAdd
                 ? tCommon("retry")
                 : t(`addStamp_${plural(quantity)}`, { count: quantity })}
             </Animated.Text>

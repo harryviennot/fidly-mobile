@@ -1,4 +1,4 @@
-import { apiFetch, MUTATION_TIMEOUT_MS } from "./client";
+import { apiFetch, MUTATION_TIMEOUT_MS, type ApiFetchConfig } from "./client";
 import { buildRedeemBody, buildStampBody } from "./scanRequests";
 import { mapRedeemError, mapStampError } from "./scanErrors";
 import type { Customer, StampResponse } from "../types/api";
@@ -22,8 +22,17 @@ import type { Customer, StampResponse } from "../types/api";
  * because this module imports react-native through the client.
  */
 
-export async function getCustomer(businessId: string, customerId: string): Promise<Customer> {
-  return apiFetch<Customer>(`/customers/${businessId}/${customerId}`);
+export async function getCustomer(
+  businessId: string,
+  customerId: string,
+  /**
+   * Override the read budget. The reconcile passes the MUTATION budget: it
+   * runs after a scan has already spent 8s, and a till cannot be held for the
+   * sum of both while an employee waits to learn whether a stamp landed.
+   */
+  config: ApiFetchConfig = {}
+): Promise<Customer> {
+  return apiFetch<Customer>(`/customers/${businessId}/${customerId}`, {}, config);
 }
 
 export async function addStamp(

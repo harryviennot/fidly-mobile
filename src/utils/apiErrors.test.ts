@@ -122,9 +122,18 @@ describe("classifyMutationFailure", () => {
     }
   });
 
-  it("treats anything else as a server failure, which IS worth retrying", () => {
+  it("treats a code it has never seen as a gate, not as something to retry", () => {
+    // The backend adds codes. A hardcoded list of the ones this build knows
+    // went stale on the next deploy, and the new code fell through to
+    // "server": a deliberate refusal got a Retry button that would fetch the
+    // same refusal. The ladder's generic copy is the right home for it.
+    expect(classifyMutationFailure(coded("SOMETHING_NEW"))).toBe("gate");
+  });
+
+  it("treats an UNCODED failure as a server failure, which IS worth retrying", () => {
+    // A 500 with no detail, a proxy error page: nothing decided this on
+    // purpose, so another tap is a reasonable thing to offer.
     expect(classifyMutationFailure(new ApiError("API error: 500", 500))).toBe("server");
-    expect(classifyMutationFailure(coded("SOMETHING_NEW"))).toBe("server");
     expect(classifyMutationFailure(new Error("boom"))).toBe("server");
     expect(classifyMutationFailure(undefined)).toBe("server");
   });

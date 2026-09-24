@@ -24,6 +24,17 @@
  * back". The real one is `mintClientKey` in `lib/client-key.ts`.
  */
 
+/**
+ * Separators, written as escapes rather than as the literal bytes.
+ *
+ * They cannot occur in a uuid, a number or a boolean, which is the point. The
+ * escape spelling is also the point: an earlier revision of this file carried
+ * the raw control characters, and they are invisible in every viewer that
+ * reads this code, so the separator looked like it was never emitted at all.
+ */
+const UNIT = "\u001f";
+const RECORD = "\u001e";
+
 /** Keys minted during one confirmation screen's life, by request fingerprint. */
 export type ClientKeyLedger = Record<string, string>;
 
@@ -45,11 +56,15 @@ export function scanFingerprint(parts: FingerprintParts): string {
     .map((key) => {
       const value = parts[key];
       // The type tag keeps 1 apart from "1"; the separators keep ("ab","c")
-      // apart from ("a","bc"). Unit separator, so it cannot occur in an id.
-      return `${key}${typeof value}${String(value)}`;
+      // apart from ("a","bc"). Every value today is a uuid, a number or a
+      // boolean and could not run together anyway, but the first free-text
+      // field makes that collision real, and a collision is two different
+      // scans sharing one key, the second swallowed as a replay.
+      return [key, typeof value, String(value)].join(UNIT);
     })
-    .join("");
+    .join(RECORD);
 }
+
 
 /**
  * The key for this request: the one already minted for it, or a fresh one.

@@ -18,7 +18,7 @@
  * twice. Leaning the other way would silently swallow a scan.
  */
 
-import type { Customer } from "../types/api";
+import type { Customer, StampResponse } from "../types/api";
 
 /** Long enough that a healthy scan never shows a hint, short enough to answer
  *  "is this thing doing anything?" before the employee taps again. */
@@ -72,8 +72,19 @@ export function recoveryErrorKey(verdict: ReconcileVerdict): string {
 
 /** The pre-action snapshot, per action, of exactly what that action moves. */
 export type ReconcileTarget =
-  | { action: "stamp"; stamps: number; rewards: number }
-  | { action: "points"; balance: number }
+  | {
+      action: "stamp";
+      stamps: number;
+      rewards: number;
+      /** Stamps THIS request asked for. Movement that is not this is not ours. */
+      expected: number;
+    }
+  | {
+      action: "points";
+      balance: number;
+      /** Points this ticket was previewed to be worth, or null when unknown. */
+      expected: number | null;
+    }
   | {
       action: "redeem";
       /** The instance the employee tapped, when they named one. */
@@ -98,30 +109,90 @@ export function reconcileVerdict(
   if (!after) return "unknown";
 
   if (before.action === "stamp") {
-    // Either side moving is a credit. A multi-stamp scan that rolls the card
-    // over ends BELOW where it started with a reward banked, so comparing the
-    // stamp count alone would tell the employee to stamp again.
-    const credited = after.stamps > before.stamps || rewardCount(after) > before.rewards;
-    return credited ? "credited" : "unchanged";
+    const stampsMoved = after.stamps !== before.stamps;
+    const rewardsMoved = rewardCount(after) !== before.rewards;
+    if (!stampsMoved && !rewardsMoved) return "unchanged";
+    // Movement alone proves nothing: a second till stamping this customer
+    // moves the same number. Only movement that is EXACTLY what this request
+    // asked for is ours to claim. Everything else (a rollover, a cap-clamped
+    // scan, another device) is unattributable, and the retry settles it.
+    if (after.stamps === before.stamps + before.expected && !rewardsMoved) {
+      return "credited";
+    }
+    return "unknown";
   }
 
   if (before.action === "points") {
-    return balanceOf(after) > before.balance ? "credited" : "unchanged";
+    const balance = balanceOf(after);
+    if (balance === before.balance) return "unchanged";
+    if (before.expected != null && balance === before.balance + before.expected) {
+      return "credited";
+    }
+    return "unknown";
   }
 
-  // A named instance is the precise signal: it is gone or it is not.
+  // A named instance is the one precise signal in the whole reconcile: that
+  // reward is gone or it is not, and either way exactly one of it was handed
+  // over.
   const instances = after.program?.banked_rewards;
   if (before.instanceId && Array.isArray(instances)) {
     const stillHeld = instances.some((reward) => reward.id === before.instanceId);
     return stillHeld ? "unchanged" : "credited";
   }
 
-  // No instance named, or a backend that sends none: the classic full card
-  // resets to zero, a menu redemption spends points, a banked one drops the
-  // count.
-  const spent =
-    rewardCount(after) < before.rewards ||
-    balanceOf(after) < before.balance ||
-    after.stamps < before.stamps;
-  return spent ? "credited" : "unchanged";
+  // Nothing names what we spent. A full card that reset, a balance that fell,
+  // a count that dropped: every one of those is equally the OTHER till's
+  // redemption, and calling it ours hands the customer a second reward for one
+  // full card. Never credited here. The same-key retry is what settles it: the
+  // backend replays ours, or performs it, or refuses because the reward is
+  // genuinely gone.
+  const moved =
+    after.stamps !== before.stamps ||
+    rewardCount(after) !== before.rewards ||
+    balanceOf(after) !== before.balance;
+  return moved ? "unknown" : "unchanged";
+}
+
+/**
+ * The success payload a reconciled scan renders from.
+ *
+ * Built entirely from the FRESH snapshot, and deliberately carries no `delta`:
+ * nothing here knows what this request added, only where the customer now
+ * stands. The screen counts up to these values from the pre-action snapshot it
+ * captured before pressing send.
+ */
+export function reconciledResponse(fresh: Customer): StampResponse {
+  return {
+    customer_id: fresh.id,
+    name: fresh.name,
+    stamps: fresh.stamps,
+    value_after: balanceOf(fresh),
+    rewards: rewardCount(fresh),
+    message: "",
+  };
+}
+
+/**
+ * Which operation a pending Retry would re-send.
+ *
+ * A Retry is not a mood, it is one specific request with one specific key. The
+ * first cut of this stage stored a bare boolean, and a timed-out REDEEM
+ * relabelled the Add button: pressing "Retry" stamped the card instead of
+ * handing over the reward it had just failed to hand over. A control may only
+ * advertise a retry it can actually perform.
+ */
+export type RetryTarget =
+  | { kind: "stamp" }
+  | { kind: "points" }
+  | { kind: "redeem"; instanceId: string | null };
+
+/** Does THIS control own the pending retry? */
+export function ownsRetry(target: RetryTarget | null, control: RetryTarget): boolean {
+  if (!target || target.kind !== control.kind) return false;
+  // Two redeem controls can be on screen at once (the generic CTA, and a named
+  // reward's own row). Only the one that failed may offer to re-send.
+  if (target.kind === "redeem" && control.kind === "redeem") {
+    return target.instanceId === control.instanceId;
+  }
+  return true;
 }

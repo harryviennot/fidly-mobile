@@ -129,8 +129,16 @@ export function RewardsMenu({
       });
   }, [theme, windowHeight, insets.bottom]);
 
+  // A redemption in flight holds the sheet open: the backdrop tap, the drag
+  // and the Android back button all dismiss it otherwise, and the sheet is
+  // where the reward being redeemed lives. `busy` is defined above, where the
+  // rows already use it to refuse a second tap.
+  const closeUnlessBusy = () => {
+    if (!busy) onClose();
+  };
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} sheetStyle={styles.sheet}>
+    <BottomSheet visible={visible} onClose={closeUnlessBusy} sheetStyle={styles.sheet}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{t("menu.title")}</Text>
         <View style={styles.balancePill}>

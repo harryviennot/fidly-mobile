@@ -18,11 +18,16 @@ import { mintClientKey } from "@/lib/client-key";
 import {
   SLOW_HINT_AFTER_MS,
   hintKeyForPhase,
+  ownsRetry,
   reconcileVerdict,
+  reconciledResponse,
   recoveryErrorKey,
   type ReconcileTarget,
+  type RetryTarget,
   type ScanPhase,
 } from "@/utils/scanRecovery";
+import { useScanLock } from "@/contexts/scan-lock-context";
+import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -107,9 +112,9 @@ export function PointsFlow({
   // How far along the request in flight is: drives the hint line and locks the
   // way out of the screen. See utils/scanRecovery.
   const [phase, setPhase] = useState<ScanPhase>("idle");
-  // The last attempt failed in a way a second tap could fix, so the CTA says
-  // Retry. A coded gate never sets this: pressing again gets the same answer.
-  const [retryable, setRetryable] = useState(false);
+  // WHICH operation a second tap would re-send, or null. Never a bare boolean:
+  // a failed redemption must not put "Retry" on the button that adds points.
+  const [retry, setRetry] = useState<RetryTarget | null>(null);
   // Credited by a request we never heard back from: same layout, different
   // title, one haptic.
   const [alreadyCounted, setAlreadyCounted] = useState(false);
@@ -179,6 +184,17 @@ export function PointsFlow({
   // is the one double-credit the idempotency key cannot close.
   const inFlight = phase !== "idle";
   const hintKey = hintKeyForPhase(phase);
+  // Only the add has a surface to retry on. A redemption is chosen inside the
+  // sheet, and that sheet is closed by the time the banner appears.
+  const retriesAdd = ownsRetry(retry, { kind: "points" });
+
+  // The route reads this to turn off the swipe-back gesture and swallow the
+  // Android back button while a request is in flight.
+  const { setLocked } = useScanLock();
+  useEffect(() => {
+    setLocked(inFlight);
+    return () => setLocked(false);
+  }, [inFlight, setLocked]);
 
   // A request that has not answered in three seconds gets a quiet line saying
   // so, in a slot that is always reserved so nothing moves.
@@ -196,7 +212,7 @@ export function PointsFlow({
     // A different ticket is a different request, so the CTA stops offering to
     // retry the old one. The banner stays: what happened is still worth
     // reading.
-    setRetryable(false);
+    setRetry(null);
   }
 
   /** The one tap a reconciled success is allowed. */
@@ -212,7 +228,9 @@ export function PointsFlow({
   async function reconcile(): Promise<Customer | null> {
     setPhase("confirming");
     try {
-      return await getCustomer(businessId, enrollmentId);
+      return await getCustomer(businessId, enrollmentId, {
+        timeoutMs: MUTATION_TIMEOUT_MS,
+      });
     } catch {
       return null;
     }
@@ -282,20 +300,29 @@ export function PointsFlow({
       amount: parsedAmount,
       capOverride: override,
     });
-    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
-    clientKeys.current = claim.ledger;
     const balanceBefore = program?.primary_value ?? 0;
-    const before: ReconcileTarget = { action: "points", balance: balanceBefore };
+    const before: ReconcileTarget = {
+      action: "points",
+      balance: balanceBefore,
+      // What the keypad previewed this ticket to be worth. Null when the rate
+      // has not arrived, and then no balance movement is attributable to us.
+      expected: pointsPreview,
+    };
 
     try {
       setAdding(true);
       setPhase("submitting");
       setError(null);
-      setRetryable(false);
+      setRetry(null);
       // This attempt is its own: a previous one having been merely confirmed
       // must not put "already counted" on top of a fresh success.
       setAlreadyCounted(false);
       setBalanceBeforeAdd(balanceBefore);
+      // Minted INSIDE the try. randomUUID is missing on older web builds and
+      // throws when it is; out here that throw escaped the press handler and
+      // the button did nothing at all, with no spinner and no banner.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       const result = await addPoints(
         businessId,
         enrollmentId,
@@ -354,28 +381,21 @@ export function PointsFlow({
       if (verdict === "credited" && fresh) {
         clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
         setCustomer(fresh);
-        const after = fresh.program?.primary_value ?? fresh.stamps;
-        setAddResult({
-          customer_id: fresh.id,
-          name: fresh.name,
-          stamps: after,
-          value_after: after,
-          message: "",
-        });
+        setAddResult(reconciledResponse(fresh));
         setAlreadyCounted(true);
         await acknowledge();
         markScanCompleted();
         return;
       }
       setError(tStamp(recoveryErrorKey(verdict) as never));
-      setRetryable(true);
+      setRetry({ kind: "points" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (failure === "offline") {
       setError(tStamp("errors.offline"));
-      setRetryable(true);
+      setRetry({ kind: "points" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -386,13 +406,13 @@ export function PointsFlow({
       console.warn("[Scan] client_key conflict on points, dropping the key");
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setError(t("errors.addFailed"));
-      setRetryable(false);
+      setRetry(null);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     mapActionError(err, "errors.addFailed");
-    if (failure === "server") setRetryable(true);
+    if (failure === "server") setRetry({ kind: "points" });
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
 
@@ -428,18 +448,19 @@ export function PointsFlow({
       locationId: selectedLocation?.id ?? null,
       rewardId,
     });
-    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
-    clientKeys.current = claim.ledger;
     const before = redeemSnapshot(null);
 
     try {
       setRedeemingRewardId(rewardId);
       setPhase("submitting");
       setError(null);
-      setRetryable(false);
+      setRetry(null);
       setAlreadyCounted(false);
       setBalanceBeforeRedeem(balance);
       setRedeemedRewardName(ladder.find((r) => r.id === rewardId)?.name ?? null);
+      // Minted inside the try, for the same reason as the add path.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       const result = await redeemReward(
         businessId,
         enrollmentId,
@@ -488,27 +509,23 @@ export function PointsFlow({
         // The reward is already spent. Saying otherwise hands over a second.
         clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
         setCustomer(fresh);
-        const after = fresh.program?.primary_value ?? fresh.stamps;
-        setRedeemResult({
-          customer_id: fresh.id,
-          name: fresh.name,
-          stamps: after,
-          value_after: after,
-          message: "",
-        });
+        setRedeemResult(reconciledResponse(fresh));
         setAlreadyCounted(true);
         await acknowledge();
         return;
       }
+      // No Retry affordance: the control that failed lives inside the rewards
+      // sheet, and that sheet is closed by the time this banner is read.
+      // Reopening it and tapping the same reward re-sends the same key, which
+      // is exactly the retry, so nothing is lost by not relabelling a button
+      // that would send something else.
       setError(tStamp(recoveryErrorKey(verdict) as never));
-      setRetryable(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (failure === "offline") {
       setError(tStamp("errors.offline"));
-      setRetryable(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -517,7 +534,6 @@ export function PointsFlow({
       console.warn("[Scan] client_key conflict on redeem, dropping the key");
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setError(t("errors.redeemFailed"));
-      setRetryable(false);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -542,18 +558,19 @@ export function PointsFlow({
       locationId: selectedLocation?.id ?? null,
       customerRewardId: instance.id,
     });
-    const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
-    clientKeys.current = claim.ledger;
     const before = redeemSnapshot(instance.id);
 
     try {
       setRedeemingHeldId(instance.id);
       setPhase("submitting");
       setError(null);
-      setRetryable(false);
+      setRetry(null);
       setAlreadyCounted(false);
       setBalanceBeforeRedeem(balance);
       setRedeemedRewardName(instance.name);
+      // Minted inside the try, for the same reason as the add path.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       const result = await redeemReward(
         businessId,
         enrollmentId,
@@ -1064,7 +1081,7 @@ export function PointsFlow({
                   {/* Same button, same place under the thumb. It re-sends the
                       same body with the same key, so it cannot double-credit
                       even if the first attempt did land. */}
-                  {retryable ? tCommon("retry") : t("addPoints")}
+                  {retriesAdd ? tCommon("retry") : t("addPoints")}
                 </Text>
               )}
             </PressableScale>
