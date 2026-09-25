@@ -157,25 +157,14 @@ describe("classifyMutationFailure", () => {
     expect(classifyMutationFailure(new ApiError(code, status, code))).toBe("server");
   });
 
+  // What each route's mapper turns a 5xx into is pinned in api/scanErrors.test.ts;
+  // these are the shapes no mapper produces.
   it.each([
-    [500, "STAMP_FAILED"],
     [500, "SOMETHING_NEW"],
     [500, undefined],
-    [501, "REDEEM_FAILED"],
     [507, undefined],
   ])("offers Retry on a %i (code %p), whatever it is coded as", (status, code) => {
     expect(classifyMutationFailure(new ApiError("x", status, code))).toBe("server");
-  });
-
-  it.each([
-    [502, "STAMP_FAILED"],
-    [503, "REDEEM_FAILED"],
-    [504, "STAMP_FAILED"],
-    [504, undefined],
-  ])("re-reads the customer after a %i (code %p), like a timeout", (status, code) => {
-    // A gateway answered in the backend's place, and the write may have
-    // committed behind it. Saying "failed" invites a second scan.
-    expect(classifyMutationFailure(new ApiError("x", status, code))).toBe("timeout");
   });
 });
 

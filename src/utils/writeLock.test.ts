@@ -1,12 +1,3 @@
-/**
- * One counter write at a time on a confirmation screen.
- *
- * Stamping and redeeming share the screen's phase, and the exits unlock when
- * the phase goes back to idle. With two writes on the wire, the first to finish
- * unlocks the exits while the other is still sending: the employee leaves,
- * rescans, and the late write credits twice.
- */
-
 import { describe, expect, test } from "bun:test";
 import { createWriteLock } from "./writeLock";
 

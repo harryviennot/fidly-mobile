@@ -30,7 +30,7 @@ interface HeldRewardsListProps {
   onRedeem: (reward: BankedReward) => void;
   /** The instance id currently redeeming (shows a spinner), or null. */
   redeemingId: string | null;
-  /** Locks every row while any other write on the screen is in flight. */
+  /** Locks every row while any write on the screen is in flight. */
   disabled?: boolean;
   /** Namespace to read strings from — both stamp and points carry the block. */
   namespace?: "stamp" | "points";
