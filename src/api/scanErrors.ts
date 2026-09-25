@@ -18,7 +18,7 @@ import {
   NETWORK_UNREACHABLE,
   REQUEST_TIMEOUT,
 } from "./errors";
-import { errorCode, errorStatus } from "@/utils/apiErrors";
+import { errorCode, errorStatus, isGatewayStatus } from "@/utils/apiErrors";
 
 /**
  * Verdicts that are not this module's to translate.
@@ -96,6 +96,9 @@ export function mapRedeemError(err: unknown): Error {
   }
   if (status === 403) return coded("ACCESS_DENIED", 403);
   if (status === 404) return coded("ENROLLMENT_NOT_FOUND", 404);
+  // The redeem lost its compare-and-swap to a concurrent change and wrote
+  // nothing. Kept by name so the screen offers Retry with the same key.
+  if (code === "PROGRESS_CHANGED") return coded(code, status ?? 0);
   if (status === 400) {
     // The backend answers a refused redemption with {code, message} — an
     // expired reward says so, instead of showing a generic red banner. The
@@ -126,5 +129,8 @@ export function mapPointsError(err: unknown): Error {
   if (code && POINTS_GATES.has(code)) return codedGate(err, code);
   if (status === 403) return coded("ACCESS_DENIED", 403);
   if (status === 404) return new Error("Enrollment not found");
+  // Still uncoded, but a gateway's status is kept: the add may have committed
+  // behind it, so the screen re-reads the customer instead of just retrying.
+  if (isGatewayStatus(status)) return new ApiError("Failed to add points", status ?? 0);
   return new Error("Failed to add points");
 }

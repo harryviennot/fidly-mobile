@@ -8,7 +8,12 @@
 import { describe, expect, it } from "bun:test";
 import { ApiError } from "./errors";
 import { mapPointsError, mapRedeemError, mapStampError } from "./scanErrors";
-import { errorCode, errorStatus } from "../utils/apiErrors";
+import {
+  classifyMutationFailure,
+  errorCode,
+  errorStatus,
+  redeemErrorKey,
+} from "../utils/apiErrors";
 
 /** What `apiFetch` throws for a gated response. */
 function gate(status: number, code: string, detail: Record<string, unknown> = {}) {
@@ -174,5 +179,55 @@ describe("mapPointsError", () => {
     const offline = new ApiError("NETWORK_UNREACHABLE", 0, "NETWORK_UNREACHABLE");
 
     expect(mapPointsError(offline)).toBe(offline);
+  });
+});
+
+describe("the recovery each route's failure gets on screen", () => {
+  // From what `apiFetch` throws, through the route's ladder, to the recovery
+  // the confirmation screen offers.
+  const MAPPERS = { stamp: mapStampError, redeem: mapRedeemError, points: mapPointsError };
+  type Route = keyof typeof MAPPERS;
+  const everyRoute = (statuses: number[]) =>
+    (Object.keys(MAPPERS) as Route[]).flatMap((route) =>
+      statuses.map((status) => [route, status] as [Route, number])
+    );
+  const recovery = (route: Route, err: unknown) =>
+    classifyMutationFailure(MAPPERS[route](err));
+
+  it.each(everyRoute([500, 501]))("%s: a bare %i offers Retry", (route, status) => {
+    expect(recovery(route, new ApiError(`API error: ${status}`, status))).toBe("server");
+  });
+
+  it.each(everyRoute([502, 503, 504]))(
+    "%s: a %i re-reads the customer before saying anything",
+    (route, status) => {
+      // A proxy error page: the backend may have committed the write and lost
+      // the answer, exactly like a timeout.
+      expect(recovery(route, new ApiError(`API error: ${status}`, status))).toBe("timeout");
+    }
+  );
+
+  it.each([
+    ["stamp", "409 EARNING_CAP_REACHED", gate(409, "EARNING_CAP_REACHED")],
+    ["stamp", "403 MEMBER_PAUSED", gate(403, "MEMBER_PAUSED")],
+    ["stamp", "uncoded 403", new ApiError("Forbidden", 403)],
+    ["stamp", "uncoded 404", new ApiError("Customer not found", 404)],
+    ["redeem", "400 REWARD_UNAVAILABLE", gate(400, "REWARD_UNAVAILABLE")],
+    ["redeem", "402 CHECKOUT_REQUIRED", gate(402, "CHECKOUT_REQUIRED")],
+    ["redeem", "uncoded 400", new ApiError("Not eligible for redemption", 400)],
+    ["redeem", "uncoded 401", new ApiError("Not authenticated", 401)],
+    ["points", "409 EARNING_CAP_REACHED", gate(409, "EARNING_CAP_REACHED")],
+    ["points", "403 LOCATION_REQUIRED", gate(403, "LOCATION_REQUIRED")],
+  ] as [Route, string, ApiError][])("%s: a %s is a refusal, with no Retry", (route, _, err) => {
+    expect(recovery(route, err)).toBe("gate");
+  });
+
+  it("redeem: a lost compare-and-swap offers Retry under the generic redeem copy", () => {
+    const lost = mapRedeemError(
+      gate(409, "PROGRESS_CHANGED", { message: "The card changed while redeeming. Try again." })
+    );
+
+    expect(classifyMutationFailure(lost)).toBe("server");
+    expect(redeemErrorKey(lost)).toBe("errors.redeemFailed");
   });
 });

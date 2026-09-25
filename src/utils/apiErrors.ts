@@ -68,26 +68,43 @@ export function stampErrorKey(err: unknown): string {
 export type MutationFailure =
   /** The backend refused on purpose and the screen already says why. */
   | 'gate'
-  /** Sent, no answer. It may have landed: re-read before saying anything. */
+  /**
+   * Sent, and no answer from the backend itself: none inside the budget, or a
+   * gateway's 502/503/504 in its place. It may have landed: re-read before
+   * saying anything.
+   */
   | 'timeout'
   /** Never left the phone. Nothing to reconcile; retrying is safe. */
   | 'offline'
   /** One key, two different requests — our bug, and never a retry loop. */
   | 'conflict'
-  /** Anything else. Worth one more tap. */
+  /** Failed without deciding anything. Worth one more tap with the same key. */
   | 'server';
+
+/** A proxy answering because the backend did not: the write may be committed. */
+export function isGatewayStatus(status: number | undefined): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+/**
+ * Coded, but not refusals: the route ladders' own generic fallbacks, and a
+ * redeem that lost its compare-and-swap to a concurrent change and wrote
+ * nothing.
+ */
+const RETRYABLE_CODES = new Set(['STAMP_FAILED', 'REDEEM_FAILED', 'PROGRESS_CHANGED']);
 
 export function classifyMutationFailure(err: unknown): MutationFailure {
   const code = errorCode(err);
   if (code === REQUEST_TIMEOUT) return 'timeout';
   if (code === NETWORK_UNREACHABLE) return 'offline';
   if (code === 'CLIENT_KEY_CONFLICT') return 'conflict';
-  // ANY coded refusal is a gate, including one this build has never heard of.
-  // A hardcoded list of known codes went stale the moment the backend added
-  // one: the new code fell through to "server", which put a Retry on a
-  // deliberate refusal and fetched the same answer again. The ladder already
-  // falls back to generic copy for a code it cannot name, which is the right
-  // outcome without the false promise of a retry.
+  const status = errorStatus(err);
+  if (isGatewayStatus(status)) return 'timeout';
+  if (status != null && status >= 500) return 'server';
+  if (code && RETRYABLE_CODES.has(code)) return 'server';
+  // Any other coded refusal is a gate, including one this build has never
+  // heard of: the ladder's generic copy covers it, and a Retry would only
+  // fetch the same refusal again.
   if (code) return 'gate';
   return 'server';
 }

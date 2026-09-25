@@ -137,6 +137,40 @@ describe("classifyMutationFailure", () => {
     expect(classifyMutationFailure(new Error("boom"))).toBe("server");
     expect(classifyMutationFailure(undefined)).toBe("server");
   });
+
+  it.each([
+    ["STAMP_FAILED", 0],
+    ["STAMP_FAILED", 422],
+    ["REDEEM_FAILED", 0],
+    ["REDEEM_FAILED", 409],
+    // The redeem lost a compare-and-swap to a concurrent change and wrote
+    // nothing, so the same key may be sent again.
+    ["PROGRESS_CHANGED", 409],
+    ["PROGRESS_CHANGED", 0],
+  ])("offers Retry on %s (status %i): a generic failure, not a refusal", (code, status) => {
+    expect(classifyMutationFailure(new ApiError(code, status, code))).toBe("server");
+  });
+
+  it.each([
+    [500, "STAMP_FAILED"],
+    [500, "SOMETHING_NEW"],
+    [500, undefined],
+    [501, "REDEEM_FAILED"],
+    [507, undefined],
+  ])("offers Retry on a %i (code %p), whatever it is coded as", (status, code) => {
+    expect(classifyMutationFailure(new ApiError("x", status, code))).toBe("server");
+  });
+
+  it.each([
+    [502, "STAMP_FAILED"],
+    [503, "REDEEM_FAILED"],
+    [504, "STAMP_FAILED"],
+    [504, undefined],
+  ])("re-reads the customer after a %i (code %p), like a timeout", (status, code) => {
+    // A gateway answered in the backend's place, and the write may have
+    // committed behind it. Saying "failed" invites a second scan.
+    expect(classifyMutationFailure(new ApiError("x", status, code))).toBe("timeout");
+  });
 });
 
 describe("loadErrorKey", () => {
