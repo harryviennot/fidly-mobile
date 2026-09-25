@@ -28,6 +28,7 @@ import {
   type ScanPhase,
 } from "@/utils/scanRecovery";
 import { useScanLock } from "@/contexts/scan-lock-context";
+import { createWriteLock } from "@/utils/writeLock";
 import { useLockedDim } from "@/hooks/use-locked-dim";
 import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
@@ -100,6 +101,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
    * a key of its own. See api/idempotency.ts.
    */
   const clientKeys = useRef<ClientKeyLedger>({});
+  // Held by whichever write is in flight; every other write refuses to start.
+  const [writeLock] = useState(createWriteLock);
   // Card state before the last stamp — detects a rollover (stackable rewards:
   // stamps reset below the goal but a reward was banked) and drives the
   // count-up + the stagger on the dots that were just added.
@@ -255,7 +258,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
    * the `capOverride` state it also sets is not readable until the next render.
    */
   async function handleAddStamp(overrideNow?: boolean) {
-    if (stamping) return;
     const override = overrideNow ?? capOverride;
     // The key is filed under this exact request. Pressing Retry re-sends the
     // same body and therefore the same key; changing the quantity or waiving
@@ -275,6 +277,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       expected: quantity,
     };
 
+    if (!writeLock.tryAcquire()) return;
     try {
       setStamping(true);
       setPhase("submitting");
@@ -324,6 +327,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     } catch (err) {
       await handleAddFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setStamping(false);
       setPhase("idle");
     }
@@ -460,7 +464,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   }
 
   async function handleRedeemReward(instance?: BankedReward) {
-    if (redeeming) return;
     // A redemption's key is its own: one minted for a stamp and replayed here
     // would be free goods, which is why the backend answers a key crossing
     // operations with a 409 rather than a replay.
@@ -479,6 +482,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       balance: currentStamps,
     };
 
+    if (!writeLock.tryAcquire()) return;
     try {
       setRedeeming(true);
       setRedeemingId(instance?.id ?? null);
@@ -514,6 +518,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     } catch (err) {
       await handleRedeemFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setRedeeming(false);
       setRedeemingId(null);
       setPhase("idle");
@@ -792,12 +797,13 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const retriesDefaultRedeem = ownsRetry(retry, { kind: "redeem", instanceId: null });
 
   // Shared redeem CTA (same look everywhere; press-scale + medium haptic).
-  const renderRedeemButton = (alsoDisabled = false) => (
+  // Locked while any write is in flight, a stamp included.
+  const renderRedeemButton = () => (
     <PressableScale
-      style={[styles.redeemButton, redeeming && styles.buttonDisabled]}
+      style={[styles.redeemButton, inFlight && styles.buttonDisabled]}
       haptic="medium"
       onPress={() => handleRedeemReward()}
-      disabled={redeeming || alsoDisabled}
+      disabled={inFlight}
     >
       {redeeming ? (
         <ActivityIndicator color="#fff" />
@@ -1183,9 +1189,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               rewards={heldRewards}
               onRedeem={handleRedeemReward}
               redeemingId={redeemingId}
+              disabled={inFlight}
             />
           ) : (
-            renderRedeemButton(stamping)
+            renderRedeemButton()
           )}
         </ScrollView>
       )}

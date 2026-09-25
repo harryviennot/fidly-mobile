@@ -1,15 +1,18 @@
-import { useMemo } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useMemo, type ReactNode } from "react";
+import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import Animated from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { Gift, Clock } from "phosphor-react-native";
 
 import { useTheme } from "@/contexts/theme-context";
 import { PressableScale } from "@/components/PressableScale";
+import { useLockedDim } from "@/hooks/use-locked-dim";
 import { blendColors } from "@/utils/colors";
 import {
   expiresSoon,
   formatExpiry,
   groupBankedRewards,
+  heldRowState,
   sortBankedRewards,
 } from "@/utils/rewardInstances";
 import { selectPluralForm } from "@/utils/plural";
@@ -27,6 +30,8 @@ interface HeldRewardsListProps {
   onRedeem: (reward: BankedReward) => void;
   /** The instance id currently redeeming (shows a spinner), or null. */
   redeemingId: string | null;
+  /** Locks every row while any other write on the screen is in flight. */
+  disabled?: boolean;
   /** Namespace to read strings from — both stamp and points carry the block. */
   namespace?: "stamp" | "points";
   /**
@@ -53,6 +58,7 @@ export function HeldRewardsList({
   rewards,
   onRedeem,
   redeemingId,
+  disabled = false,
   namespace = "stamp",
   titleKey = "heldRewards.title",
 }: HeldRewardsListProps) {
@@ -65,7 +71,6 @@ export function HeldRewardsList({
     () => groupBankedRewards(sortBankedRewards(rewards)),
     [rewards]
   );
-  const busy = redeemingId != null;
 
   const styles = useMemo(() => {
     const rowBg = blendColors(theme.primary, theme.background, 0.9);
@@ -87,7 +92,6 @@ export function HeldRewardsList({
         paddingVertical: 14,
         paddingHorizontal: 16,
       },
-      rowDisabled: { opacity: 0.5 },
       icon: {
         width: 40,
         height: 40,
@@ -143,12 +147,9 @@ export function HeldRewardsList({
         const reward = group.first;
         const expiry = formatExpiry(reward);
         const urgent = expiresSoon(reward);
-        const isRedeeming = redeemingId === reward.id;
+        const row = heldRowState(reward.id, { redeemingId, disabled });
         return (
-          <View
-            key={group.key}
-            style={[styles.row, busy && !isRedeeming && styles.rowDisabled]}
-          >
+          <DimmedRow key={group.key} dimmed={row.dimmed} style={styles.row}>
             <View style={styles.icon}>
               <Gift size={22} color={theme.primaryText} weight="fill" />
             </View>
@@ -187,17 +188,31 @@ export function HeldRewardsList({
               style={styles.cta}
               haptic="medium"
               onPress={() => onRedeem(reward)}
-              disabled={busy}
+              disabled={!row.pressable}
             >
-              {isRedeeming ? (
+              {row.spinning ? (
                 <ActivityIndicator color={theme.primaryText} />
               ) : (
                 <Text style={styles.ctaText}>{t("heldRewards.redeem")}</Text>
               )}
             </PressableScale>
-          </View>
+          </DimmedRow>
         );
       })}
     </View>
   );
+}
+
+/** A row at the shared locked opacity while it is dimmed, eased in and out. */
+function DimmedRow({
+  dimmed,
+  style,
+  children,
+}: {
+  dimmed: boolean;
+  style: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
+  const dim = useLockedDim(dimmed);
+  return <Animated.View style={[style, dim]}>{children}</Animated.View>;
 }

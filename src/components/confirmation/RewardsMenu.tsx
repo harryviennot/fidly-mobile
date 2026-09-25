@@ -28,6 +28,8 @@ interface RewardsMenuProps {
   heldRewards?: BankedReward[];
   onRedeemHeld?: (reward: BankedReward) => void;
   redeemingHeldId?: string | null;
+  /** Locks every row while any write on the screen is in flight. */
+  disabled?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export function RewardsMenu({
   heldRewards = [],
   onRedeemHeld,
   redeemingHeldId = null,
+  disabled = false,
 }: RewardsMenuProps) {
   const { t } = useTranslation("points");
   const { theme } = useTheme();
@@ -54,7 +57,7 @@ export function RewardsMenu({
     () => [...rewards].sort((a, b) => a.threshold - b.threshold),
     [rewards]
   );
-  const busy = redeemingRewardId != null || redeemingHeldId != null;
+  const busy = disabled || redeemingRewardId != null || redeemingHeldId != null;
 
   const styles = useMemo(() => {
     // Pale brand-tint badge, but with a contrast-safe label: raw `theme.primary`
@@ -154,6 +157,7 @@ export function RewardsMenu({
               rewards={heldRewards}
               onRedeem={onRedeemHeld}
               redeemingId={redeemingHeldId}
+              disabled={busy}
               namespace="points"
               titleKey="heldRewards.groupTitle"
             />

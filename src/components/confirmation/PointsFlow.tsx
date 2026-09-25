@@ -27,6 +27,7 @@ import {
   type ScanPhase,
 } from "@/utils/scanRecovery";
 import { useScanLock } from "@/contexts/scan-lock-context";
+import { createWriteLock } from "@/utils/writeLock";
 import { useLockedDim } from "@/hooks/use-locked-dim";
 import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
@@ -121,6 +122,8 @@ export function PointsFlow({
   const [alreadyCounted, setAlreadyCounted] = useState(false);
   /** The idempotency key per request body, for the life of this screen. */
   const clientKeys = useRef<ClientKeyLedger>({});
+  // Held by whichever write is in flight; every other write refuses to start.
+  const [writeLock] = useState(createWriteLock);
 
   const program = customer?.program ?? null;
   const ladder = useMemo(() => program?.rewards ?? [], [program]);
@@ -290,7 +293,7 @@ export function PointsFlow({
    * the `capOverride` state it also sets is not readable until the next render.
    */
   async function handleAdd(overrideNow?: boolean) {
-    if (adding || !(parsedAmount > 0)) return;
+    if (!(parsedAmount > 0)) return;
     const override = overrideNow ?? capOverride;
     // The key is filed under this exact request. Retry re-sends the same body
     // and the same key; a different ticket price, or a waived cap, is a
@@ -312,6 +315,7 @@ export function PointsFlow({
       expected: pointsPreview,
     };
 
+    if (!writeLock.tryAcquire()) return;
     try {
       setAdding(true);
       setPhase("submitting");
@@ -360,6 +364,7 @@ export function PointsFlow({
     } catch (err) {
       await handleAddFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setAdding(false);
       setPhase("idle");
     }
@@ -443,7 +448,6 @@ export function PointsFlow({
   }
 
   async function handleRedeem(rewardId: string) {
-    if (redeemingRewardId) return;
     const fingerprint = scanFingerprint({
       action: "redeem",
       businessId,
@@ -453,6 +457,7 @@ export function PointsFlow({
     });
     const before = redeemSnapshot(null);
 
+    if (!writeLock.tryAcquire()) return;
     try {
       setRedeemingRewardId(rewardId);
       setPhase("submitting");
@@ -482,6 +487,7 @@ export function PointsFlow({
       setRewardsMenuOpen(false);
       await handleRedeemFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setRedeemingRewardId(null);
       setPhase("idle");
     }
@@ -553,7 +559,6 @@ export function PointsFlow({
    * balance is untouched and no ladder reward is involved.
    */
   async function handleRedeemHeld(instance: BankedReward) {
-    if (redeemingRewardId || redeemingHeldId) return;
     const fingerprint = scanFingerprint({
       action: "redeem",
       businessId,
@@ -563,6 +568,7 @@ export function PointsFlow({
     });
     const before = redeemSnapshot(instance.id);
 
+    if (!writeLock.tryAcquire()) return;
     try {
       setRedeemingHeldId(instance.id);
       setPhase("submitting");
@@ -592,6 +598,7 @@ export function PointsFlow({
       setRewardsMenuOpen(false);
       await handleRedeemFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setRedeemingHeldId(null);
       setPhase("idle");
     }
@@ -970,6 +977,7 @@ export function PointsFlow({
           heldRewards={heldRewards}
           onRedeemHeld={handleRedeemHeld}
           redeemingHeldId={redeemingHeldId}
+          disabled={inFlight}
         />
       </ConfirmationScaffold>
     );
@@ -1117,6 +1125,7 @@ export function PointsFlow({
         heldRewards={heldRewards}
         onRedeemHeld={handleRedeemHeld}
         redeemingHeldId={redeemingHeldId}
+        disabled={inFlight}
       />
     </ConfirmationScaffold>
   );
