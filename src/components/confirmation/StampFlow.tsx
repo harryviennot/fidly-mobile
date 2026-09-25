@@ -336,9 +336,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   /**
    * What a failed stamp means, and which of the four recoveries it gets.
    *
-   * The coded gates come first and are untouched by STA-340: the backend
-   * refused on purpose and this screen already explains why. Only the
-   * transport-level outcomes below reach the new states.
+   * Timeouts reconcile, offline and server failures offer Retry, and a
+   * coded gate (the backend refused on purpose) just shows why.
    */
   async function handleAddFailure(
     err: unknown,

@@ -86,12 +86,14 @@ export function isGatewayStatus(status: number | undefined): boolean {
   return status === 502 || status === 503 || status === 504;
 }
 
+/** A redeem that lost its compare-and-swap to a concurrent change and wrote nothing. */
+const RETRYABLE_CODES = new Set(['PROGRESS_CHANGED']);
+
 /**
- * Coded, but not refusals: the route ladders' own generic fallbacks, and a
- * redeem that lost its compare-and-swap to a concurrent change and wrote
- * nothing.
+ * The route ladders' generic fallbacks. Retryable only when no HTTP status came
+ * back; behind a 4xx they wrap a deliberate refusal, and a Retry would fetch it again.
  */
-const RETRYABLE_CODES = new Set(['STAMP_FAILED', 'REDEEM_FAILED', 'PROGRESS_CHANGED']);
+const FALLBACK_CODES = new Set(['STAMP_FAILED', 'REDEEM_FAILED']);
 
 export function classifyMutationFailure(err: unknown): MutationFailure {
   const code = errorCode(err);
@@ -102,6 +104,7 @@ export function classifyMutationFailure(err: unknown): MutationFailure {
   if (isGatewayStatus(status)) return 'timeout';
   if (status != null && status >= 500) return 'server';
   if (code && RETRYABLE_CODES.has(code)) return 'server';
+  if (code && FALLBACK_CODES.has(code) && !status) return 'server';
   // Any other coded refusal is a gate, including one this build has never
   // heard of: the ladder's generic copy covers it, and a Retry would only
   // fetch the same refusal again.

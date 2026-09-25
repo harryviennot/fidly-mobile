@@ -15,8 +15,7 @@ import { DURATION, EASE_OUT } from "@/constants/motion";
  *
  * 0.5, not 0.35: on `theme.textSecondary` a 0.35 label reads as nearly
  * invisible rather than as disabled. It matches what the app already uses for
- * the same idea (RewardsMenu's locked row at 0.55, HeldRewardsList's disabled
- * row at 0.5).
+ * the same idea (RewardsMenu's locked row at 0.55).
  *
  * Animated rather than switched, because the common case is a request that
  * answers in about 200ms: a straight swap reads as a flicker, a 160ms ease-out

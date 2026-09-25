@@ -139,10 +139,16 @@ describe("classifyMutationFailure", () => {
   });
 
   it.each([
-    ["STAMP_FAILED", 0],
     ["STAMP_FAILED", 422],
-    ["REDEEM_FAILED", 0],
     ["REDEEM_FAILED", 409],
+    ["REDEEM_FAILED", 402],
+  ])("keeps %s behind a %i a gate: the fallback wraps a deliberate refusal", (code, status) => {
+    expect(classifyMutationFailure(new ApiError(code, status, code))).toBe("gate");
+  });
+
+  it.each([
+    ["STAMP_FAILED", 0],
+    ["REDEEM_FAILED", 0],
     // The redeem lost a compare-and-swap to a concurrent change and wrote
     // nothing, so the same key may be sent again.
     ["PROGRESS_CHANGED", 409],
