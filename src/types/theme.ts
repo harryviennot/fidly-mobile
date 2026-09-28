@@ -3,6 +3,7 @@ import {
   isLightColor,
   blendColors,
   getContrastingTextColor,
+  normalizeColor,
 } from "../utils/colors";
 
 /**
@@ -54,12 +55,14 @@ export const DEFAULT_THEME: ScannerTheme = {
  * Create a theme from a card design's colors
  */
 export function createThemeFromDesign(design: CardDesign): ScannerTheme {
-  // Use design colors if available, fall back to defaults
-  const primary = design.background_color || DEFAULT_THEME.primary;
-  const primaryText = design.foreground_color || DEFAULT_THEME.primaryText;
-  const stampFilled = design.stamp_filled_color || primary;
-  const stampEmpty = design.stamp_empty_color || DEFAULT_THEME.stampEmpty;
-  const stampBorder = design.stamp_border_color || DEFAULT_THEME.stampBorder;
+  // Design colours in rgb() form; a missing or unreadable one takes the default,
+  // so the blends below never receive a value they cannot read (they would
+  // return it unblended, and the whole screen would wear the raw brand colour).
+  const primary = normalizeColor(design.background_color) ?? DEFAULT_THEME.primary;
+  const primaryText = normalizeColor(design.foreground_color) ?? DEFAULT_THEME.primaryText;
+  const stampFilled = normalizeColor(design.stamp_filled_color) ?? primary;
+  const stampEmpty = normalizeColor(design.stamp_empty_color) ?? DEFAULT_THEME.stampEmpty;
+  const stampBorder = normalizeColor(design.stamp_border_color) ?? DEFAULT_THEME.stampBorder;
 
   // Derive UI colors based on primary
   // For light primary colors, we darken for accents; for dark, we use as-is
