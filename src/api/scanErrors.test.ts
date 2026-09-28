@@ -222,6 +222,15 @@ describe("the recovery each route's failure gets on screen", () => {
     expect(recovery(route, err)).toBe("gate");
   });
 
+  it.each(["stamp", "redeem", "points"] as Route[])(
+    "%s: a 503 BUSY_RETRY offers Retry instead of a re-read",
+    (route) => {
+      // The backend refused after rolling everything back. A re-read could
+      // credit another till's scan to this request.
+      expect(recovery(route, gate(503, "BUSY_RETRY"))).toBe("server");
+    }
+  );
+
   it("redeem: a lost compare-and-swap offers Retry under the generic redeem copy", () => {
     const lost = mapRedeemError(
       gate(409, "PROGRESS_CHANGED", { message: "The card changed while redeeming. Try again." })

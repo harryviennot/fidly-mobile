@@ -100,6 +100,9 @@ export function classifyMutationFailure(err: unknown): MutationFailure {
   if (code === REQUEST_TIMEOUT) return 'timeout';
   if (code === NETWORK_UNREACHABLE) return 'offline';
   if (code === 'CLIENT_KEY_CONFLICT') return 'conflict';
+  // The backend rolled the write back and said so: retry, never re-read (another
+  // till's scan could be read as this one).
+  if (code === 'BUSY_RETRY') return 'server';
   const status = errorStatus(err);
   if (isGatewayStatus(status)) return 'timeout';
   if (status != null && status >= 500) return 'server';

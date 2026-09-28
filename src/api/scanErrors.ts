@@ -27,7 +27,7 @@ import { errorCode, errorStatus, isGatewayStatus } from "@/utils/apiErrors";
  * conflict is a bug of ours that must stay legible rather than being flattened
  * into "couldn't add stamp".
  */
-const PASS_THROUGH = new Set([REQUEST_TIMEOUT, NETWORK_UNREACHABLE, "CLIENT_KEY_CONFLICT"]);
+const PASS_THROUGH = new Set([REQUEST_TIMEOUT, NETWORK_UNREACHABLE, "CLIENT_KEY_CONFLICT", "BUSY_RETRY"]);
 
 /** Gates the stamp route answers with, each of which the screen explains. */
 const STAMP_GATES = new Set([
