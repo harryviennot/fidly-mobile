@@ -1105,13 +1105,14 @@ export function PointsFlow({
           </Animated.View>
           {/* Locked while a request is in flight: leaving now and rescanning
               would mint a new key for the same ticket. */}
-          <TouchableOpacity
+          <PressableScale
             style={[styles.cancelButton, lockedDim]}
             onPress={handleDone}
             disabled={inFlight}
+            accessibilityRole="button"
           >
             <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
 

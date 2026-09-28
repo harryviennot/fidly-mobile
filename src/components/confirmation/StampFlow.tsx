@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ScrollView, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -979,15 +979,16 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
                 {/* Locked while the redemption is in flight, and dimmed to say
                     so — the same treatment the X and Cancel get. Locked with no
                     visual change is a dead control. */}
-                <TouchableOpacity
+                <PressableScale
                   style={[styles.skipButton, redeemingDim]}
                   onPress={handleDone}
                   disabled={redeeming}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.cancelText}>
                     {completed ? t("skipForNow") : t("scanNext")}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               </>
             ) : (
               <PressableScale style={styles.stampButton} onPress={handleDone}>
@@ -1058,13 +1059,14 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             {renderRedeemButton()}
             {/* Same as the success screen: locked mid-redemption, and dimmed
                 so the lock is visible rather than a tap that does nothing. */}
-            <TouchableOpacity
+            <PressableScale
               style={[styles.skipButton, redeemingDim]}
               onPress={handleDone}
               disabled={redeeming}
+              accessibilityRole="button"
             >
               <Text style={styles.cancelText}>{t("skipForNow")}</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </Animated.View>
         </View>
       </ConfirmationScaffold>
