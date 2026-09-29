@@ -1,6 +1,5 @@
 import { getAuthHeaders, supabase } from "../lib/supabase";
-import { toApiError } from "./errors";
-import { TIMED_OUT, withTimeout } from "@/utils/withTimeout";
+import { requestWithAuthRetry, type FetchCoreDeps } from "./fetchCore";
 
 // Use environment variable — validated at request time, not module load
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
@@ -14,84 +13,45 @@ if (API_BASE_URL) {
 // Re-export for convenience
 export { getAuthHeaders };
 
-/** A refresh that has not answered by now is not going to. Shorter than the
- *  10s request budget: the employee is mid-scan with a customer waiting. */
-const REFRESH_TIMEOUT_MS = 8000;
+/** What a read may take. Generous: nobody is waiting on it at a till. */
+const REQUEST_TIMEOUT_MS = 10000;
 
-// Generic fetch helper with auth headers and 401 retry
+/**
+ * What a counter mutation may take.
+ *
+ * Shorter than a read on purpose: a customer is standing there, and an answer
+ * that arrives after this is no longer an answer, it is a frozen screen the
+ * employee taps again. Past this point the scanner stops waiting and goes and
+ * finds out what happened (see utils/scanRecovery).
+ */
+export const MUTATION_TIMEOUT_MS = 8000;
+
+export interface ApiFetchConfig {
+  /** Override the request budget. Defaults to REQUEST_TIMEOUT_MS. */
+  timeoutMs?: number;
+}
+
+/**
+ * Generic fetch helper with auth headers, a request budget and a bounded
+ * 401 refresh-and-retry-once.
+ *
+ * The behaviour lives in `fetchCore`, which takes its dependencies as
+ * arguments; this is the wiring that hands it the real ones. That split is
+ * what makes the 401 dance testable — this module imports `lib/supabase`, and
+ * through it react-native, which Bun's test runner cannot load.
+ */
 export async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  config: ApiFetchConfig = {}
 ): Promise<T> {
-  const headers = getAuthHeaders();
+  const deps: FetchCoreDeps = {
+    baseUrl: API_BASE_URL,
+    fetchImpl: (url, init) => fetch(url, init),
+    authHeaders: () => getAuthHeaders() as Record<string, string>,
+    refreshSession: () => supabase.auth.refreshSession(),
+    timeoutMs: config.timeoutMs ?? REQUEST_TIMEOUT_MS,
+  };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    });
-
-    // On 401, refresh the session and retry once
-    if (response.status === 401) {
-      clearTimeout(timeout);
-      console.log(`[API] 401 on ${endpoint}, attempting session refresh...`);
-      // Bounded: this is the ONE await in this file with no abort behind it,
-      // and a stall here left the caller's promise pending forever — the
-      // screen's `finally` never ran and the employee sat on a skeleton.
-      const refreshed = await withTimeout(
-        supabase.auth.refreshSession(),
-        REFRESH_TIMEOUT_MS
-      );
-      if (refreshed === TIMED_OUT) {
-        console.warn(`[API] session refresh timed out after ${REFRESH_TIMEOUT_MS}ms`);
-        throw toApiError({}, 401, "Not authenticated");
-      }
-      const { data, error } = refreshed;
-      if (error || !data.session) {
-        console.warn(`[API] session refresh failed: ${error?.message || "no session"}`);
-        const body = await response.json().catch(() => ({}));
-        throw toApiError(body, response.status, "Not authenticated");
-      }
-      console.log(`[API] session refreshed, retrying ${endpoint}`);
-
-      const retryController = new AbortController();
-      const retryTimeout = setTimeout(() => retryController.abort(), 10000);
-      try {
-        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
-          ...options,
-          signal: retryController.signal,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${data.session.access_token}`,
-            ...options.headers,
-          },
-        });
-
-        if (!retryResponse.ok) {
-          const body = await retryResponse.json().catch(() => ({}));
-          throw toApiError(body, retryResponse.status, `API error: ${retryResponse.status}`);
-        }
-
-        return retryResponse.json();
-      } finally {
-        clearTimeout(retryTimeout);
-      }
-    }
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw toApiError(body, response.status, `API error: ${response.status}`);
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeout);
-  }
+  return requestWithAuthRetry<T>(endpoint, options, deps);
 }

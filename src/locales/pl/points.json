@@ -18,14 +18,16 @@
     "earned": "+{{count}} pkt",
     "scanNext": "Skanuj następnego klienta",
     "toNextReward": "{{reward}}: jeszcze {{count}} pkt",
-    "topReward": "Najwyższa nagroda osiągnięta!"
+    "topReward": "Najwyższa nagroda osiągnięta!",
+    "alreadyCounted": "Już zapisane"
   },
   "reward": {
     "unlocked": "Nagroda odblokowana!",
     "redeemNow": "Odbierz teraz"
   },
   "redeem": {
-    "title": "Nagroda odebrana!"
+    "title": "Nagroda odebrana!",
+    "alreadyRedeemed": "Nagroda już odebrana"
   },
   "errors": {
     "amountRequired": "Wpisz kwotę zakupu, żeby dodać punkty.",

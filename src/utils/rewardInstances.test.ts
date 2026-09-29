@@ -4,6 +4,7 @@ import {
   expiresSoon,
   formatExpiry,
   groupBankedRewards,
+  heldRowState,
   sortBankedRewards,
 } from "./rewardInstances";
 import type { BankedReward } from "../types/api";
@@ -163,5 +164,34 @@ describe("groupBankedRewards", () => {
     ]);
     expect(groups.map((g) => g.first.name)).toEqual(["Cake", "Coffee"]);
     expect(groups.map((g) => g.count)).toEqual([2, 1]);
+  });
+});
+
+describe("heldRowState", () => {
+  // A held-reward row that stays tappable while another write is on the wire
+  // starts a second write, and the first to finish unlocks the screen's exits.
+  test.each([
+    [
+      "nothing is in flight",
+      { redeemingId: null, disabled: false },
+      { pressable: true, dimmed: false, spinning: false },
+    ],
+    [
+      "a stamp is in flight",
+      { redeemingId: null, disabled: true },
+      { pressable: false, dimmed: true, spinning: false },
+    ],
+    [
+      "this reward is being redeemed",
+      { redeemingId: "a", disabled: true },
+      { pressable: false, dimmed: false, spinning: true },
+    ],
+    [
+      "another reward is being redeemed",
+      { redeemingId: "b", disabled: false },
+      { pressable: false, dimmed: true, spinning: false },
+    ],
+  ])("while %s", (_, lock, expected) => {
+    expect(heldRowState("a", lock)).toEqual(expected);
   });
 });

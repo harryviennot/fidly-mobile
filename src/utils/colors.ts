@@ -1,6 +1,7 @@
 /**
- * Color utility functions for parsing and manipulating RGB color strings
- * from the database (format: "rgb(r, g, b)")
+ * Color utility functions. Card designs store colours as "rgb(r, g, b)", but any
+ * CSS-style form is read (rgb/rgba, #rgb, #rgba, #rrggbb, #rrggbbaa) so a colour
+ * written by another client never falls through as unreadable.
  */
 
 interface RGB {
@@ -9,17 +10,41 @@ interface RGB {
   b: number;
 }
 
+const RGB_FUNCTION = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+%?\s*)?\)$/i;
+const HEX = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
 /**
- * Parse "rgb(139, 90, 43)" to { r: 139, g: 90, b: 43 }
+ * Parse a colour to { r, g, b } (alpha ignored), or null when it is unreadable.
  */
-export function parseRgb(rgbString: string): RGB | null {
-  const match = new RegExp(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/).exec(rgbString);
-  if (!match) return null;
-  return {
-    r: Number.parseInt(match[1], 10),
-    g: Number.parseInt(match[2], 10),
-    b: Number.parseInt(match[3], 10),
-  };
+export function parseRgb(color: string | null | undefined): RGB | null {
+  if (typeof color !== "string") return null;
+  const value = color.trim();
+
+  const fn = RGB_FUNCTION.exec(value);
+  if (fn) {
+    const [r, g, b] = [fn[1], fn[2], fn[3]].map((c) => Math.min(255, Number.parseInt(c, 10)));
+    return { r, g, b };
+  }
+
+  const hex = HEX.exec(value);
+  if (hex) {
+    let digits = hex[1];
+    if (digits.length <= 4) digits = [...digits].map((d) => d + d).join("");
+    return {
+      r: Number.parseInt(digits.slice(0, 2), 16),
+      g: Number.parseInt(digits.slice(2, 4), 16),
+      b: Number.parseInt(digits.slice(4, 6), 16),
+    };
+  }
+  return null;
+}
+
+/**
+ * The colour as "rgb(r, g, b)", or null when it is unreadable.
+ */
+export function normalizeColor(color: string | null | undefined): string | null {
+  const rgb = parseRgb(color);
+  return rgb ? toRgbString(rgb) : null;
 }
 
 /**

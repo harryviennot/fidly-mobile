@@ -18,14 +18,16 @@
     "earned": "+{{count}} pts",
     "scanNext": "Scan Next Customer",
     "toNextReward": "{{count}} pts to {{reward}}",
-    "topReward": "Top reward reached!"
+    "topReward": "Top reward reached!",
+    "alreadyCounted": "Already counted"
   },
   "reward": {
     "unlocked": "Reward Unlocked!",
     "redeemNow": "Redeem Now"
   },
   "redeem": {
-    "title": "Reward Redeemed!"
+    "title": "Reward Redeemed!",
+    "alreadyRedeemed": "Already redeemed"
   },
   "errors": {
     "amountRequired": "Enter the purchase amount to add points.",

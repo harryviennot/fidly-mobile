@@ -18,14 +18,16 @@
     "earned": "+{{count}} pts",
     "scanNext": "Escanear al siguiente cliente",
     "toNextReward": "Solo {{count}} pts para {{reward}}",
-    "topReward": "¡Recompensa máxima alcanzada!"
+    "topReward": "¡Recompensa máxima alcanzada!",
+    "alreadyCounted": "Ya estaba registrado"
   },
   "reward": {
     "unlocked": "¡Recompensa desbloqueada!",
     "redeemNow": "Canjear ahora"
   },
   "redeem": {
-    "title": "¡Recompensa canjeada!"
+    "title": "¡Recompensa canjeada!",
+    "alreadyRedeemed": "Ya estaba canjeada"
   },
   "errors": {
     "amountRequired": "Introduce el importe de la compra para añadir puntos.",

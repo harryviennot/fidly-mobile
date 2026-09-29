@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 
 import { ApiError, toApiError } from "@/api/errors";
-import { errorCode, loadErrorKey, redeemErrorKey, stampErrorKey } from "./apiErrors";
+import {
+  classifyMutationFailure,
+  errorCode,
+  loadErrorKey,
+  redeemErrorKey,
+  stampErrorKey,
+} from "./apiErrors";
 
 function coded(code: string) {
   const err = new Error(code) as Error & { code: string };
@@ -72,6 +78,93 @@ describe("stampErrorKey", () => {
   it("shares the common codes and its own fallback", () => {
     expect(stampErrorKey(coded("ACCESS_DENIED"))).toBe("errors.accessDenied");
     expect(stampErrorKey(new Error("nope"))).toBe("errors.stampFailed");
+  });
+});
+
+describe("classifyMutationFailure", () => {
+  it("sends a timed-out scan to the reconcile, not to an error banner", () => {
+    // The request may well have landed. Telling the employee it failed is how a
+    // customer gets stamped twice.
+    expect(classifyMutationFailure(coded("REQUEST_TIMEOUT"))).toBe("timeout");
+  });
+
+  it("keeps an unreachable server apart from a timed-out one", () => {
+    // Nothing left the phone, so there is nothing to reconcile.
+    expect(classifyMutationFailure(coded("NETWORK_UNREACHABLE"))).toBe("offline");
+  });
+
+  it("calls the key conflict its own thing, never something to retry", () => {
+    // Only reachable through a bug of ours: one key, two different requests.
+    // Retrying it in a loop would hammer a 409 forever.
+    expect(classifyMutationFailure(coded("CLIENT_KEY_CONFLICT"))).toBe("conflict");
+  });
+
+  it("leaves every gate the ladder already explains alone", () => {
+    // These screens are unchanged by STA-340: no reconcile, no Retry relabel.
+    for (const code of [
+      "MEMBER_PAUSED",
+      "EARNING_CAP_REACHED",
+      "CAP_OVERRIDE_NOT_ALLOWED",
+      "CHECKOUT_REQUIRED",
+      "BILLING_REQUIRED",
+      "ACCESS_DENIED",
+      "LOCATION_REQUIRED",
+      "LOCATION_NOT_PERMITTED",
+      "LOCATION_NOT_FOUND",
+      "AMOUNT_REQUIRED",
+      "NOT_ELIGIBLE",
+      "REWARD_UNAVAILABLE",
+      "ENROLLMENT_NOT_FOUND",
+      "CUSTOMER_NOT_FOUND",
+      "UNAUTHORIZED",
+    ]) {
+      expect(classifyMutationFailure(coded(code))).toBe("gate");
+    }
+  });
+
+  it("treats a code it has never seen as a gate, not as something to retry", () => {
+    // The backend adds codes. A hardcoded list of the ones this build knows
+    // went stale on the next deploy, and the new code fell through to
+    // "server": a deliberate refusal got a Retry button that would fetch the
+    // same refusal. The ladder's generic copy is the right home for it.
+    expect(classifyMutationFailure(coded("SOMETHING_NEW"))).toBe("gate");
+  });
+
+  it("treats an UNCODED failure as a server failure, which IS worth retrying", () => {
+    // A 500 with no detail, a proxy error page: nothing decided this on
+    // purpose, so another tap is a reasonable thing to offer.
+    expect(classifyMutationFailure(new ApiError("API error: 500", 500))).toBe("server");
+    expect(classifyMutationFailure(new Error("boom"))).toBe("server");
+    expect(classifyMutationFailure(undefined)).toBe("server");
+  });
+
+  it.each([
+    ["STAMP_FAILED", 422],
+    ["REDEEM_FAILED", 409],
+    ["REDEEM_FAILED", 402],
+  ])("keeps %s behind a %i a gate: the fallback wraps a deliberate refusal", (code, status) => {
+    expect(classifyMutationFailure(new ApiError(code, status, code))).toBe("gate");
+  });
+
+  it.each([
+    ["STAMP_FAILED", 0],
+    ["REDEEM_FAILED", 0],
+    // The redeem lost a compare-and-swap to a concurrent change and wrote
+    // nothing, so the same key may be sent again.
+    ["PROGRESS_CHANGED", 409],
+    ["PROGRESS_CHANGED", 0],
+  ])("offers Retry on %s (status %i): a generic failure, not a refusal", (code, status) => {
+    expect(classifyMutationFailure(new ApiError(code, status, code))).toBe("server");
+  });
+
+  // What each route's mapper turns a 5xx into is pinned in api/scanErrors.test.ts;
+  // these are the shapes no mapper produces.
+  it.each([
+    [500, "SOMETHING_NEW"],
+    [500, undefined],
+    [507, undefined],
+  ])("offers Retry on a %i (code %p), whatever it is coded as", (status, code) => {
+    expect(classifyMutationFailure(new ApiError("x", status, code))).toBe("server");
   });
 });
 

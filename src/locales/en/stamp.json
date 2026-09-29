@@ -29,7 +29,9 @@
     "rewardsWaiting_few": "{{count}} rewards waiting to be redeemed.",
     "rewardsWaiting_many": "{{count}} rewards waiting to be redeemed.",
     "rewardsWaiting_other": "{{count}} rewards waiting to be redeemed.",
-    "progressKept": "{{name}} keeps their stamps."
+    "progressKept": "{{name}} keeps their stamps.",
+    "alreadyCounted": "Already counted",
+    "alreadyRedeemed": "Already redeemed"
   },
   "reward": {
     "banner": "Ready for Reward!",
@@ -51,7 +53,11 @@
     "rewardUnavailable": "That reward is no longer available. It may have expired or already been used.",
     "notEligible": "This customer doesn't have a reward to claim yet.",
     "cardNotRecognised": "This card isn't recognised. Ask the customer to open it in their wallet, then scan again.",
-    "unauthorized": "Your session has expired. Sign in again to keep scanning."
+    "unauthorized": "Your session has expired. Sign in again to keep scanning.",
+    "slowNetwork": "Slow network, still sending.",
+    "confirming": "Checking if it went through.",
+    "offline": "No connection right now. Trying again is safe, nothing can be counted twice.",
+    "timedOut": "Nothing was recorded. Try again."
   },
   "rewardsBadge_one": "1 reward to redeem",
   "rewardsBadge_few": "{{count}} rewards to redeem",
