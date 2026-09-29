@@ -9,6 +9,7 @@ import Animated, {
 import { Backspace } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/contexts/theme-context";
+import { useLockedDim } from "@/hooks/use-locked-dim";
 import { SETTLE_SPRING } from "@/constants/motion";
 
 interface KeypadProps {
@@ -71,6 +72,10 @@ function KeypadKey({ label, onPress, disabled, hapticStyle, highlightColor, chil
  */
 export function Keypad({ onKeyPress, separator, disabled = false }: KeypadProps) {
   const { theme } = useTheme();
+  // Disabled has to LOOK disabled. `Pressable disabled` already removes the
+  // press-scale and the haptic, so without this the biggest surface on the
+  // screen is a dead control that looks live while the scan is in flight.
+  const lockedDim = useLockedDim(disabled);
   const rows = useMemo(
     () => [
       ["1", "2", "3"],
@@ -84,7 +89,7 @@ export function Keypad({ onKeyPress, separator, disabled = false }: KeypadProps)
   const keyTextStyle = useMemo(() => ({ fontSize: 28, fontWeight: "600" as const, color: theme.text }), [theme]);
 
   return (
-    <View style={styles.grid}>
+    <Animated.View style={[styles.grid, lockedDim]}>
       {rows.map((row, r) => (
         <View key={r} style={styles.row}>
           {row.map((key) => (
@@ -109,7 +114,7 @@ export function Keypad({ onKeyPress, separator, disabled = false }: KeypadProps)
           ))}
         </View>
       ))}
-    </View>
+    </Animated.View>
   );
 }
 

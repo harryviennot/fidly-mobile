@@ -28,6 +28,8 @@ interface RewardsMenuProps {
   heldRewards?: BankedReward[];
   onRedeemHeld?: (reward: BankedReward) => void;
   redeemingHeldId?: string | null;
+  /** Locks every row while any write on the screen is in flight. */
+  disabled?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export function RewardsMenu({
   heldRewards = [],
   onRedeemHeld,
   redeemingHeldId = null,
+  disabled = false,
 }: RewardsMenuProps) {
   const { t } = useTranslation("points");
   const { theme } = useTheme();
@@ -54,7 +57,7 @@ export function RewardsMenu({
     () => [...rewards].sort((a, b) => a.threshold - b.threshold),
     [rewards]
   );
-  const busy = redeemingRewardId != null || redeemingHeldId != null;
+  const busy = disabled || redeemingRewardId != null || redeemingHeldId != null;
 
   const styles = useMemo(() => {
     // Pale brand-tint badge, but with a contrast-safe label: raw `theme.primary`
@@ -129,8 +132,16 @@ export function RewardsMenu({
       });
   }, [theme, windowHeight, insets.bottom]);
 
+  // A redemption in flight holds the sheet open: the backdrop tap, the drag
+  // and the Android back button all dismiss it otherwise, and the sheet is
+  // where the reward being redeemed lives. `busy` is defined above, where the
+  // rows already use it to refuse a second tap.
+  const closeUnlessBusy = () => {
+    if (!busy) onClose();
+  };
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} sheetStyle={styles.sheet}>
+    <BottomSheet visible={visible} onClose={closeUnlessBusy} sheetStyle={styles.sheet}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{t("menu.title")}</Text>
         <View style={styles.balancePill}>
@@ -146,6 +157,7 @@ export function RewardsMenu({
               rewards={heldRewards}
               onRedeem={onRedeemHeld}
               redeemingId={redeemingHeldId}
+              disabled={busy}
               namespace="points"
               titleKey="heldRewards.groupTitle"
             />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { router } from "expo-router";
@@ -6,8 +6,30 @@ import { useTranslation } from "react-i18next";
 import { CaretRight, Check, Confetti, Gift, PauseCircle } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { addPoints } from "@/api/points";
-import { redeemReward } from "@/api/customers";
-import { redeemErrorKey } from "@/utils/apiErrors";
+import { getCustomer, redeemReward } from "@/api/customers";
+import { classifyMutationFailure, redeemErrorKey } from "@/utils/apiErrors";
+import {
+  claimClientKey,
+  releaseClientKey,
+  scanFingerprint,
+  type ClientKeyLedger,
+} from "@/api/idempotency";
+import { mintClientKey } from "@/lib/client-key";
+import {
+  SLOW_HINT_AFTER_MS,
+  hintKeyForPhase,
+  ownsRetry,
+  reconcileVerdict,
+  reconciledResponse,
+  recoveryErrorKey,
+  type ReconcileTarget,
+  type RetryTarget,
+  type ScanPhase,
+} from "@/utils/scanRecovery";
+import { useScanLock } from "@/contexts/scan-lock-context";
+import { createWriteLock } from "@/utils/writeLock";
+import { useLockedDim } from "@/hooks/use-locked-dim";
+import { MUTATION_TIMEOUT_MS } from "@/api/client";
 import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -89,6 +111,19 @@ export function PointsFlow({
   const [balanceBeforeRedeem, setBalanceBeforeRedeem] = useState(0);
   const [redeemedRewardName, setRedeemedRewardName] = useState<string | null>(null);
   const [rewardsMenuOpen, setRewardsMenuOpen] = useState(false);
+  // How far along the request in flight is: drives the hint line and locks the
+  // way out of the screen. See utils/scanRecovery.
+  const [phase, setPhase] = useState<ScanPhase>("idle");
+  // WHICH operation a second tap would re-send, or null. Never a bare boolean:
+  // a failed redemption must not put "Retry" on the button that adds points.
+  const [retry, setRetry] = useState<RetryTarget | null>(null);
+  // Credited by a request we never heard back from: same layout, different
+  // title, one haptic.
+  const [alreadyCounted, setAlreadyCounted] = useState(false);
+  /** The idempotency key per request body, for the life of this screen. */
+  const clientKeys = useRef<ClientKeyLedger>({});
+  // Held by whichever write is in flight; every other write refuses to start.
+  const [writeLock] = useState(createWriteLock);
 
   const program = customer?.program ?? null;
   const ladder = useMemo(() => program?.rewards ?? [], [program]);
@@ -148,8 +183,63 @@ export function PointsFlow({
   }, [canAdd, addOpacity]);
   const addOpacityStyle = useAnimatedStyle(() => ({ opacity: addOpacity.value }));
 
+  // Anything in flight: the spinner is up and the ways off this screen are
+  // locked. Backing out mid-request and rescanning would mint a NEW key, which
+  // is the one double-credit the idempotency key cannot close.
+  const inFlight = phase !== "idle";
+  const hintKey = hintKeyForPhase(phase);
+  // Only the add has a surface to retry on. A redemption is chosen inside the
+  // sheet, and that sheet is closed by the time the banner appears.
+  const retriesAdd = ownsRetry(retry, { kind: "points" });
+
+  // The route reads this to turn off the swipe-back gesture and swallow the
+  // Android back button while a request is in flight.
+  const { setLocked } = useScanLock();
+  // One rule, one value, for every control this screen locks.
+  const lockedDim = useLockedDim(inFlight);
+  useEffect(() => {
+    setLocked(inFlight);
+    return () => setLocked(false);
+  }, [inFlight, setLocked]);
+
+  // A request that has not answered in three seconds gets a quiet line saying
+  // so, in a slot that is always reserved so nothing moves.
+  useEffect(() => {
+    if (phase !== "submitting") return;
+    const timer = setTimeout(
+      () => setPhase((current) => (current === "submitting" ? "slow" : current)),
+      SLOW_HINT_AFTER_MS
+    );
+    return () => clearTimeout(timer);
+  }, [phase]);
+
   function handleKey(key: string) {
     setAmount((a) => applyKeypadInput(a, key, separator));
+    // A different ticket is a different request, so the CTA stops offering to
+    // retry the old one. The banner stays: what happened is still worth
+    // reading.
+    setRetry(null);
+  }
+
+  /** The one tap a reconciled success is allowed. */
+  async function acknowledge() {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  /**
+   * Go and find out what happened: exactly ONE read, never a re-send. Null
+   * means even the read failed, which is a different screen from a read that
+   * came back saying nothing moved.
+   */
+  async function reconcile(): Promise<Customer | null> {
+    setPhase("confirming");
+    try {
+      return await getCustomer(businessId, enrollmentId, {
+        timeoutMs: MUTATION_TIMEOUT_MS,
+      });
+    } catch {
+      return null;
+    }
   }
 
   function syncBalance(newValue: number) {
@@ -203,38 +293,135 @@ export function PointsFlow({
    * the `capOverride` state it also sets is not readable until the next render.
    */
   async function handleAdd(overrideNow?: boolean) {
-    if (adding || !(parsedAmount > 0)) return;
+    if (!(parsedAmount > 0)) return;
+    const override = overrideNow ?? capOverride;
+    // The key is filed under this exact request. Retry re-sends the same body
+    // and the same key; a different ticket price, or a waived cap, is a
+    // different request and mints its own.
+    const fingerprint = scanFingerprint({
+      action: "points",
+      businessId,
+      enrollmentId,
+      locationId: selectedLocation?.id ?? null,
+      amount: parsedAmount,
+      capOverride: override,
+    });
+    const balanceBefore = program?.primary_value ?? 0;
+    const before: ReconcileTarget = {
+      action: "points",
+      balance: balanceBefore,
+      // What the keypad previewed this ticket to be worth. Null when the rate
+      // has not arrived, and then no balance movement is attributable to us.
+      expected: pointsPreview,
+    };
+
+    if (!writeLock.tryAcquire()) return;
     try {
       setAdding(true);
+      setPhase("submitting");
       setError(null);
-      setBalanceBeforeAdd(program?.primary_value ?? 0);
+      setRetry(null);
+      // This attempt is its own: a previous one having been merely confirmed
+      // must not put "already counted" on top of a fresh success.
+      setAlreadyCounted(false);
+      setBalanceBeforeAdd(balanceBefore);
+      // Minted INSIDE the try. randomUUID is missing on older web builds and
+      // throws when it is; out here that throw escaped the press handler and
+      // the button did nothing at all, with no spinner and no banner.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       const result = await addPoints(
         businessId,
         enrollmentId,
         parsedAmount,
         selectedLocation?.id,
-        overrideNow ?? capOverride
+        override,
+        claim.key
       );
+      // Settled: from here an identical ticket is a second deliberate scan.
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       const after = valueOf(result);
       setAddResult(result);
       syncBalance(after);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // A heavier second tap when this scan unlocked a reward.
-      const crossed = ladder.some(
-        (r) => (program?.primary_value ?? 0) < r.threshold && r.threshold <= after
-      );
-      if (crossed) {
-        setTimeout(() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-        }, 130);
+      if (result.replayed) {
+        // Our own request, answered twice. The points landed the first time,
+        // which is also when the customer's banner and celebration ran.
+        setAlreadyCounted(true);
+        await acknowledge();
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // A heavier second tap when this scan unlocked a reward.
+        const crossed = ladder.some(
+          (r) => balanceBefore < r.threshold && r.threshold <= after
+        );
+        if (crossed) {
+          setTimeout(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+          }, 130);
+        }
       }
       markScanCompleted();
     } catch (err) {
-      mapActionError(err, "errors.addFailed");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await handleAddFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setAdding(false);
+      setPhase("idle");
     }
+  }
+
+  /**
+   * What a failed add means, and which recovery it gets.
+   *
+   * The coded gates fall through to `mapActionError`, untouched by STA-340:
+   * the backend refused on purpose and the keypad already explains why.
+   */
+  async function handleAddFailure(
+    err: unknown,
+    before: ReconcileTarget,
+    fingerprint: string
+  ) {
+    const failure = classifyMutationFailure(err);
+
+    if (failure === "timeout") {
+      const fresh = await reconcile();
+      const verdict = reconcileVerdict(before, fresh);
+      if (verdict === "credited" && fresh) {
+        clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+        setCustomer(fresh);
+        setAddResult(reconciledResponse(fresh));
+        setAlreadyCounted(true);
+        await acknowledge();
+        markScanCompleted();
+        return;
+      }
+      setError(tStamp(recoveryErrorKey(verdict) as never));
+      setRetry({ kind: "points" });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "offline") {
+      setError(tStamp("errors.offline"));
+      setRetry({ kind: "points" });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "conflict") {
+      // A bug of ours: this key is held by a different request. Drop it rather
+      // than retry into a 409 forever.
+      console.warn("[Scan] client_key conflict on points, dropping the key");
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+      setError(t("errors.addFailed"));
+      setRetry(null);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    mapActionError(err, "errors.addFailed");
+    if (failure === "server") setRetry({ kind: "points" });
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
 
   /**
@@ -261,24 +448,107 @@ export function PointsFlow({
   }
 
   async function handleRedeem(rewardId: string) {
-    if (redeemingRewardId) return;
+    const fingerprint = scanFingerprint({
+      action: "redeem",
+      businessId,
+      enrollmentId,
+      locationId: selectedLocation?.id ?? null,
+      rewardId,
+    });
+    const before = redeemSnapshot(null);
+
+    if (!writeLock.tryAcquire()) return;
     try {
       setRedeemingRewardId(rewardId);
+      setPhase("submitting");
       setError(null);
+      setRetry(null);
+      setAlreadyCounted(false);
       setBalanceBeforeRedeem(balance);
       setRedeemedRewardName(ladder.find((r) => r.id === rewardId)?.name ?? null);
-      const result = await redeemReward(businessId, enrollmentId, selectedLocation?.id, rewardId);
+      // Minted inside the try, for the same reason as the add path.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
+      const result = await redeemReward(
+        businessId,
+        enrollmentId,
+        selectedLocation?.id,
+        rewardId,
+        null,
+        claim.key
+      );
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setRedeemResult(result);
       setRewardsMenuOpen(false);
       syncBalance(valueOf(result));
+      if (result.replayed) setAlreadyCounted(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       setRewardsMenuOpen(false);
-      mapActionError(err, "errors.redeemFailed");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await handleRedeemFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setRedeemingRewardId(null);
+      setPhase("idle");
     }
+  }
+
+  /** What this customer stood at before a redemption, for the reconcile. */
+  function redeemSnapshot(instanceId: string | null): ReconcileTarget {
+    return {
+      action: "redeem",
+      instanceId,
+      stamps: customer?.stamps ?? balance,
+      rewards: heldRewards.length,
+      balance,
+    };
+  }
+
+  async function handleRedeemFailure(
+    err: unknown,
+    before: ReconcileTarget,
+    fingerprint: string
+  ) {
+    const failure = classifyMutationFailure(err);
+
+    if (failure === "timeout") {
+      const fresh = await reconcile();
+      const verdict = reconcileVerdict(before, fresh);
+      if (verdict === "credited" && fresh) {
+        // The reward is already spent. Saying otherwise hands over a second.
+        clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+        setCustomer(fresh);
+        setRedeemResult(reconciledResponse(fresh));
+        setAlreadyCounted(true);
+        await acknowledge();
+        return;
+      }
+      // No Retry affordance: the control that failed lives inside the rewards
+      // sheet, and that sheet is closed by the time this banner is read.
+      // Reopening it and tapping the same reward re-sends the same key, which
+      // is exactly the retry, so nothing is lost by not relabelling a button
+      // that would send something else.
+      setError(tStamp(recoveryErrorKey(verdict) as never));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "offline") {
+      setError(tStamp("errors.offline"));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (failure === "conflict") {
+      console.warn("[Scan] client_key conflict on redeem, dropping the key");
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
+      setError(t("errors.redeemFailed"));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    mapActionError(err, "errors.redeemFailed");
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
 
   /**
@@ -289,29 +559,48 @@ export function PointsFlow({
    * balance is untouched and no ladder reward is involved.
    */
   async function handleRedeemHeld(instance: BankedReward) {
-    if (redeemingRewardId || redeemingHeldId) return;
+    const fingerprint = scanFingerprint({
+      action: "redeem",
+      businessId,
+      enrollmentId,
+      locationId: selectedLocation?.id ?? null,
+      customerRewardId: instance.id,
+    });
+    const before = redeemSnapshot(instance.id);
+
+    if (!writeLock.tryAcquire()) return;
     try {
       setRedeemingHeldId(instance.id);
+      setPhase("submitting");
       setError(null);
+      setRetry(null);
+      setAlreadyCounted(false);
       setBalanceBeforeRedeem(balance);
       setRedeemedRewardName(instance.name);
+      // Minted inside the try, for the same reason as the add path.
+      const claim = claimClientKey(clientKeys.current, fingerprint, mintClientKey);
+      clientKeys.current = claim.ledger;
       const result = await redeemReward(
         businessId,
         enrollmentId,
         selectedLocation?.id,
         null,
-        instance.id
+        instance.id,
+        claim.key
       );
+      clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       setRedeemResult(result);
       setRewardsMenuOpen(false);
       syncBalance(valueOf(result));
+      if (result.replayed) setAlreadyCounted(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       setRewardsMenuOpen(false);
-      mapActionError(err, "errors.redeemFailed");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await handleRedeemFailure(err, before, fingerprint);
     } finally {
+      writeLock.release();
       setRedeemingHeldId(null);
+      setPhase("idle");
     }
   }
 
@@ -427,6 +716,15 @@ export function PointsFlow({
           color: UNLOCK_AMBER,
           textAlign: "center",
         },
+        // Always present, so the in-flight line can appear and disappear
+        // without moving the amount above it or the keypad below it.
+        hintRow: { height: 26, justifyContent: "center", marginTop: 6 },
+        hintText: {
+          fontSize: 15,
+          fontWeight: "600",
+          color: theme.textSecondary,
+          textAlign: "center",
+        },
         inlineError: {
           backgroundColor: "#fef2f2",
           padding: 12,
@@ -507,10 +805,18 @@ export function PointsFlow({
               entering={ICON_ENTER}
               style={[styles.successIcon, { backgroundColor: SUCCESS_TINT }]}
             >
-              <Confetti size={36} color={SUCCESS_GREEN} weight="fill" />
+              {/* No confetti for a redemption we are merely CONFIRMING: the
+                  handover already happened. */}
+              {alreadyCounted ? (
+                <Check size={36} color={SUCCESS_GREEN} weight="bold" />
+              ) : (
+                <Confetti size={36} color={SUCCESS_GREEN} weight="fill" />
+              )}
             </Animated.View>
             <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
-              <Text style={styles.successTitle}>{t("redeem.title")}</Text>
+              <Text style={styles.successTitle}>
+                {alreadyCounted ? t("redeem.alreadyRedeemed") : t("redeem.title")}
+              </Text>
               <Text style={styles.successName} numberOfLines={1}>
                 {customer?.name ?? ""}
               </Text>
@@ -562,9 +868,18 @@ export function PointsFlow({
           <View style={styles.successHeader}>
             <Animated.View
               entering={ICON_ENTER}
-              style={[styles.successIcon, { backgroundColor: justCrossed ? UNLOCK_TINT : SUCCESS_TINT }]}
+              style={[
+                styles.successIcon,
+                {
+                  backgroundColor:
+                    justCrossed && !alreadyCounted ? UNLOCK_TINT : SUCCESS_TINT,
+                },
+              ]}
             >
-              {justCrossed ? (
+              {/* The reward, if one was unlocked, was announced by the request
+                  this one repeats. The CTA below still offers it, read off the
+                  balance, but the screen does not celebrate it twice. */}
+              {justCrossed && !alreadyCounted ? (
                 <Confetti size={36} color={UNLOCK_AMBER} weight="fill" />
               ) : (
                 <Check size={36} color={SUCCESS_GREEN} weight="bold" />
@@ -572,11 +887,13 @@ export function PointsFlow({
             </Animated.View>
             <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
               <Text style={styles.successTitle}>
-                {justCrossed
-                  ? t("reward.unlocked")
-                  : addResult.cap_applied
-                    ? tStamp("cap.partialTitle")
-                    : t("success.title")}
+                {alreadyCounted
+                  ? t("success.alreadyCounted")
+                  : justCrossed
+                    ? t("reward.unlocked")
+                    : addResult.cap_applied
+                      ? tStamp("cap.partialTitle")
+                      : t("success.title")}
               </Text>
               <Text style={styles.successName} numberOfLines={1}>
                 {customer?.name ?? ""}
@@ -660,6 +977,7 @@ export function PointsFlow({
           heldRewards={heldRewards}
           onRedeemHeld={handleRedeemHeld}
           redeemingHeldId={redeemingHeldId}
+          disabled={inFlight}
         />
       </ConfirmationScaffold>
     );
@@ -684,9 +1002,12 @@ export function PointsFlow({
           <CustomerHeader name={customer?.name ?? null} balance={balanceLabel} loading={loading} />
           {rewardReady && (
             <Animated.View entering={SOFT_ENTER} style={styles.chipWrap}>
+              {/* Locked mid-request: opening the reward picker now would let a
+                  redemption start on top of an add whose outcome is unknown. */}
               <PressableScale
-                style={styles.chip}
+                style={[styles.chip, lockedDim]}
                 scaleTo={0.95}
+                disabled={inFlight}
                 onPress={() => setRewardsMenuOpen(true)}
               >
                 <Gift size={18} color={theme.primaryText} weight="fill" />
@@ -703,6 +1024,23 @@ export function PointsFlow({
 
         <View style={styles.middle}>
           <AmountDisplay amount={amount} currencySymbol={currency} pointsPreview={pointsPreview} />
+          {/* Reserved whether or not there is anything to say, so a slow
+              network never shoves the keypad down mid-tap. The line is held to
+              ONE line: at a large system text size the fr/es strings otherwise
+              wrap out of the 26pt slot and paint over the amount above and the
+              keypad below. */}
+          <View style={styles.hintRow}>
+            {hintKey && (
+              <Animated.Text
+                key={hintKey}
+                entering={SOFT_ENTER}
+                numberOfLines={1}
+                style={styles.hintText}
+              >
+                {tStamp(hintKey as never)}
+              </Animated.Text>
+            )}
+          </View>
           {capOverride && (
             <Animated.View entering={SOFT_ENTER} style={styles.capNotice}>
               <Text style={styles.capNoticeText}>{tStamp("cap.overrideActiveNotice")}</Text>
@@ -756,13 +1094,25 @@ export function PointsFlow({
               {adding ? (
                 <ActivityIndicator color={theme.primaryText} />
               ) : (
-                <Text style={styles.addButtonText}>{t("addPoints")}</Text>
+                <Text style={styles.addButtonText}>
+                  {/* Same button, same place under the thumb. It re-sends the
+                      same body with the same key, so it cannot double-credit
+                      even if the first attempt did land. */}
+                  {retriesAdd ? tCommon("retry") : t("addPoints")}
+                </Text>
               )}
             </PressableScale>
           </Animated.View>
-          <TouchableOpacity style={styles.cancelButton} onPress={handleDone}>
+          {/* Locked while a request is in flight: leaving now and rescanning
+              would mint a new key for the same ticket. */}
+          <PressableScale
+            style={[styles.cancelButton, lockedDim]}
+            onPress={handleDone}
+            disabled={inFlight}
+            accessibilityRole="button"
+          >
             <Text style={styles.cancelText}>{tCommon("cancel")}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
 
@@ -776,6 +1126,7 @@ export function PointsFlow({
         heldRewards={heldRewards}
         onRedeemHeld={handleRedeemHeld}
         redeemingHeldId={redeemingHeldId}
+        disabled={inFlight}
       />
     </ConfirmationScaffold>
   );

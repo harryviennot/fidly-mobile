@@ -12,6 +12,8 @@
  *    through here.
  */
 
+import { NETWORK_UNREACHABLE, REQUEST_TIMEOUT } from '@/api/errors';
+
 /** The code an error carries, if it is one of ours.
  *
  *  Works on `ApiError` (which has `code`) and on any error the API client
@@ -60,6 +62,57 @@ const STAMP_ERROR_KEYS: Record<string, string> = {
 export function stampErrorKey(err: unknown): string {
   const code = errorCode(err);
   return (code && STAMP_ERROR_KEYS[code]) || 'errors.stampFailed';
+}
+
+/** What kind of recovery a failed counter mutation deserves. */
+export type MutationFailure =
+  /** The backend refused on purpose and the screen already says why. */
+  | 'gate'
+  /**
+   * Sent, and no answer from the backend itself: none inside the budget, or a
+   * gateway's 502/503/504 in its place. It may have landed: re-read before
+   * saying anything.
+   */
+  | 'timeout'
+  /** Never left the phone. Nothing to reconcile; retrying is safe. */
+  | 'offline'
+  /** One key, two different requests — our bug, and never a retry loop. */
+  | 'conflict'
+  /** Failed without deciding anything. Worth one more tap with the same key. */
+  | 'server';
+
+/** A proxy answering because the backend did not: the write may be committed. */
+export function isGatewayStatus(status: number | undefined): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+/** A redeem that lost its compare-and-swap to a concurrent change and wrote nothing. */
+const RETRYABLE_CODES = new Set(['PROGRESS_CHANGED']);
+
+/**
+ * The route ladders' generic fallbacks. Retryable only when no HTTP status came
+ * back; behind a 4xx they wrap a deliberate refusal, and a Retry would fetch it again.
+ */
+const FALLBACK_CODES = new Set(['STAMP_FAILED', 'REDEEM_FAILED']);
+
+export function classifyMutationFailure(err: unknown): MutationFailure {
+  const code = errorCode(err);
+  if (code === REQUEST_TIMEOUT) return 'timeout';
+  if (code === NETWORK_UNREACHABLE) return 'offline';
+  if (code === 'CLIENT_KEY_CONFLICT') return 'conflict';
+  // The backend rolled the write back and said so: retry, never re-read (another
+  // till's scan could be read as this one).
+  if (code === 'BUSY_RETRY') return 'server';
+  const status = errorStatus(err);
+  if (isGatewayStatus(status)) return 'timeout';
+  if (status != null && status >= 500) return 'server';
+  if (code && RETRYABLE_CODES.has(code)) return 'server';
+  if (code && FALLBACK_CODES.has(code) && !status) return 'server';
+  // Any other coded refusal is a gate, including one this build has never
+  // heard of: the ladder's generic copy covers it, and a Retry would only
+  // fetch the same refusal again.
+  if (code) return 'gate';
+  return 'server';
 }
 
 /** The HTTP status an `ApiError` carries, if it is one. */

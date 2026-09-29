@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { BackHandler } from "react-native";
 import { loadErrorKey } from "@/utils/apiErrors";
-import { useLocalSearchParams, router } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { WarningCircle } from "phosphor-react-native";
 import { getCustomer } from "@/api/customers";
@@ -11,6 +12,7 @@ import { ConfirmationScaffold } from "@/components/confirmation/ConfirmationScaf
 import { StatusScreen } from "@/components/confirmation/StatusScreen";
 import { StampFlow } from "@/components/confirmation/StampFlow";
 import { PointsFlow } from "@/components/confirmation/PointsFlow";
+import { ScanLockProvider, useScanLock } from "@/contexts/scan-lock-context";
 import type { Customer } from "@/types/api";
 
 /**
@@ -28,6 +30,16 @@ import type { Customer } from "@/types/api";
  * immediately while the header populates).
  */
 export default function StampScreen() {
+  // The provider wraps the screen so the flows below can publish "a request is
+  // in flight" and this route can act on it.
+  return (
+    <ScanLockProvider>
+      <ConfirmationRoute />
+    </ScanLockProvider>
+  );
+}
+
+function ConfirmationRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
@@ -61,12 +73,22 @@ export default function StampScreen() {
     loadCustomer();
   }, [loadCustomer]);
 
-  function handleGoHome() {
-    // Unwinds the scanner too: the lobby is below both of these.
-    router.dismissTo("/lobby");
-  }
+  // Every way off this screen has to be shut while a scan is in flight, not
+  // just the buttons. Leaving unmounts the flow and with it the key ledger, so
+  // the rescan that follows mints a NEW client_key: a first request that lands
+  // late then credits a second time, which is the exact double stamp the key
+  // exists to prevent. The X and Cancel are dimmed by the flows; these two are
+  // the ways out that touch no control at all.
+  const { locked } = useScanLock();
+  useEffect(() => {
+    if (!locked) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => subscription.remove();
+  }, [locked]);
 
   function handleGoBack() {
+    // Back to the camera, which is what an employee holding an unreadable card
+    // actually does next.
     router.back();
   }
 
@@ -85,6 +107,11 @@ export default function StampScreen() {
     }
   }, [freshType, cachedType, refreshTheme]);
 
+  // `gestureEnabled` covers the iOS interactive swipe from the left edge; the
+  // BackHandler above covers Android. Both are screen-level, so they are set
+  // here rather than in the layout that has no idea a request is running.
+  const lockNavigation = <Stack.Screen options={{ gestureEnabled: !locked }} />;
+
   // Fatal load error (no customer to show).
   if (error && !customer) {
     return (
@@ -93,8 +120,14 @@ export default function StampScreen() {
         iconColor="#dc2626"
         title={tCommon("error")}
         message={error}
-        primary={{ label: tCommon("goHome"), onPress: handleGoHome }}
-        secondary={{ label: tCommon("goBack"), onPress: handleGoBack }}
+        // Scanning the next card is the answer to the two commonest load
+        // errors, a stale QR and a card from another business, and neither is
+        // fixed by asking the server the same question again. So the camera
+        // gets the filled button and Retry gets the quiet one. Going home is
+        // not offered here: it walks the employee further from the queue, and
+        // the lobby is one more tap behind the camera anyway.
+        primary={{ label: tCommon("goBack"), onPress: handleGoBack }}
+        secondary={{ label: tCommon("retry"), onPress: loadCustomer }}
       />
     );
   }
@@ -103,14 +136,17 @@ export default function StampScreen() {
   // in-flight fetch — no waiting on the skeleton).
   if (programType === "points" && currentBusiness) {
     return (
-      <PointsFlow
-        customer={customer}
-        loading={loading}
-        setCustomer={setCustomer}
-        businessId={currentBusiness.id}
-        enrollmentId={id}
-        fallbackRate={design?.points_per_currency_unit ?? null}
-      />
+      <>
+        {lockNavigation}
+        <PointsFlow
+          customer={customer}
+          loading={loading}
+          setCustomer={setCustomer}
+          businessId={currentBusiness.id}
+          enrollmentId={id}
+          fallbackRate={design?.points_per_currency_unit ?? null}
+        />
+      </>
     );
   }
 
@@ -127,11 +163,14 @@ export default function StampScreen() {
   }
 
   return (
-    <StampFlow
-      customer={customer}
-      setCustomer={setCustomer}
-      businessId={currentBusiness.id}
-      enrollmentId={id}
-    />
+    <>
+      {lockNavigation}
+      <StampFlow
+        customer={customer}
+        setCustomer={setCustomer}
+        businessId={currentBusiness.id}
+        enrollmentId={id}
+      />
+    </>
   );
 }

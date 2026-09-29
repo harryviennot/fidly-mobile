@@ -72,6 +72,29 @@ export function expiresSoon(reward: BankedReward, now: Date = new Date()): boole
   return label.days <= EXPIRY_WARNING_DAYS;
 }
 
+export interface HeldRowState {
+  pressable: boolean;
+  /** At the locked opacity; the row being redeemed stays full strength. */
+  dimmed: boolean;
+  /** Shows the spinner in place of the Redeem label. */
+  spinning: boolean;
+}
+
+/**
+ * How one held-reward row behaves right now.
+ *
+ * `disabled` is the screen's own lock (any write in flight); `redeemingId` is
+ * the held reward being redeemed. Either one locks every row.
+ */
+export function heldRowState(
+  rowId: string,
+  lock: { redeemingId: string | null; disabled: boolean }
+): HeldRowState {
+  const busy = lock.disabled || lock.redeemingId != null;
+  const spinning = lock.redeemingId === rowId;
+  return { pressable: !busy, dimmed: busy && !spinning, spinning };
+}
+
 export interface BankedRewardGroup {
   key: string;
   /** The instance a tap on this row redeems: the next one the server drains. */

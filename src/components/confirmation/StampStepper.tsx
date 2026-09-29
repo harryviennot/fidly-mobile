@@ -14,6 +14,7 @@ import Animated, {
 import { Minus, Plus } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/contexts/theme-context";
+import { useLockedDim } from "@/hooks/use-locked-dim";
 import { DURATION, EASE_OUT, SETTLE_SPRING } from "@/constants/motion";
 
 interface StampStepperProps {
@@ -39,6 +40,10 @@ const HOLD_INTERVAL_MS = 90;
  */
 export function StampStepper({ value, max, onChange, disabled = false }: StampStepperProps) {
   const { theme } = useTheme();
+  // Disabled has to LOOK disabled. `Pressable disabled` already removes the
+  // press-scale and the haptic, so without this the stepper is a dead control
+  // that looks live for as long as the scan is in flight.
+  const lockedDim = useLockedDim(disabled);
   // Drives the digit's enter/exit so +1 rises and -1 falls. React state, not a
   // shared value: it selects which JSX animation the remounted digit uses.
   const [direction, setDirection] = useState(1);
@@ -74,7 +79,7 @@ export function StampStepper({ value, max, onChange, disabled = false }: StampSt
   );
 
   return (
-    <View style={styles.row}>
+    <Animated.View style={[styles.row, lockedDim]}>
       <StepButton
         label="Remove one stamp"
         atLimit={value <= 1}
@@ -112,7 +117,7 @@ export function StampStepper({ value, max, onChange, disabled = false }: StampSt
       >
         <Plus size={28} color={theme.text} weight="bold" />
       </StepButton>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -136,6 +136,15 @@ export interface StampResponse {
   /** Banked rewards after the action. */
   rewards?: number;
   message: string;
+  /**
+   * This request wrote nothing: an earlier one with the same `client_key`
+   * already did (STA-337). `stamps` / `value_after` are the enrollment's
+   * CURRENT standing, `delta` is what the original request credited, and
+   * `reward_earned` is deliberately false because that request already
+   * announced it. The scanner renders its own "already counted" copy and
+   * reads the balance rather than celebrating a second time.
+   */
+  replayed?: boolean;
   transaction_id?: string;
   location_id?: string | null;
   location_name?: string | null;
