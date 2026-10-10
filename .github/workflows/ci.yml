@@ -47,7 +47,14 @@ jobs:
       # > metro -- i.e. build tooling, never shipped app code. metro still
       # declares image-size ^1.0.2 as of 0.87.0, so bumping Expo will not help.
       # Drop both --ignore flags once image-size publishes a fixed version.
+      # node-forge (GHSA-86w9-cpqp-85rv, <=1.4.0) and braces (GHSA-vfj7-8cjw-p6xm,
+      # <=3.0.3) are ignored for the same reason: the advisories cover the newest
+      # published releases. node-forge is reached only through @expo/cli, braces
+      # only through micromatch (jest's transform and metro's file map): build
+      # tooling, never shipped app code. Drop each once a fixed version exists.
       - run: >
           bun audit --audit-level=high
           --ignore GHSA-w3rx-r6r6-pgpr
           --ignore GHSA-5p2g-fcmc-qvqq
+          --ignore GHSA-86w9-cpqp-85rv
+          --ignore GHSA-vfj7-8cjw-p6xm
