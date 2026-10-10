@@ -20,6 +20,8 @@ import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { writeLastLogin } from "@/lib/last-login";
 import { clearPendingJoinCode } from "@/lib/pending-join-code";
 import { loadOptionalModule } from "@/lib/optional-native";
+import { signUpMetadata } from "@/lib/sign-up-metadata";
+import i18n from "@/locales/i18n";
 
 export type OAuthProvider = "apple" | "google";
 
@@ -303,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name } },
+        options: { data: signUpMetadata(name, i18n.language) },
       });
 
       if (error) return { error };
