@@ -333,3 +333,16 @@ describe("the load-error screen ranks its actions by what the employee does next
     expect(actions).not.toContain("goHome");
   });
 });
+
+describe("the stamp screen's reward state has one source", () => {
+  // `stampScreenState` is where the held-rewards rule is tested. A local
+  // re-derivation in the component would bypass it, and the stacking gate that
+  // hid gifts on reset cards would be one line away from coming back.
+  test("StampFlow takes it from stampScreenState", () => {
+    expect(SOURCES["StampFlow.tsx"]).toMatch(/=\s*stampScreenState\(/);
+  });
+
+  test("StampFlow derives none of it locally", () => {
+    expect(SOURCES["StampFlow.tsx"]).not.toMatch(/const (isReadyForReward|hasBankedRewards|atMaxStack)\s*=/);
+  });
+});
