@@ -8,18 +8,12 @@ import {
   sortBankedRewards,
 } from "./rewardInstances";
 import type { BankedReward } from "../types/api";
+import { bankedReward } from "./testFixtures";
 
 const NOW = new Date("2026-09-10T12:00:00Z");
 
 function reward(over: Partial<BankedReward> = {}): BankedReward {
-  return {
-    id: "cr-1",
-    reward_id: "r_base",
-    name: "Free coffee",
-    source: "checkpoint",
-    expires_at: null,
-    ...over,
-  };
+  return bankedReward({ reward_id: "r_base", ...over });
 }
 
 describe("sortBankedRewards", () => {
