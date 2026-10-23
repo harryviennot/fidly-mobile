@@ -41,3 +41,8 @@ Also in this report: the startup check at `auth-context.tsx:196-208` calls `sign
 ## Hypothesis (optional, clearly speculative)
 
 This is the "app logs users out" complaint and STA-439's H2; both should stop once a build with the fix is installed.
+
+## Fix
+
+- Both auth listeners are synchronous (`src/lib/auth/auth-listener.ts`: `subscribeToAuthState` for React state, `trackAccessToken` for request headers). The `public.users` profile read is deleted together with `appUser`: nothing in the app read it.
+- The startup expiry check is deleted. auth-js 2.101.1 never returns an expired session from `getSession()` (it refreshes it or returns null), so the branch, including its `clearPendingJoinCode()`, only ran on a phone whose clock was fast. A parked join code still expires after its TTL.

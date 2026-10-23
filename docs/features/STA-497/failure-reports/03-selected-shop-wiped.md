@@ -28,3 +28,7 @@ The app opens on shop B's lobby.
 ## Aftermath
 
 - RESET performed: none needed.
+
+## Fix
+
+The stored shop is dropped when a signed-in employee signs out, or when a different one replaces a live session. It is kept across a cold start, including a session that died while the app was closed followed by someone else signing in: the stored id is only applied if it is one of that person's memberships (`business-context.tsx`, `refreshMemberships`), so at most it preselects a shop they are on too.

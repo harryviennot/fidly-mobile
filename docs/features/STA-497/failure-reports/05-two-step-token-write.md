@@ -32,3 +32,7 @@ An interrupted or failed write leaves the previous session readable. The employe
 ## Hypothesis (optional, clearly speculative)
 
 Rare, since refreshes only run in the foreground. Check Sentry for "LargeSecureStore.getItem error" (installed builds; "[encrypted-store] getItem error" from this fix on) or `refresh_token_already_used` once the connector is authorised.
+
+## Fix
+
+One key per item, created once; each write stores `v2:<random counter>:<ciphertext>` in a single AsyncStorage write. Values in the old bare-hex format still decrypt. The change is one-way: a build older than this one reads a `v2` value as no session, which only matters when downgrading a phone (e.g. back to an older internal build). The old-format branch can go once installed builds have refreshed their session, since every refresh rewrites it.

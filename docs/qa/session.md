@@ -49,7 +49,7 @@ Delete the app from the phone and reinstall the dev build. That clears the store
 
 ### Known state before you start
 
-- **New runbook:** these cases are new with STA-497. The causes were traced in code and covered by unit tests (`src/lib/auth/*.test.ts`, `src/contexts/business-selection.test.ts`, `src/utils/apiErrors.test.ts`); none has been run on a device yet.
+- **New runbook:** these cases are new with STA-497. The causes were traced in code and covered by unit tests (`src/lib/auth/*.test.ts`, `src/contexts/business-selection.test.ts`, `src/utils/apiErrors.test.ts`); none has been run on a device yet. The React providers themselves (`auth-context`, `business-context`) have no component tests in this repo, so SES-03 and SES-06 are the only proof of their wiring.
 - **iOS release:** the field reports (STA-439, DWICHBRO) are on iOS. A pass on Android does not prove the iOS store build has the fix; check App Store Connect shows the release live before closing STA-439.
 - **Known gap (offline):** SES-05 records today's offline cold-start behavior. It is expected to fail until the offline scanner work; it is EDGE and must not block the release.
 
@@ -113,6 +113,17 @@ Run SES-01 first. If it fails, the main fix did not work and the rest of the pas
 | STEPS | 1. With R1 still applied, sign in as Léa, then background the app for 6 minutes (longer than the token). 2. Turn on airplane mode. 3. Kill and relaunch the app. 4. Note what you see. 5. Turn airplane mode off and kill and relaunch again. |
 | EXPECT | Known gap: step 4 shows the welcome screen. After step 5 the app opens signed in on Patoune's lobby without typing a password (the stored session survived). You do NOT see the scanner asking for a password at step 5. |
 | RESET | Set the JWT expiry back to 3600 (R1). |
+
+### SES-06: Signing out with no connection still signs out of the phone [CORE]
+
+| Field | Content |
+|---|---|
+| WHY | On a shared shop phone, a sign-out that could not reach Supabase used to keep the session in storage, so the next person to open the app was silently signed in as the employee who left. |
+| DEPENDS | none |
+| ACCOUNT | `lea@patoune.seed.stampeo.app` |
+| STEPS | 1. Sign in to the native dev build as Léa and open Patoune's lobby. 2. Turn on airplane mode. 3. Sign out from the lobby and confirm. 4. Kill the app. 5. Turn airplane mode off. 6. Relaunch the app. |
+| EXPECT | Step 3 lands on the welcome screen. After step 6 the app is still on the welcome screen, signed out. You do NOT see Patoune's lobby or Léa's name anywhere. |
+| RESET | None. |
 
 ---
 
