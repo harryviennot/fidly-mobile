@@ -24,6 +24,7 @@ import {
 } from "phosphor-react-native";
 import { withOpacity } from "@/utils/colors";
 import { QRCodeSkeleton } from "@/components/skeleton";
+import { BusinessChip } from "@/components/BusinessChip";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ProximitySheet } from "@/components/ProximitySheet";
@@ -232,14 +233,6 @@ export default function LobbyScreen() {
           padding: 16,
           gap: 12,
         },
-        logoPlaceholder: {
-          width: 48,
-          height: 48,
-          borderRadius: 8,
-          backgroundColor: theme.primary,
-          justifyContent: "center",
-          alignItems: "center",
-        },
         businessName: {
           fontSize: 17,
           fontWeight: "600",
@@ -339,22 +332,7 @@ export default function LobbyScreen() {
           onPress={hasMultipleBusinesses ? handleSwitchBusiness : () => setJoinSheetOpen(true)}
           activeOpacity={0.7}
         >
-          {currentBusiness.logo_url ? (
-            <View style={styles.logoContainer}>
-              <Image
-                source={currentBusiness.logo_url}
-                style={styles.logo}
-                contentFit="contain"
-                cachePolicy="memory-disk"
-              />
-            </View>
-          ) : (
-            <View style={dynamicStyles.logoPlaceholder}>
-              <Text style={[styles.logoPlaceholderText, { color: theme.primaryText }]}>
-                {currentBusiness.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          <BusinessChip business={currentBusiness} height={48} />
 
           <View style={styles.bannerInfo}>
             <Text style={dynamicStyles.businessName}>{currentBusiness.name}</Text>
@@ -557,23 +535,6 @@ const styles = StyleSheet.create({
     color: "#A16207",
     textAlign: "center",
     lineHeight: 20,
-  },
-  logoContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    overflow: "hidden" as const,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-  logo: {
-    width: 48,
-    height: 48,
-  },
-  logoPlaceholderText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
   },
   bannerTouchable: {
     flex: 1,
