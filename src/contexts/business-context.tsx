@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { useAuth } from "./auth-context";
 import { getUserMemberships } from "../api/memberships";
+import { shouldForgetSelectedBusiness } from "./business-selection";
 import type { Business, Membership } from "../types/api";
 
 const SELECTED_BUSINESS_KEY = "selected_business_id";
@@ -151,13 +152,18 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   }, [refreshMemberships]);
 
   // Clear business when user logs out
+  const previousUserIdRef = useRef(userId);
   useEffect(() => {
+    const previousUserId = previousUserIdRef.current;
+    previousUserIdRef.current = userId;
     if (!userId) {
       applyMemberships([]);
       setCurrentBusiness(null);
       setCurrentMembership(null);
       setResolvedFor(null);
-      removeStoredBusinessId();
+    }
+    if (shouldForgetSelectedBusiness(previousUserId, userId)) {
+      void removeStoredBusinessId();
     }
   }, [userId, applyMemberships]);
 
