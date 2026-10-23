@@ -15,7 +15,7 @@ import type {
   statusCodes as statusCodesType,
 } from "@react-native-google-signin/google-signin";
 import * as Sentry from "@sentry/react-native";
-import { supabase } from "@/lib/supabase";
+import { signOutOfThisDevice, supabase } from "@/lib/supabase";
 import { subscribeToAuthState } from "@/lib/auth/auth-listener";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { writeLastLogin } from "@/lib/last-login";
@@ -458,7 +458,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     // Then clean up Supabase storage in the background
-    supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    signOutOfThisDevice().catch(() => {});
     // The parked join code belongs to the person who typed it, and they are
     // leaving. It outlived them: signing out from the join screen (the only
     // exit a memberless employee has) left the code in storage, so the next

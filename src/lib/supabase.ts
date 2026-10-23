@@ -11,6 +11,8 @@ import { createBrowserClient } from "@supabase/ssr";
 import { AppState, Platform } from "react-native";
 import Constants from "expo-constants";
 import { LargeSecureStore } from "./auth/large-secure-store";
+import { trackAccessToken } from "./auth/auth-listener";
+import { sessionStorageKey, signOutThisDevice } from "./auth/sign-out";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -68,6 +70,9 @@ function setCookie(name: string, value: string, options: CookieOptions) {
   document.cookie = cookie;
 }
 
+const nativeAuthStorage = new LargeSecureStore();
+const nativeSessionKey = sessionStorageKey(supabaseUrl);
+
 export const supabase: SupabaseClient =
   Platform.OS === "web"
     ? createBrowserClient(supabaseUrl, supabaseAnonKey, {
@@ -84,7 +89,7 @@ export const supabase: SupabaseClient =
       })
     : createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
-          storage: new LargeSecureStore(),
+          storage: nativeAuthStorage,
           autoRefreshToken: true,
           persistSession: true,
         },
@@ -101,19 +106,26 @@ if (Platform.OS !== "web") {
   });
 }
 
-// Module-level token cache — updated by onAuthStateChange, read synchronously
-// by getAuthHeaders(). Avoids blocking on getSession() during Supabase init.
-// Like every auth listener, it must stay synchronous (see auth/auth-listener).
-let _currentAccessToken: string | null = null;
+// Module-level token cache, read synchronously by getAuthHeaders(). Avoids
+// blocking on getSession() during Supabase init.
+const accessToken = trackAccessToken(supabase);
 
-supabase.auth.onAuthStateChange((_event, session) => {
-  _currentAccessToken = session?.access_token ?? null;
-});
+/** Signs out of this device only; see auth/sign-out for the offline case. */
+export async function signOutOfThisDevice(): Promise<void> {
+  if (Platform.OS === "web") {
+    await supabase.auth.signOut({ scope: "local" });
+    return;
+  }
+  if (await signOutThisDevice(supabase, nativeAuthStorage, nativeSessionKey)) {
+    accessToken.clear();
+  }
+}
 
 // Synchronous helper to get auth headers for API requests.
 // Reads from the in-memory token cache — never blocks on storage.
 export function getAuthHeaders(): HeadersInit {
-  if (!_currentAccessToken) {
+  const token = accessToken.current();
+  if (!token) {
     console.warn("[Auth] getAuthHeaders: no access token available");
   }
 
@@ -126,8 +138,8 @@ export function getAuthHeaders(): HeadersInit {
     // Installed app version, so the backend force-update gate (GET
     // /public/app-gate) can compare it against the per-platform minimum.
     "X-App-Version": Constants.expoConfig?.version ?? "0.0.0",
-    ...(_currentAccessToken && {
-      Authorization: `Bearer ${_currentAccessToken}`,
+    ...(token && {
+      Authorization: `Bearer ${token}`,
     }),
   };
 }

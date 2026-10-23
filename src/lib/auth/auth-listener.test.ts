@@ -1,58 +1,27 @@
-import { describe, expect, it } from "bun:test";
-import { createClient, type Session } from "@supabase/supabase-js";
+import { afterEach, describe, expect, it } from "bun:test";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 
-import { TIMED_OUT, withTimeout } from "@/utils/withTimeout";
-import { subscribeToAuthState } from "./auth-listener";
+import { subscribeToAuthState, trackAccessToken } from "./auth-listener";
+import {
+  fakeSupabase,
+  memoryStorage,
+  scannerClient,
+  settles,
+  TEST_SUPABASE_URL,
+  type MemoryStorage,
+} from "./fake-supabase";
+import { sessionStorageKey } from "./sign-out";
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+const clients: SupabaseClient[] = [];
 
-/** A fake Supabase: every token call issues a fresh pair, the way GoTrue rotates refresh tokens. */
-function fakeSupabase() {
-  let issued = 0;
-  return async (input: RequestInfo | URL): Promise<Response> => {
-    const url = input instanceof Request ? input.url : String(input);
-    if (url.includes("/auth/v1/token")) {
-      issued += 1;
-      return json({
-        access_token: `access-${issued}`,
-        refresh_token: `refresh-${issued}`,
-        token_type: "bearer",
-        expires_in: 3600,
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
-        user: { id: "employee-1", aud: "authenticated", email: "employee@example.com" },
-      });
-    }
-    if (url.includes("/auth/v1/logout")) return new Response(null, { status: 204 });
-    return json({ message: "not found" }, 404);
-  };
-}
+afterEach(async () => {
+  await Promise.all(clients.splice(0).map((c) => c.auth.stopAutoRefresh()));
+});
 
-function memoryStorage() {
-  const items = new Map<string, string>();
-  return {
-    items,
-    getItem: async (key: string) => items.get(key) ?? null,
-    setItem: async (key: string, value: string) => {
-      items.set(key, value);
-    },
-    removeItem: async (key: string) => {
-      items.delete(key);
-    },
-  };
-}
-
-/** A real supabase-js client with the app's listener, signed in as an employee. */
-async function signedInScanner() {
-  const storage = memoryStorage();
-  const client = createClient("https://project.supabase.test", "anon-key", {
-    auth: { storage, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false },
-    global: { fetch: fakeSupabase() as typeof fetch },
-  });
+/** A real supabase-js client with both of the app's listeners on it. */
+function scannerWithAppListeners(storage: MemoryStorage = memoryStorage()) {
+  const client = scannerClient(storage, fakeSupabase());
+  clients.push(client);
   const seen: { session: Session | null } = { session: null };
   subscribeToAuthState(client, {
     setSession: (session) => {
@@ -61,38 +30,65 @@ async function signedInScanner() {
     setUser: () => {},
     setLoading: () => {},
   });
-  await settles(client.auth.signInWithPassword({ email: "employee@example.com", password: "x" }));
-  return { client, storage, seen };
-}
-
-/** Fails the test instead of hanging it when the auth client is jammed. */
-async function settles<T>(promise: Promise<T>): Promise<T> {
-  const result = await withTimeout(promise, 2000);
-  if (result === TIMED_OUT) throw new Error("auth call never settled: the client is deadlocked");
-  return result;
+  const token = trackAccessToken(client);
+  return { client, seen, token };
 }
 
 describe("a scanner left open across token refreshes", () => {
   it("keeps refreshing, and the app always holds the newest token", async () => {
-    const { client, seen } = await signedInScanner();
+    const { client, seen, token } = scannerWithAppListeners();
+    await settles(client.auth.signInWithPassword({ email: "employee@example.com", password: "x" }));
 
     // Each refresh runs inside the client's auth lock and waits for the app's
-    // listener; the second only runs if the first released the lock.
+    // listeners; the second only runs if the first released the lock.
     await settles(client.auth.refreshSession());
     await settles(client.auth.refreshSession());
 
     const { data } = await settles(client.auth.getSession());
     expect(data.session?.access_token).toBe("access-3");
     expect(seen.session?.access_token).toBe("access-3");
+    expect(token.current()).toBe("access-3");
   });
 
-  it("still signs out after refreshing, clearing the stored session", async () => {
-    const { client, storage, seen } = await signedInScanner();
+  it("survives a 401 retry and the auto-refresh asking for a new token at once", async () => {
+    const { client, token } = scannerWithAppListeners();
+    await settles(client.auth.signInWithPassword({ email: "employee@example.com", password: "x" }));
+
+    // The fake refuses a refresh token used twice, as GoTrue does.
+    const [first, second] = await settles(
+      Promise.all([client.auth.refreshSession(), client.auth.refreshSession()])
+    );
+
+    expect(first.error).toBeNull();
+    expect(second.error).toBeNull();
+    expect(token.current()).not.toBe("access-1");
+  });
+});
+
+describe("a scanner reopened after its access token expired", () => {
+  it("refreshes the stored session at launch instead of signing out", async () => {
+    // What the phone holds after a night closed: an expired access token and a
+    // live refresh token, under the key supabase-js reads.
+    const storage = memoryStorage();
+    storage.items.set(
+      sessionStorageKey(TEST_SUPABASE_URL),
+      JSON.stringify({
+        access_token: "access-from-yesterday",
+        refresh_token: "refresh-from-yesterday",
+        token_type: "bearer",
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) - 3600,
+        user: { id: "employee-1", aud: "authenticated", email: "employee@example.com" },
+      })
+    );
+
+    const { client, seen, token } = scannerWithAppListeners(storage);
+
+    const { data } = await settles(client.auth.getSession());
+    expect(data.session?.access_token).toBe("access-1");
+    expect(seen.session?.access_token).toBe("access-1");
+    expect(token.current()).toBe("access-1");
+    // ...and the client is not left jammed for the rest of the day.
     await settles(client.auth.refreshSession());
-
-    await settles(client.auth.signOut({ scope: "local" }));
-
-    expect(seen.session).toBeNull();
-    expect([...storage.items.keys()].filter((key) => key.includes("auth-token"))).toEqual([]);
   });
 });

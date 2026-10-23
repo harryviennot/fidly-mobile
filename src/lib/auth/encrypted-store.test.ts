@@ -12,11 +12,12 @@ const refreshedSession = JSON.stringify({ access_token: "access-2", refresh_toke
 function phoneStorage() {
   const keyItems = new Map<string, string>();
   const dataItems = new Map<string, string>();
-  const faults = { failDataWrites: false };
+  const faults = { failDataWrites: false, keyWrites: 0 };
   const store = createEncryptedStore({
     keys: {
       getItemAsync: async (k) => keyItems.get(k) ?? null,
       setItemAsync: async (k, v) => {
+        faults.keyWrites += 1;
         keyItems.set(k, v);
       },
       deleteItemAsync: async (k) => {
@@ -46,6 +47,19 @@ describe("the scanner's encrypted session storage", () => {
     expect(await store.getItem(SESSION_KEY)).toBe(refreshedSession);
   });
 
+  it("rewrites a session with a single data write, never touching the key", async () => {
+    // One write is what makes a refresh safe to interrupt: there is no moment
+    // where the key and the data disagree.
+    const { store, faults } = phoneStorage();
+    await store.setItem(SESSION_KEY, firstSession);
+    const keyWritesAtSignIn = faults.keyWrites;
+
+    await store.setItem(SESSION_KEY, refreshedSession);
+    await store.setItem(SESSION_KEY, firstSession);
+
+    expect(faults.keyWrites).toBe(keyWritesAtSignIn);
+  });
+
   it("keeps the previous session readable when a refresh's write fails", async () => {
     const { store, faults } = phoneStorage();
     await store.setItem(SESSION_KEY, firstSession);
@@ -56,12 +70,25 @@ describe("the scanner's encrypted session storage", () => {
     expect(await store.getItem(SESSION_KEY)).toBe(firstSession);
   });
 
-  it("never encrypts two sessions with the same key and counter", async () => {
+  it("never encrypts two writes with the same key and counter", async () => {
+    // Same key, same plaintext: identical ciphertext would mean a reused
+    // counter, which leaks the XOR of two sessions.
+    const { store, dataItems } = phoneStorage();
+    const ciphertext = () => dataItems.get(SESSION_KEY)!.split(":").pop();
+    await store.setItem(SESSION_KEY, firstSession);
+    const first = ciphertext();
+    await store.setItem(SESSION_KEY, firstSession);
+    expect(ciphertext()).not.toBe(first);
+  });
+
+  it.each([
+    ["a cut-off value", (stored: string) => stored.slice(0, 7)],
+    ["a value with no ciphertext", () => "v2:00ff"],
+  ])("reads %s as no session rather than crashing", async (_case, damage) => {
     const { store, dataItems } = phoneStorage();
     await store.setItem(SESSION_KEY, firstSession);
-    const first = dataItems.get(SESSION_KEY);
-    await store.setItem(SESSION_KEY, firstSession);
-    expect(dataItems.get(SESSION_KEY)).not.toBe(first);
+    dataItems.set(SESSION_KEY, damage(dataItems.get(SESSION_KEY)!));
+    expect(await store.getItem(SESSION_KEY)).toBeNull();
   });
 
   it("still reads a session saved by an installed build", async () => {
