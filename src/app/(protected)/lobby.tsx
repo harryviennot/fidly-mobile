@@ -335,7 +335,9 @@ export default function LobbyScreen() {
           <BusinessChip business={currentBusiness} height={48} />
 
           <View style={styles.bannerInfo}>
-            <Text style={dynamicStyles.businessName}>{currentBusiness.name}</Text>
+            <Text style={dynamicStyles.businessName} numberOfLines={2}>
+              {currentBusiness.name}
+            </Text>
             <Text style={dynamicStyles.roleText}>
               {currentMembership?.role
                 ? tCommon(`roles.${currentMembership.role}` as "roles.owner" | "roles.admin" | "roles.scanner")
