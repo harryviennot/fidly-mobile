@@ -177,11 +177,11 @@ describe("loadErrorKey", () => {
     expect(loadErrorKey(err)).toBe("errors.cardNotRecognised");
   });
 
-  it("tells an expired session apart from a broken card", () => {
-    expect(loadErrorKey(toApiError({ detail: "Not authenticated" }, 401, "x"))).toBe(
-      "errors.unauthorized"
-    );
-    expect(loadErrorKey(toApiError({}, 403, "x"))).toBe("errors.unauthorized");
+  it.each([
+    ["an expired session", 401, "Not authenticated", "errors.unauthorized"],
+    ["a removed team member", 403, "You don't have access to this business", "errors.accessDenied"],
+  ] as const)("tells %s apart from a broken card", (_case, status, detail, key) => {
+    expect(loadErrorKey(toApiError({ detail }, status, "x"))).toBe(key);
   });
 
   it("falls back for anything else, including a non-API error", () => {

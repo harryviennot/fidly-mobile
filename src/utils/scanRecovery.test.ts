@@ -10,9 +10,10 @@ import {
   type ReconcileTarget,
 } from "./scanRecovery";
 import type { BankedReward, Customer } from "../types/api";
+import { bankedReward } from "./testFixtures";
 
 function instance(id: string): BankedReward {
-  return { id, reward_id: null, name: "Free coffee", source: "checkpoint", expires_at: null };
+  return bankedReward({ id });
 }
 
 function customer(over: Partial<Customer> = {}): Customer {

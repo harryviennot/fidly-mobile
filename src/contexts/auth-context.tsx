@@ -15,7 +15,8 @@ import type {
   statusCodes as statusCodesType,
 } from "@react-native-google-signin/google-signin";
 import * as Sentry from "@sentry/react-native";
-import { supabase } from "@/lib/supabase";
+import { signOutOfThisDevice, supabase } from "@/lib/supabase";
+import { subscribeToAuthState } from "@/lib/auth/auth-listener";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { writeLastLogin } from "@/lib/last-login";
 import { clearPendingJoinCode } from "@/lib/pending-join-code";
@@ -118,19 +119,8 @@ if (google.available && google.module) {
 // Required for expo-web-browser OAuth completion on web (no-op on native).
 WebBrowser.maybeCompleteAuthSession();
 
-// App user profile from public.users table
-export interface AppUser {
-  id: string; // Equals auth.users.id after migration
-  email: string;
-  name: string;
-  avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 interface AuthContextType {
   user: User | null; // Supabase auth user
-  appUser: AppUser | null; // App user profile with real user_id
   session: Session | null;
   loading: boolean;
   signIn: (
@@ -162,85 +152,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch app user profile from public.users table
-  const fetchAppUser = useCallback(async (authId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching app user:", error);
-        return null;
-      }
-      return data as AppUser;
-    } catch (err) {
-      console.error("Error fetching app user:", err);
-      return null;
-    }
-  }, []);
-
   useEffect(() => {
-    // Get initial session and validate it
+    // getSession() refreshes a stored token that is about to expire before
+    // resolving, so the session it returns is current.
     supabase.auth
       .getSession()
-      .then(async ({ data: { session } }) => {
+      .then(({ data: { session } }) => {
         console.log(`[Auth] initial session: hasSession=${!!session}, expiresAt=${session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : "none"}`);
-
-        // Check if the session token is expired
-        if (session?.expires_at && session.expires_at * 1000 < Date.now()) {
-          console.log("[Auth] session expired, clearing");
-          // Token is expired — clear the stale session
-          supabase.auth.signOut({ scope: "local" }).catch(() => {});
-          // Same reasoning as the explicit sign-out below: the session this
-          // code was typed under is gone, so the code goes with it.
-          void clearPendingJoinCode();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        if (session?.user) {
-          const profile = await fetchAppUser(session.user.id);
-          setAppUser(profile);
-        }
       })
       .catch((err) => {
         console.error("[Auth] error getting session:", err);
         setLoading(false);
       });
 
-    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[Auth] event=${event}, hasSession=${!!session}, expiresAt=${session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : "none"}`);
-
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      if (session?.user) {
-        const profile = await fetchAppUser(session.user.id);
-        setAppUser(profile);
-      } else {
-        setAppUser(null);
-      }
-    });
+    } = subscribeToAuthState(supabase, { setSession, setUser, setLoading });
 
     return () => subscription.unsubscribe();
-  }, [fetchAppUser]);
+  }, []);
 
   // Native-only: catch OAuth deep links (`stampeo-scanner://auth/callback?code=...`)
   // that arrive when the app is cold-launched or warm-resumed via the redirect.
@@ -520,10 +456,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     // Clear React state first so the UI redirects immediately
     setUser(null);
-    setAppUser(null);
     setSession(null);
     // Then clean up Supabase storage in the background
-    supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    signOutOfThisDevice().catch(() => {});
     // The parked join code belongs to the person who typed it, and they are
     // leaving. It outlived them: signing out from the join screen (the only
     // exit a memberless employee has) left the code in storage, so the next
@@ -535,7 +470,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, appUser, session, loading, signIn, signUp, verifySignupOtp,
+      value={{ user, session, loading, signIn, signUp, verifySignupOtp,
                 resendSignupOtp, signInWithProvider, signOut }}
     >
       {children}
