@@ -10,7 +10,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
 import { AppState, Platform } from "react-native";
 import Constants from "expo-constants";
-import { LargeSecureStore } from "./large-secure-store";
+import { LargeSecureStore } from "./auth/large-secure-store";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -103,6 +103,7 @@ if (Platform.OS !== "web") {
 
 // Module-level token cache — updated by onAuthStateChange, read synchronously
 // by getAuthHeaders(). Avoids blocking on getSession() during Supabase init.
+// Like every auth listener, it must stay synchronous (see auth/auth-listener).
 let _currentAccessToken: string | null = null;
 
 supabase.auth.onAuthStateChange((_event, session) => {
