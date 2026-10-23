@@ -1,7 +1,7 @@
 # Gap Report: STA-497
 
 AUDITED: 2026-10-23 by `coverage-auditor` (fresh context: failure reports, diff, tests)
-VERDICT: DRIFT + GAPS FOUND. Closed below, except three items that need a waiver.
+VERDICT: DRIFT + GAPS FOUND. Closed below; the three remaining items are waived.
 
 ## Closed
 
@@ -22,7 +22,7 @@ VERDICT: DRIFT + GAPS FOUND. Closed below, except three items that need a waiver
 | Scanner's own sign-out had no scope guard | Same lint rule in `scanner-app/eslint.config.js`. |
 | Drift: `appUser` removed; startup branch's `clearPendingJoinCode()`; shop forgotten on A → B; one-way `v2` format | Recorded in the Fix sections of failure reports 01, 03 and 05. |
 
-## Open, need a waiver from Harry
+## Open, waived
 
 1. **R03 restore through `BusinessProvider`** (two shops, B stored, relaunch opens B). Only the pure pieces are tested: the scanner has no React component test runner (jest-expo not set up). Covered on device by SES-03.
 2. **`auth-context` wiring**: the provider calling `signOutOfThisDevice()` and no longer running the startup expiry check. Same reason; covered by SES-06 and SES-01.
@@ -30,4 +30,4 @@ VERDICT: DRIFT + GAPS FOUND. Closed below, except three items that need a waiver
 
 ## Waivers
 
-(filled only with Harry's explicit waiver)
+Open items 1, 2 and 3 waived by Harry, 2026-10-23 ("waivers are ok"). Items 1 and 2 stay covered by runbook cases SES-01, SES-03 and SES-06 on a device.
