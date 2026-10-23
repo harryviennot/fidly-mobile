@@ -137,6 +137,8 @@ export function loadErrorKey(err: unknown): string {
   if (code && REDEEM_ERROR_KEYS[code]) return REDEEM_ERROR_KEYS[code];
   const status = errorStatus(err);
   if (status === 404) return 'errors.cardNotRecognised';
-  if (status === 401 || status === 403) return 'errors.unauthorized';
+  if (status === 401) return 'errors.unauthorized';
+  // No membership, wrong role, or an inactive business: a new sign-in fixes none.
+  if (status === 403) return 'errors.accessDenied';
   return 'errors.loadFailed';
 }
