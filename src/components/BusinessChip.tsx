@@ -1,12 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
-import {
-  CHIP_MUTED,
-  CHIP_MUTED_INK,
-  CHIP_PAPER,
-  resolveBusinessChip,
-  type BusinessChipInput,
-} from "@/utils/business-chip";
+import { resolveBusinessChip, type BusinessChipInput } from "@/utils/businessChip";
+
+// Fallback chip colours (logo on paper, initials on muted). They are the
+// chip contract shared with the dashboard, not this app's theme tokens, so a
+// business reads the same on every surface.
+const CHIP_PAPER = "#FAFAF8";
+const CHIP_MUTED = "#F0EDE7";
+const CHIP_MUTED_INK = "#5A5A5A";
 
 interface BusinessChipProps {
   business: BusinessChipInput;

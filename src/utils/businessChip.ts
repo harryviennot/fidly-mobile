@@ -1,23 +1,15 @@
+import type { Business } from "@/types/api";
+
 // Decides what fills a business chip: the server-built chip, else the
 // business logo, else the icon, else the name's initials.
 
-export interface BusinessChipInput {
-  name: string;
-  logo_chip?: { image_url: string; background: string } | null;
-  logo_url?: string | null;
-  icon_original_url?: string | null;
-  icon_url?: string | null;
-}
+export type BusinessChipInput = Pick<Business, "name"> &
+  Partial<Pick<Business, "logo_url" | "icon_original_url" | "icon_url" | "logo_chip">>;
 
 export type ResolvedBusinessChip =
   | { kind: "chip"; src: string; background: string }
   | { kind: "logo"; src: string }
   | { kind: "initials"; text: string };
-
-// Colours of the fallback chips (logo contained on paper, initials on muted).
-export const CHIP_PAPER = "#FAFAF8";
-export const CHIP_MUTED = "#F0EDE7";
-export const CHIP_MUTED_INK = "#5A5A5A";
 
 // First letter of each of the first two words, uppercased.
 function initialsOf(name: string): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolveBusinessChip, type ResolvedBusinessChip } from "./business-chip";
+import { resolveBusinessChip, type ResolvedBusinessChip } from "./businessChip";
 
 const CHIP = { image_url: "https://cdn.test/chip-ab12cd34ef56.png", background: "#1A2B3C" };
 const LOGO = "https://cdn.test/logo.png";
@@ -25,7 +25,7 @@ describe("resolveBusinessChip: which image fills the chip", () => {
       { kind: "logo", src: LOGO },
     ],
     [
-      "chip absent (backend not deployed yet) falls back to the logo",
+      "chip absent from the payload falls back to the logo",
       { name: "Cafe Rouge", logo_url: LOGO },
       { kind: "logo", src: LOGO },
     ],

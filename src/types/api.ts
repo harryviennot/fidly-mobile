@@ -172,6 +172,12 @@ export interface StampResponse {
   boost_bonus?: number;
 }
 
+// Server-built 3:2 card chip: a finished image plus its fill colour.
+export interface BusinessLogoChip {
+  image_url: string;
+  background: string;
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -180,8 +186,8 @@ export interface Business {
   // Notification icon, the last image a business chip falls back to.
   icon_original_url?: string | null;
   icon_url?: string | null;
-  // Server-built 3:2 card chip; absent or null until the backend has made one.
-  logo_chip?: { image_url: string; background: string } | null;
+  // Null or absent when no chip has been built.
+  logo_chip?: BusinessLogoChip | null;
   subscription_tier: string;
   settings: Record<string, unknown>;
   created_at?: string;
