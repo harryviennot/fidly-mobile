@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
 
 } from "react-native";
-import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -16,6 +15,7 @@ import { useSignOut } from "@/hooks/use-sign-out";
 import { useAlert } from "@/contexts/alert-context";
 import { CaretRight, PlusIcon } from "phosphor-react-native";
 import { BusinessCardSkeleton } from "@/components/skeleton";
+import { BusinessChip } from "@/components/BusinessChip";
 import { JoinBusinessSheet } from "@/components/join/JoinBusinessSheet";
 import { selectPluralForm } from "@/utils/plural";
 import type { Membership } from "@/types/api";
@@ -41,29 +41,13 @@ function BusinessCard({
   const { t } = useTranslation("common");
   const business = membership.business;
   const badgeStyles = getRoleBadgeStyles(membership.role);
-  const accentColor = (business?.settings?.backgroundColor as string) || "#f97316";
 
   if (!business) return null;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardContent}>
-        {business.logo_url ? (
-          <View style={[styles.logoContainer, { backgroundColor: accentColor }]}>
-            <Image
-              source={business.logo_url}
-              style={styles.logo}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
-          </View>
-        ) : (
-          <View style={[styles.logoPlaceholder, { backgroundColor: accentColor }]}>
-            <Text style={styles.logoPlaceholderText}>
-              {business.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <BusinessChip business={business} height={40} />
 
         <View style={styles.cardInfo}>
           <Text style={styles.businessName} numberOfLines={1}>{business.name}</Text>
@@ -307,32 +291,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     gap: 12,
-  },
-  logoContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#faf9f6",
-  },
-  logo: {
-    width: 48,
-    height: 48,
-  },
-  logoPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: "#f97316",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  logoPlaceholderText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
   },
   cardInfo: {
     flex: 1,
