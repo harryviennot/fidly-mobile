@@ -1,24 +1,8 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { createClient, type Session } from "@supabase/supabase-js";
 
 import { TIMED_OUT, withTimeout } from "@/utils/withTimeout";
 import { subscribeToAuthState } from "./auth-listener";
-
-// A real supabase-js client against a fake Supabase: every token call issues a
-// fresh pair, the way GoTrue rotates refresh tokens.
-let issued = 0;
-
-function issueSession() {
-  issued += 1;
-  return {
-    access_token: `access-${issued}`,
-    refresh_token: `refresh-${issued}`,
-    token_type: "bearer",
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: { id: "employee-1", aud: "authenticated", email: "employee@example.com" },
-  };
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -27,12 +11,25 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function fakeSupabase(input: RequestInfo | URL): Promise<Response> {
-  const url = input instanceof Request ? input.url : String(input);
-  if (url.includes("/auth/v1/token")) return json(issueSession());
-  if (url.includes("/auth/v1/logout")) return new Response(null, { status: 204 });
-  if (url.includes("/rest/v1/users")) return json({ id: "employee-1" });
-  return json({ message: "not found" }, 404);
+/** A fake Supabase: every token call issues a fresh pair, the way GoTrue rotates refresh tokens. */
+function fakeSupabase() {
+  let issued = 0;
+  return async (input: RequestInfo | URL): Promise<Response> => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/auth/v1/token")) {
+      issued += 1;
+      return json({
+        access_token: `access-${issued}`,
+        refresh_token: `refresh-${issued}`,
+        token_type: "bearer",
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: { id: "employee-1", aud: "authenticated", email: "employee@example.com" },
+      });
+    }
+    if (url.includes("/auth/v1/logout")) return new Response(null, { status: 204 });
+    return json({ message: "not found" }, 404);
+  };
 }
 
 function memoryStorage() {
@@ -49,11 +46,12 @@ function memoryStorage() {
   };
 }
 
-function signedInScanner() {
+/** A real supabase-js client with the app's listener, signed in as an employee. */
+async function signedInScanner() {
   const storage = memoryStorage();
   const client = createClient("https://project.supabase.test", "anon-key", {
     auth: { storage, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false },
-    global: { fetch: fakeSupabase as typeof fetch },
+    global: { fetch: fakeSupabase() as typeof fetch },
   });
   const seen: { session: Session | null } = { session: null };
   subscribeToAuthState(client, {
@@ -63,6 +61,7 @@ function signedInScanner() {
     setUser: () => {},
     setLoading: () => {},
   });
+  await settles(client.auth.signInWithPassword({ email: "employee@example.com", password: "x" }));
   return { client, storage, seen };
 }
 
@@ -74,16 +73,11 @@ async function settles<T>(promise: Promise<T>): Promise<T> {
 }
 
 describe("a scanner left open across token refreshes", () => {
-  beforeEach(() => {
-    issued = 0;
-  });
-
   it("keeps refreshing, and the app always holds the newest token", async () => {
-    const { client, seen } = signedInScanner();
-    await settles(client.auth.signInWithPassword({ email: "employee@example.com", password: "x" }));
+    const { client, seen } = await signedInScanner();
 
-    // Each hourly refresh runs inside the client's auth lock and waits for the
-    // app's listener; two in a row is what a shift-long session goes through.
+    // Each refresh runs inside the client's auth lock and waits for the app's
+    // listener; the second only runs if the first released the lock.
     await settles(client.auth.refreshSession());
     await settles(client.auth.refreshSession());
 
@@ -93,8 +87,7 @@ describe("a scanner left open across token refreshes", () => {
   });
 
   it("still signs out after refreshing, clearing the stored session", async () => {
-    const { client, storage, seen } = signedInScanner();
-    await settles(client.auth.signInWithPassword({ email: "employee@example.com", password: "x" }));
+    const { client, storage, seen } = await signedInScanner();
     await settles(client.auth.refreshSession());
 
     await settles(client.auth.signOut({ scope: "local" }));

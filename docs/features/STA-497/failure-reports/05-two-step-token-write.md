@@ -31,4 +31,4 @@ An interrupted or failed write leaves the previous session readable. The employe
 
 ## Hypothesis (optional, clearly speculative)
 
-Rare, since refreshes only run in the foreground. Check Sentry for "LargeSecureStore.getItem error" or `refresh_token_already_used` once the connector is authorised.
+Rare, since refreshes only run in the foreground. Check Sentry for "LargeSecureStore.getItem error" (installed builds; "[encrypted-store] getItem error" from this fix on) or `refresh_token_already_used` once the connector is authorised.

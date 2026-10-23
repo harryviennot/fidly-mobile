@@ -179,7 +179,6 @@ describe("loadErrorKey", () => {
 
   it.each([
     ["an expired session", 401, "Not authenticated", "errors.unauthorized"],
-    // No membership, wrong role, or an inactive business: signing in again fixes none of them.
     ["a removed team member", 403, "You don't have access to this business", "errors.accessDenied"],
   ] as const)("tells %s apart from a broken card", (_case, status, detail, key) => {
     expect(loadErrorKey(toApiError({ detail }, status, "x"))).toBe(key);

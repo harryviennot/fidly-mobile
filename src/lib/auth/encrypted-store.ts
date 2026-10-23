@@ -1,12 +1,13 @@
 import * as aesjs from "aes-js";
 
-/** A small secure store for keys (SecureStore) and a large one for data (AsyncStorage). */
+/** Per-item encryption keys (SecureStore on device). */
 export interface KeyStore {
   getItemAsync: (key: string) => Promise<string | null>;
   setItemAsync: (key: string, value: string) => Promise<void>;
   deleteItemAsync: (key: string) => Promise<void>;
 }
 
+/** Ciphertext (AsyncStorage on device). */
 export interface DataStore {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
@@ -70,7 +71,7 @@ export function createEncryptedStore({ keys, data, randomBytes }: EncryptedStore
         if (!encryptionKey) return null;
         return decrypt(encryptionKey, stored);
       } catch (error) {
-        console.error("LargeSecureStore.getItem error:", error);
+        console.error("[encrypted-store] getItem error:", error);
         return null;
       }
     },
@@ -86,7 +87,7 @@ export function createEncryptedStore({ keys, data, randomBytes }: EncryptedStore
           `${FORMAT_PREFIX}${hex.fromBytes(counter)}:${hex.fromBytes(ciphertext)}`
         );
       } catch (error) {
-        console.error("LargeSecureStore.setItem error:", error);
+        console.error("[encrypted-store] setItem error:", error);
         throw error;
       }
     },
@@ -96,7 +97,7 @@ export function createEncryptedStore({ keys, data, randomBytes }: EncryptedStore
         await data.removeItem(key);
         await keys.deleteItemAsync(`${KEY_PREFIX}${key}`);
       } catch (error) {
-        console.error("LargeSecureStore.removeItem error:", error);
+        console.error("[encrypted-store] removeItem error:", error);
       }
     },
   };

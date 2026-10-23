@@ -151,8 +151,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     refreshMemberships();
   }, [refreshMemberships]);
 
-  // Clear business when user logs out
   const previousUserIdRef = useRef(userId);
+  // Reset on sign-out; drop the stored shop when its user leaves or changes.
   useEffect(() => {
     const previousUserId = previousUserIdRef.current;
     previousUserIdRef.current = userId;

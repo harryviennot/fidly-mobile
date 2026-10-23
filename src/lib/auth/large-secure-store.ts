@@ -1,5 +1,6 @@
 /**
- * LargeSecureStore - Encrypted storage adapter for Supabase auth tokens
+ * LargeSecureStore - Supabase auth storage: encrypted on device, plain
+ * localStorage on web.
  *
  * Problem: expo-secure-store has a 2048 byte limit per value.
  * Supabase JWT tokens can exceed this limit.
@@ -21,9 +22,6 @@ const nativeStore = createEncryptedStore({
 });
 
 export class LargeSecureStore {
-  /**
-   * Get an item from encrypted storage
-   */
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS !== "web") return nativeStore.getItem(key);
     // On web, use localStorage directly (no SecureStore available)
@@ -36,18 +34,12 @@ export class LargeSecureStore {
     }
   }
 
-  /**
-   * Set an item in encrypted storage
-   */
   async setItem(key: string, value: string): Promise<void> {
     if (Platform.OS !== "web") return nativeStore.setItem(key, value);
     if (typeof window === "undefined") return;
     window.localStorage.setItem(key, value);
   }
 
-  /**
-   * Remove an item from both stores
-   */
   async removeItem(key: string): Promise<void> {
     if (Platform.OS !== "web") return nativeStore.removeItem(key);
     try {
