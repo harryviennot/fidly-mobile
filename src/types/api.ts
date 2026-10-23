@@ -177,6 +177,11 @@ export interface Business {
   name: string;
   url_slug: string;
   logo_url: string | null;
+  // Notification icon, the last image a business chip falls back to.
+  icon_original_url?: string | null;
+  icon_url?: string | null;
+  // Server-built 3:2 card chip; absent or null until the backend has made one.
+  logo_chip?: { image_url: string; background: string } | null;
   subscription_tier: string;
   settings: Record<string, unknown>;
   created_at?: string;
