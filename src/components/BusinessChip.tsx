@@ -1,6 +1,12 @@
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
-import { resolveBusinessChip, type BusinessChipInput } from "@/utils/businessChip";
+import {
+  chipGeometry,
+  resolveBusinessChip,
+  withFailedSource,
+  type BusinessChipInput,
+} from "@/utils/businessChip";
 
 // Fallback chip colours (logo on paper, initials on muted). They are the
 // chip contract shared with the dashboard, not this app's theme tokens, so a
@@ -16,14 +22,17 @@ interface BusinessChipProps {
 }
 
 // A business drawn as a small card: the server-built chip, else its logo
-// contained on paper, else its initials. Decorative: the name is always
-// written next to it.
+// contained on paper, else its initials. An image that fails to load drops to
+// the next step. Decorative: the name is always written next to it.
 export function BusinessChip({ business, height }: BusinessChipProps) {
-  const chip = resolveBusinessChip(business);
-  const radius = height * 0.17;
+  const [failedSources, setFailedSources] = useState<ReadonlySet<string>>(() => new Set());
+  const chip = resolveBusinessChip(business, failedSources);
+  const { width, radius, logoMargin } = chipGeometry(height);
+
+  const markFailed = (src: string) => setFailedSources((failed) => withFailedSource(failed, src));
 
   const frameStyle = {
-    width: height * 1.5,
+    width,
     height,
     borderRadius: radius,
     backgroundColor:
@@ -43,14 +52,16 @@ export function BusinessChip({ business, height }: BusinessChipProps) {
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           cachePolicy="memory-disk"
+          onError={() => markFailed(chip.src)}
         />
       )}
       {chip.kind === "logo" && (
         <Image
           source={chip.src}
-          style={[StyleSheet.absoluteFill, { margin: height * 0.16 }]}
+          style={[StyleSheet.absoluteFill, { margin: logoMargin }]}
           contentFit="contain"
           cachePolicy="memory-disk"
+          onError={() => markFailed(chip.src)}
         />
       )}
       {chip.kind === "initials" && (
