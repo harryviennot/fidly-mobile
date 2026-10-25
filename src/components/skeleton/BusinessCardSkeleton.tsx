@@ -9,7 +9,7 @@ export function BusinessCardSkeleton({ delay = 0 }: BusinessCardSkeletonProps) {
   return (
     <View style={styles.card}>
       <View style={styles.cardContent}>
-        <SkeletonBox width={48} height={48} borderRadius={10} delay={delay} />
+        <SkeletonBox width={60} height={40} borderRadius={7} delay={delay} />
         <View style={styles.cardInfo}>
           <SkeletonBox width={140} height={17} borderRadius={4} delay={delay + 50} />
           <View style={styles.cardMeta}>
