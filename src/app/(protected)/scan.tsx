@@ -7,7 +7,6 @@ import {
   Linking,
   Platform,
 } from "react-native";
-import { Image } from "expo-image";
 import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
@@ -18,6 +17,7 @@ import { useBusiness } from "@/contexts/business-context";
 import { useTheme } from "@/contexts/theme-context";
 import { useLocation } from "@/contexts/location-context";
 import { withOpacity } from "@/utils/colors";
+import { BusinessChip } from "@/components/BusinessChip";
 
 
 export default function ScanScreen() {
@@ -83,14 +83,6 @@ export default function ScanScreen() {
           backgroundColor: withOpacity(theme.primary, 0.95),
           padding: 12,
           gap: 10,
-        },
-        logoPlaceholder: {
-          width: 36,
-          height: 36,
-          borderRadius: 6,
-          backgroundColor: "rgba(255, 255, 255, 0.2)",
-          justifyContent: "center",
-          alignItems: "center",
         },
         button: {
           backgroundColor: theme.primary,
@@ -169,22 +161,7 @@ export default function ScanScreen() {
             <XIcon size={24} color="#fff" weight="bold" />
           </TouchableOpacity>
 
-          {currentBusiness.logo_url ? (
-            <View style={styles.logoContainer}>
-              <Image
-                source={currentBusiness.logo_url}
-                style={styles.logo}
-                contentFit="contain"
-                cachePolicy="memory-disk"
-              />
-            </View>
-          ) : (
-            <View style={dynamicStyles.logoPlaceholder}>
-              <Text style={styles.logoPlaceholderText}>
-                {currentBusiness.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          <BusinessChip business={currentBusiness} height={36} />
 
           <View style={styles.bannerInfo}>
             <Text style={styles.businessName} numberOfLines={1}>
@@ -272,23 +249,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-  },
-  logoContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    width: 36,
-    height: 36,
-  },
-  logoPlaceholderText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
   },
   bannerInfo: {
     flex: 1,

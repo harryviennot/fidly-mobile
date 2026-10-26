@@ -35,6 +35,7 @@ import { markScanCompleted } from "@/lib/app-rating";
 import { useLocation } from "@/contexts/location-context";
 import { useTheme } from "@/contexts/theme-context";
 import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
+import { stampScreenState } from "@/utils/stampScreen";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
 import { HeldRewardsList } from "@/components/confirmation/HeldRewardsList";
@@ -125,18 +126,17 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const totalStamps = customer.total_stamps ?? design?.total_stamps ?? 10;
   const stackable = customer.stackable_rewards ?? false;
   const maxStack = customer.max_stacked_rewards ?? null;
-  // Reward INSTANCES the customer holds (STA-264). The scalar `rewards` count
-  // stays as the fallback for backends that predate the snapshot field.
+  // Reward instances the customer holds.
   const heldRewards: BankedReward[] = customer.program?.banked_rewards ?? [];
-  const rewards = heldRewards.length || (customer.rewards ?? 0);
   const currentStamps = customer.stamps || 0;
-  const cardFull = currentStamps >= totalStamps;
-  // Blocked at the stack cap: behaves exactly like the classic full card.
-  const atMaxStack = stackable && maxStack != null && rewards >= maxStack && cardFull;
-  // Classic redeem-or-skip screen: non-stackable full card, or capped stack.
-  const isReadyForReward = cardFull && (!stackable || atMaxStack);
-  // Stackable flow: stamping continues, banked rewards redeemable anytime.
-  const hasBankedRewards = stackable && rewards > 0 && !isReadyForReward;
+  const { rewards, isReadyForReward, hasBankedRewards } = stampScreenState({
+    totalStamps,
+    currentStamps,
+    stackable,
+    maxStack,
+    heldRewards,
+    rewardsCount: customer.rewards ?? 0,
+  });
 
   // How many stamps this scan is worth. Capped at what the card can absorb, so
   // the stepper never promises stamps the server would drop.
@@ -841,8 +841,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     );
   }
 
-  // Reward redemption success. A banked redemption (stackable rewards) keeps
-  // stamp progress; the classic full-card one resets it.
+  // Reward redemption success. A held-reward redemption keeps stamp progress;
+  // the full-card one resets it.
   if (redeemSuccess && success) {
     const keptStamps = success.stamps > 0;
     return (

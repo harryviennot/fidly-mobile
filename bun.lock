@@ -68,7 +68,7 @@
     "brace-expansion": "~2.1.6",
     "browserslist": "^4.28.7",
     "compression": "^1.8.2",
-    "fast-uri": "^3.1.6",
+    "fast-uri": "^3.1.9",
     "flatted": ">=3.4.0",
     "js-yaml": "^4.3.1",
     "minimatch": "^9.0.6",
@@ -79,7 +79,7 @@
     "shell-quote": "^1.11.0",
     "source-map-js": "^1.2.2",
     "tar": "^7.5.19",
-    "undici": "^8.10.2",
+    "undici": "^8.12.2",
     "uuid": "^14.0.0",
     "ws": ">=8.21.0",
     "yaml": ">=2.8.3",
@@ -1055,7 +1055,7 @@
 
     "fast-levenshtein": ["fast-levenshtein@2.0.6", "", {}, ""],
 
-    "fast-uri": ["fast-uri@3.1.7", "", {}, "sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg=="],
+    "fast-uri": ["fast-uri@3.1.9", "", {}, "sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ=="],
 
     "fb-watchman": ["fb-watchman@2.0.2", "", { "dependencies": { "bser": "2.1.1" } }, ""],
 
@@ -1805,7 +1805,7 @@
 
     "unbox-primitive": ["unbox-primitive@1.1.0", "", { "dependencies": { "call-bound": "^1.0.3", "has-bigints": "^1.0.2", "has-symbols": "^1.1.0", "which-boxed-primitive": "^1.1.1" } }, ""],
 
-    "undici": ["undici@8.11.2", "", {}, "sha512-u4UB2/IrKdU6lFxumHmmo1a3fCQO5tzQllRorfoRS63txhrB7xTpSn1PftwC4qEHkOaqP95fCWW4lJzwErwzhQ=="],
+    "undici": ["undici@8.12.3", "", {}, "sha512-+fdndUTwBP86cVjihTp21hZHo7d6oj1c/47XPA3lL8mM0XHs+C4EkcjmgRsFnFk2f/UONGDy9ItBItmXsLOQHw=="],
 
     "undici-types": ["undici-types@7.16.0", "", {}, ""],
 
