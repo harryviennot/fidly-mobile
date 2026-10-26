@@ -246,8 +246,7 @@ export function JoinCodeFlow({
                 {t("confirmInvitedBy", { inviter: preview.inviter_name })}
               </Text>
             </View>
-            {/* Information only, shown before the Join button: scans carry the
-                employee's name and the business can read them. */}
+            {/* Information only, not a consent step. */}
             <Text style={styles.staffNotice}>
               {t("confirmStaffNotice", { business: preview.business_name })}
             </Text>
