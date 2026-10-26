@@ -233,18 +233,25 @@ export function JoinCodeFlow({
         backLabel={t("confirmCancel")}
         footer={footer}
         body={
-          <View style={styles.identity}>
-            {preview.business_logo_url ? (
-              <Image
-                source={preview.business_logo_url}
-                style={styles.logo}
-                contentFit="contain"
-              />
-            ) : null}
-            <Text style={styles.invitedBy}>
-              {t("confirmInvitedBy", { inviter: preview.inviter_name })}
+          <>
+            <View style={styles.identity}>
+              {preview.business_logo_url ? (
+                <Image
+                  source={preview.business_logo_url}
+                  style={styles.logo}
+                  contentFit="contain"
+                />
+              ) : null}
+              <Text style={styles.invitedBy}>
+                {t("confirmInvitedBy", { inviter: preview.inviter_name })}
+              </Text>
+            </View>
+            {/* Information only, shown before the Join button: scans carry the
+                employee's name and the business can read them. */}
+            <Text style={styles.staffNotice}>
+              {t("confirmStaffNotice", { business: preview.business_name })}
             </Text>
-          </View>
+          </>
         }
       >
         <BlockButton
@@ -318,6 +325,10 @@ const styles = StyleSheet.create({
     ...type.body,
     color: colors.inkSoft,
     flex: 1,
+  },
+  staffNotice: {
+    ...type.body,
+    color: colors.inkSoft,
   },
   helper: {
     ...type.body,
