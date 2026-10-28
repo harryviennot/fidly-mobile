@@ -9,6 +9,7 @@
   "confirmTitle": "Rejoindre {{business}} ?",
   "confirmRole": "Vous pourrez scanner les cartes de vos clients.",
   "confirmInvitedBy": "Invité par {{inviter}}",
+  "confirmStaffNotice": "Chaque scan que vous faites est enregistré à votre nom, et {{business}} peut voir qui a scanné quoi.",
   "confirmSubmit": "Rejoindre cette équipe",
   "confirmCancel": "Ce n'est pas mon commerce",
   "joining": "Connexion en cours…",
