@@ -38,7 +38,17 @@ import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
 import { stampScreenState } from "@/utils/stampScreen";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
+import {
+  LEVEL_UP_READ_MS,
+  freshCustomerOnLevelUp,
+  levelUpOf,
+  levelUpTitle,
+  stampCardSize,
+} from "@/utils/levels";
 import { HeldRewardsList } from "@/components/confirmation/HeldRewardsList";
+import { LevelUpNote } from "@/components/levels/LevelUpNote";
+import { PerkCallout } from "@/components/levels/PerkCallout";
+import { levelsTranslate } from "@/components/levels/translate";
 import type { BankedReward, Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -121,9 +131,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     can_override?: boolean;
   } | null>(null);
 
-  // Program config is the source of truth for the goal; the design column
-  // is a deprecated synced copy kept as fallback.
-  const totalStamps = customer.total_stamps ?? design?.total_stamps ?? 10;
+  // Program config is the source of truth for the goal (the card of the
+  // customer's level when levels are on); the design column is a deprecated
+  // synced copy kept as fallback.
+  const totalStamps = stampCardSize(customer, design?.total_stamps);
   const stackable = customer.stackable_rewards ?? false;
   const maxStack = customer.max_stacked_rewards ?? null;
   // Reward instances the customer holds.
@@ -212,9 +223,10 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   /**
    * The payoff. A success notification, then one light tick per stamp so a
    * 5-stamp scan is *felt* as five, capped so a big batch doesn't buzz forever.
-   * A heavier tap lands last when the scan earned a reward.
+   * A heavier tap lands last when the scan earned a reward or moved the
+   * customer up a level.
    */
-  async function celebrate(stampsAdded: number, earnedReward: boolean) {
+  async function celebrate(stampsAdded: number, milestone: boolean) {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const ticks = Math.min(stampsAdded, 5);
     for (let i = 1; i < ticks; i++) {
@@ -222,7 +234,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }, i * 55);
     }
-    if (earnedReward) {
+    if (milestone) {
       setTimeout(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       }, ticks * 55 + 80);
@@ -304,10 +316,18 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       // Settled: from here an identical tap is a second deliberate scan and has
       // to be credited as one.
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
-      setSuccess(result);
-      setCustomer((prev) =>
-        prev ? { ...prev, stamps: result.stamps, rewards: result.rewards ?? prev.rewards } : null
+      // A level move changes the card and the perks, so read them before the
+      // success screen draws. A failed read leaves the screen as it was.
+      const fresh = await freshCustomerOnLevelUp(result, () =>
+        getCustomer(businessId, enrollmentId, { timeoutMs: LEVEL_UP_READ_MS })
       );
+      setSuccess(result);
+      setCustomer((prev) => {
+        const base = fresh ?? prev;
+        return base
+          ? { ...base, stamps: result.stamps, rewards: result.rewards ?? base.rewards }
+          : null;
+      });
       if (result.replayed) {
         // Our own request, answered a second time. The customer was credited by
         // the first one, which already ran the banner and the celebration, so
@@ -319,7 +339,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       } else {
         const added = result.delta ?? Math.max(0, result.stamps - currentStamps);
         const earned = result.stamps >= totalStamps || (result.rewards ?? 0) > rewards;
-        await celebrate(added, earned);
+        const movedUp = levelUpOf(result.level_before, result.level_after) !== null;
+        await celebrate(added, earned || movedUp);
       }
       // Arm the one-time rating prompt. It is NOT shown here — it fires when the
       // employee next returns to the lobby, so it never interrupts scanning.
@@ -899,6 +920,9 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     const rolledOver = success.stamps < totalStamps && (success.rewards ?? 0) > preStampRewards;
     const completed = success.stamps >= totalStamps;
     const earnedReward = rolledOver || completed;
+    const levelUp = levelUpOf(success.level_before, success.level_after);
+    // The moment gets the same confetti as a reward, once and never on a replay.
+    const celebrating = (earnedReward || levelUp !== null) && !alreadyCounted;
     // After a rollover the counter restarted, so the count-up runs from 0 in the
     // fresh cycle instead of dropping from the old (higher) number.
     const countFrom = rolledOver ? 0 : preStampStamps;
@@ -913,6 +937,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           : success.cap_applied
             ? t("cap.partialTitle")
             : t(`success.stampAdded_${plural(added)}`, { count: added });
+    // Reaching a level outranks the other titles; their detail lines still render.
+    const heading = levelUp ? levelUpTitle(levelUp, customer.name, levelsTranslate(t)) : title;
 
     return (
       <ConfirmationScaffold>
@@ -923,22 +949,21 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               style={[
                 styles.successIcon,
                 {
-                  backgroundColor:
-                    earnedReward && !alreadyCounted ? UNLOCK_TINT : SUCCESS_TINT,
+                  backgroundColor: celebrating ? UNLOCK_TINT : SUCCESS_TINT,
                 },
               ]}
             >
               {/* The reward, if there is one, was announced by the request this
                   one repeats. The CTA below still offers it, read off the
                   balance, but the screen does not celebrate it twice. */}
-              {earnedReward && !alreadyCounted ? (
+              {celebrating ? (
                 <Confetti size={36} color={UNLOCK_AMBER} weight="fill" />
               ) : (
                 <Check size={36} color={SUCCESS_GREEN} weight="bold" />
               )}
             </Animated.View>
             <Animated.View entering={BODY_ENTER}>
-              <Text style={styles.successTitle}>{title}</Text>
+              <Text style={styles.successTitle}>{heading}</Text>
               <Text style={styles.successName} numberOfLines={1}>
                 {customer.name}
               </Text>
@@ -946,6 +971,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
           </View>
 
           <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {levelUp && <LevelUpNote levelUp={levelUp} current={customer.program?.level} />}
             {renderHeroCard(countFrom, success.stamps, added)}
             {rolledOver && (
               <Text style={styles.successNote}>
@@ -1099,6 +1125,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
                 name={customer.name}
                 balance={t("stampsCount", { current: currentStamps, total: totalStamps })}
                 loading={false}
+                level={customer.program?.level}
               />
             </View>
             {/* Locked while a request is in flight. Walking out here and
@@ -1115,6 +1142,8 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
               <X size={22} color={theme.textSecondary} weight="bold" />
             </PressableScale>
           </View>
+          {/* Above the card: a perk changes the bill, so it is read before charging. */}
+          <PerkCallout level={customer.program?.level} />
           {/* Only when the list below CANNOT name them. A count above a list
               that shows each reward by name, with its own deadline and its own
               button, is the same fact written twice — and it cost a row of

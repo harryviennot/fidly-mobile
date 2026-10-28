@@ -43,7 +43,16 @@ import {
 import { formatThreshold, previewBoost } from "@/utils/boost";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
+import {
+  LEVEL_UP_READ_MS,
+  freshCustomerOnLevelUp,
+  levelUpOf,
+  levelUpTitle,
+} from "@/utils/levels";
 import { Keypad } from "@/components/Keypad";
+import { LevelUpNote } from "@/components/levels/LevelUpNote";
+import { PerkCallout } from "@/components/levels/PerkCallout";
+import { levelsTranslate } from "@/components/levels/translate";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
@@ -341,6 +350,12 @@ export function PointsFlow({
       // Settled: from here an identical ticket is a second deliberate scan.
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       const after = valueOf(result);
+      // A level move changes the rewards menu and the perks, so read them before
+      // the success screen draws. A failed read leaves the screen as it was.
+      const fresh = await freshCustomerOnLevelUp(result, () =>
+        getCustomer(businessId, enrollmentId, { timeoutMs: LEVEL_UP_READ_MS })
+      );
+      if (fresh) setCustomer(fresh);
       setAddResult(result);
       syncBalance(after);
       if (result.replayed) {
@@ -350,11 +365,13 @@ export function PointsFlow({
         await acknowledge();
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // A heavier second tap when this scan unlocked a reward.
+        // A heavier second tap when this scan unlocked a reward or moved the
+        // customer up a level.
         const crossed = ladder.some(
           (r) => balanceBefore < r.threshold && r.threshold <= after
         );
-        if (crossed) {
+        const movedUp = levelUpOf(result.level_before, result.level_after) !== null;
+        if (crossed || movedUp) {
           setTimeout(() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
           }, 130);
@@ -862,6 +879,18 @@ export function PointsFlow({
     const justCrossed = ladder.some((r) => balanceBeforeAdd < r.threshold && r.threshold <= after);
     const canRedeem = ladder.some((r) => r.threshold <= after) || heldRewards.length > 0;
     const next = nextReward(ladder, after);
+    const levelUp = levelUpOf(addResult.level_before, addResult.level_after);
+    // The moment gets the same confetti as a reward, once and never on a replay.
+    const celebrating = (justCrossed || levelUp !== null) && !alreadyCounted;
+    const title = alreadyCounted
+      ? t("success.alreadyCounted")
+      : justCrossed
+        ? t("reward.unlocked")
+        : addResult.cap_applied
+          ? tStamp("cap.partialTitle")
+          : t("success.title");
+    // Reaching a level outranks the other titles; their detail lines still render.
+    const heading = levelUp ? levelUpTitle(levelUp, customer?.name, levelsTranslate(tStamp)) : title;
     return (
       <ConfirmationScaffold>
         <View style={styles.successRoot}>
@@ -870,31 +899,20 @@ export function PointsFlow({
               entering={ICON_ENTER}
               style={[
                 styles.successIcon,
-                {
-                  backgroundColor:
-                    justCrossed && !alreadyCounted ? UNLOCK_TINT : SUCCESS_TINT,
-                },
+                { backgroundColor: celebrating ? UNLOCK_TINT : SUCCESS_TINT },
               ]}
             >
               {/* The reward, if one was unlocked, was announced by the request
                   this one repeats. The CTA below still offers it, read off the
                   balance, but the screen does not celebrate it twice. */}
-              {justCrossed && !alreadyCounted ? (
+              {celebrating ? (
                 <Confetti size={36} color={UNLOCK_AMBER} weight="fill" />
               ) : (
                 <Check size={36} color={SUCCESS_GREEN} weight="bold" />
               )}
             </Animated.View>
             <Animated.View entering={BODY_ENTER} style={styles.successHeaderText}>
-              <Text style={styles.successTitle}>
-                {alreadyCounted
-                  ? t("success.alreadyCounted")
-                  : justCrossed
-                    ? t("reward.unlocked")
-                    : addResult.cap_applied
-                      ? tStamp("cap.partialTitle")
-                      : t("success.title")}
-              </Text>
+              <Text style={styles.successTitle}>{heading}</Text>
               <Text style={styles.successName} numberOfLines={1}>
                 {customer?.name ?? ""}
               </Text>
@@ -902,6 +920,7 @@ export function PointsFlow({
           </View>
 
           <Animated.View entering={DETAIL_ENTER} style={styles.successHero}>
+            {levelUp && <LevelUpNote levelUp={levelUp} current={program?.level} />}
             {earned > 0 && (
               <Text style={styles.earnedText}>{t("success.earned", { count: earned })}</Text>
             )}
@@ -999,7 +1018,14 @@ export function PointsFlow({
     <ConfirmationScaffold>
       <View style={styles.root}>
         <View style={styles.topGroup}>
-          <CustomerHeader name={customer?.name ?? null} balance={balanceLabel} loading={loading} />
+          <CustomerHeader
+            name={customer?.name ?? null}
+            balance={balanceLabel}
+            loading={loading}
+            level={program?.level}
+          />
+          {/* Above the amount: a perk changes the bill, so it is read before charging. */}
+          <PerkCallout level={program?.level} />
           {rewardReady && (
             <Animated.View entering={SOFT_ENTER} style={styles.chipWrap}>
               {/* Locked mid-request: opening the reward picker now would let a

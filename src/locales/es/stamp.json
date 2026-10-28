@@ -92,5 +92,15 @@
     "expired": "Caducada",
     "gift": "Regalo",
     "redeem": "Canjear"
+  },
+  "levels": {
+    "perkTitle": "Ventaja {{level}}: {{perk}}",
+    "perksTitle": "Ventajas {{level}}:",
+    "perkHintOne": "Aplícala en caja antes de cobrar.",
+    "perkHintMany": "Aplícalas en caja antes de cobrar.",
+    "reached": "¡{{name}} sube al nivel {{level}}!",
+    "reachedNoName": "¡Nivel {{level}} alcanzado!",
+    "tellThem": "Díselo al cliente",
+    "cardShows": "La tarjeta del cliente ya muestra el nivel {{level}}."
   }
 }

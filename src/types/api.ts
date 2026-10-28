@@ -8,6 +8,35 @@ export interface ProgramReward {
   reached: boolean;
 }
 
+/** A loyalty level as the scan response names it (backend `_brief`). */
+export interface LevelBrief {
+  id: string;
+  /** Localized to the business's language. */
+  name: string;
+  rank: number;
+}
+
+/**
+ * The customer's loyalty level (backend `level_snapshot`). On a stamp program
+ * `total_stamps` is the size of THIS level's card, and the snapshot's `rewards`
+ * ladder describes that card too.
+ */
+export interface ProgramLevel extends LevelBrief {
+  /** Perk lines the employee applies at the till, already localized. */
+  perks: string[];
+  /** Stamps on this level's card (stamp programs), else null. */
+  total_stamps: number | null;
+  design_id: string | null;
+  /** What the customer earned since entering the level. */
+  units_on_level: number;
+  /** The next level, or null on the top one. */
+  next_id: string | null;
+  next_name: string | null;
+  units_to_next: number | null;
+  /** Cards still to fill to move up (stamps only). */
+  cards_to_next: number | null;
+}
+
 /**
  * Type-aware view of an enrollment's standing (backend `ProgramSnapshot`,
  * attached to GET /customers by get_customer_info). The scanner reads this to
@@ -61,6 +90,11 @@ export interface ProgramSnapshot {
    * Optional because older backends do not send it.
    */
   banked_rewards?: BankedReward[];
+  /**
+   * The customer's loyalty level, or null when the business runs no levels.
+   * Optional because older backends do not send it.
+   */
+  level?: ProgramLevel | null;
 }
 
 /** One reward instance the customer holds (backend `customer_rewards` row). */
@@ -170,6 +204,12 @@ export interface StampResponse {
   boost_value?: number;
   boost_base?: number;
   boost_bonus?: number;
+  /**
+   * The customer's level before and after this scan. Equal when nobody moved,
+   * null when the business runs no levels, absent on older backends.
+   */
+  level_before?: LevelBrief | null;
+  level_after?: LevelBrief | null;
 }
 
 // Server-built 3:2 card chip: a finished image plus its fill colour.
