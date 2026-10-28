@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { Star } from "phosphor-react-native";
 import { useTheme } from "@/contexts/theme-context";
-import { perkCallout } from "@/utils/levels";
+import { perkCallout } from "./levels";
 import type { ProgramLevel } from "@/types/api";
 import { SOFT_ENTER } from "@/components/confirmation/animations";
 import { UNLOCK_AMBER, UNLOCK_TINT } from "@/components/confirmation/palette";

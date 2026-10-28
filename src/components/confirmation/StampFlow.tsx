@@ -38,17 +38,11 @@ import { clampStampQuantity, maxStampQuantity } from "@/utils/stamps";
 import { stampScreenState } from "@/utils/stampScreen";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
-import {
-  LEVEL_UP_READ_MS,
-  freshCustomerOnLevelUp,
-  levelUpOf,
-  levelUpTitle,
-  stampCardSize,
-} from "@/utils/levels";
+import { stampCardSize } from "@/components/levels/levels";
 import { HeldRewardsList } from "@/components/confirmation/HeldRewardsList";
 import { LevelUpNote } from "@/components/levels/LevelUpNote";
 import { PerkCallout } from "@/components/levels/PerkCallout";
-import { levelsTranslate } from "@/components/levels/translate";
+import { useLevelUpSuccess } from "@/components/levels/useLevelUpSuccess";
 import type { BankedReward, Customer, StampResponse } from "@/types/api";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
@@ -83,6 +77,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
   const { t, i18n } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
+  const levelUps = useLevelUpSuccess(businessId, enrollmentId);
   const { selectedLocation } = useLocation();
   const { theme, design, refreshTheme } = useTheme();
 
@@ -318,9 +313,7 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       clientKeys.current = releaseClientKey(clientKeys.current, fingerprint);
       // A level move changes the card and the perks, so read them before the
       // success screen draws. A failed read leaves the screen as it was.
-      const fresh = await freshCustomerOnLevelUp(result, () =>
-        getCustomer(businessId, enrollmentId, { timeoutMs: LEVEL_UP_READ_MS })
-      );
+      const { fresh, movedUp } = await levelUps.afterScan(result);
       setSuccess(result);
       setCustomer((prev) => {
         const base = fresh ?? prev;
@@ -339,7 +332,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
       } else {
         const added = result.delta ?? Math.max(0, result.stamps - currentStamps);
         const earned = result.stamps >= totalStamps || (result.rewards ?? 0) > rewards;
-        const movedUp = levelUpOf(result.level_before, result.level_after) !== null;
         await celebrate(added, earned || movedUp);
       }
       // Arm the one-time rating prompt. It is NOT shown here — it fires when the
@@ -920,9 +912,6 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
     const rolledOver = success.stamps < totalStamps && (success.rewards ?? 0) > preStampRewards;
     const completed = success.stamps >= totalStamps;
     const earnedReward = rolledOver || completed;
-    const levelUp = levelUpOf(success.level_before, success.level_after);
-    // The moment gets the same confetti as a reward, once and never on a replay.
-    const celebrating = (earnedReward || levelUp !== null) && !alreadyCounted;
     // After a rollover the counter restarted, so the count-up runs from 0 in the
     // fresh cycle instead of dropping from the old (higher) number.
     const countFrom = rolledOver ? 0 : preStampStamps;
@@ -938,7 +927,13 @@ export function StampFlow({ customer, setCustomer, businessId, enrollmentId }: S
             ? t("cap.partialTitle")
             : t(`success.stampAdded_${plural(added)}`, { count: added });
     // Reaching a level outranks the other titles; their detail lines still render.
-    const heading = levelUp ? levelUpTitle(levelUp, customer.name, levelsTranslate(t)) : title;
+    const { levelUp, celebrating, heading } = levelUps.forSuccess({
+      result: success,
+      earnedReward,
+      alreadyCounted,
+      title,
+      customerName: customer.name,
+    });
 
     return (
       <ConfirmationScaffold>

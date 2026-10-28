@@ -43,16 +43,10 @@ import {
 import { formatThreshold, previewBoost } from "@/utils/boost";
 import { resolveWaiveAction } from "@/utils/cap";
 import { selectPluralForm } from "@/utils/plural";
-import {
-  LEVEL_UP_READ_MS,
-  freshCustomerOnLevelUp,
-  levelUpOf,
-  levelUpTitle,
-} from "@/utils/levels";
 import { Keypad } from "@/components/Keypad";
 import { LevelUpNote } from "@/components/levels/LevelUpNote";
 import { PerkCallout } from "@/components/levels/PerkCallout";
-import { levelsTranslate } from "@/components/levels/translate";
+import { useLevelUpSuccess } from "@/components/levels/useLevelUpSuccess";
 import { PressableScale } from "@/components/PressableScale";
 import { ConfirmationScaffold } from "./ConfirmationScaffold";
 import { StatusScreen } from "./StatusScreen";
@@ -104,6 +98,7 @@ export function PointsFlow({
   const { t: tStamp } = useTranslation("stamp");
   const { t: tCommon } = useTranslation("common");
   const { t: tLocation } = useTranslation("location");
+  const levelUps = useLevelUpSuccess(businessId, enrollmentId);
   const { selectedLocation } = useLocation();
   const { theme } = useTheme();
 
@@ -352,9 +347,7 @@ export function PointsFlow({
       const after = valueOf(result);
       // A level move changes the rewards menu and the perks, so read them before
       // the success screen draws. A failed read leaves the screen as it was.
-      const fresh = await freshCustomerOnLevelUp(result, () =>
-        getCustomer(businessId, enrollmentId, { timeoutMs: LEVEL_UP_READ_MS })
-      );
+      const { fresh, movedUp } = await levelUps.afterScan(result);
       if (fresh) setCustomer(fresh);
       setAddResult(result);
       syncBalance(after);
@@ -370,7 +363,6 @@ export function PointsFlow({
         const crossed = ladder.some(
           (r) => balanceBefore < r.threshold && r.threshold <= after
         );
-        const movedUp = levelUpOf(result.level_before, result.level_after) !== null;
         if (crossed || movedUp) {
           setTimeout(() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
@@ -879,9 +871,6 @@ export function PointsFlow({
     const justCrossed = ladder.some((r) => balanceBeforeAdd < r.threshold && r.threshold <= after);
     const canRedeem = ladder.some((r) => r.threshold <= after) || heldRewards.length > 0;
     const next = nextReward(ladder, after);
-    const levelUp = levelUpOf(addResult.level_before, addResult.level_after);
-    // The moment gets the same confetti as a reward, once and never on a replay.
-    const celebrating = (justCrossed || levelUp !== null) && !alreadyCounted;
     const title = alreadyCounted
       ? t("success.alreadyCounted")
       : justCrossed
@@ -890,7 +879,13 @@ export function PointsFlow({
           ? tStamp("cap.partialTitle")
           : t("success.title");
     // Reaching a level outranks the other titles; their detail lines still render.
-    const heading = levelUp ? levelUpTitle(levelUp, customer?.name, levelsTranslate(tStamp)) : title;
+    const { levelUp, celebrating, heading } = levelUps.forSuccess({
+      result: addResult,
+      earnedReward: justCrossed,
+      alreadyCounted,
+      title,
+      customerName: customer?.name,
+    });
     return (
       <ConfirmationScaffold>
         <View style={styles.successRoot}>

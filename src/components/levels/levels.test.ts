@@ -1,16 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import stamp from "../locales/en/stamp.json";
-import type { Customer, LevelBrief, ProgramLevel, StampResponse } from "../types/api";
+import stamp from "@/locales/en/stamp.json";
+import type { Customer, LevelBrief, ProgramLevel, StampResponse } from "@/types/api";
 import {
   firstName,
   freshCustomerOnLevelUp,
   levelUpOf,
+  levelUpSuccess,
   levelUpTitle,
   perkCallout,
   perksForLevelUp,
   stampCardSize,
 } from "./levels";
-import { maxStampQuantity } from "./stamps";
+import { maxStampQuantity } from "@/utils/stamps";
 
 const bronze: LevelBrief = { id: "lv-1", name: "Bronze", rank: 1 };
 const silver: LevelBrief = { id: "lv-2", name: "Silver", rank: 2 };
@@ -58,18 +59,14 @@ describe("levelUpOf", () => {
     expect(levelUpOf(bronze, silver)).toEqual(silver);
   });
 
-  it("is null when the scan moved nobody", () => {
-    expect(levelUpOf(silver, { ...silver })).toBeNull();
-  });
-
-  it("is null when levels are off", () => {
-    expect(levelUpOf(null, null)).toBeNull();
-  });
-
-  it("is null against an older backend that sends no level fields", () => {
-    expect(levelUpOf(undefined, undefined)).toBeNull();
-    expect(levelUpOf(bronze, undefined)).toBeNull();
-    expect(levelUpOf(undefined, silver)).toBeNull();
+  it.each([
+    ["the scan moved nobody", silver, { ...silver }],
+    ["levels are off", null, null],
+    ["an older backend sends no level fields", undefined, undefined],
+    ["an older backend sends only the starting level", bronze, undefined],
+    ["an older backend sends only the new level", undefined, silver],
+  ])("is null when %s", (_label, before, after) => {
+    expect(levelUpOf(before, after)).toBeNull();
   });
 });
 
@@ -151,18 +148,14 @@ describe("stampCardSize", () => {
     expect(stampCardSize(customerOn(level({ total_stamps: 8 })), 10)).toBe(8);
   });
 
-  it("is unchanged with levels off", () => {
-    expect(stampCardSize(customerOn(null, { total_stamps: 12 }), 10)).toBe(12);
-  });
-
-  it("is unchanged against an older backend", () => {
-    expect(stampCardSize(customerOn(undefined, { total_stamps: 12 }), 10)).toBe(12);
-    expect(stampCardSize(customerOn(undefined), 9)).toBe(9);
-    expect(stampCardSize(customerOn(undefined), undefined)).toBe(10);
-  });
-
-  it("falls back to the default card for a points level that carries no size", () => {
-    expect(stampCardSize(customerOn(level({ total_stamps: null })), undefined)).toBe(10);
+  it.each([
+    ["levels are off", customerOn(null, { total_stamps: 12 }), 10, 12],
+    ["an older backend sends the program's size", customerOn(undefined, { total_stamps: 12 }), 10, 12],
+    ["an older backend sends no size: the design's", customerOn(undefined), 9, 9],
+    ["an older backend and no design: the default", customerOn(undefined), undefined, 10],
+    ["a points level carries no size: the default", customerOn(level({ total_stamps: null })), undefined, 10],
+  ])("is unchanged when %s", (_label, customer, designTotal, expected) => {
+    expect(stampCardSize(customer, designTotal)).toBe(expected);
   });
 });
 
@@ -211,5 +204,31 @@ describe("freshCustomerOnLevelUp", () => {
       throw new Error("offline");
     };
     expect(await freshCustomerOnLevelUp(scan(), failing)).toBeNull();
+  });
+});
+
+describe("levelUpSuccess", () => {
+  const moved = { level_before: bronze, level_after: silver };
+  const stayed = { level_before: silver, level_after: silver };
+  const base = {
+    result: moved,
+    earnedReward: false,
+    alreadyCounted: false,
+    title: "Stamp added",
+    customerName: "Camille Dupont",
+    translate,
+  };
+
+  it.each([
+    ["a level-up", {}, silver, true, "Camille reached Silver!"],
+    ["a level-up that also earned a reward", { earnedReward: true }, silver, true, "Camille reached Silver!"],
+    ["a level-up with no name on file", { customerName: null }, silver, true, "Reached Silver!"],
+    ["a replayed level-up", { alreadyCounted: true }, silver, false, "Camille reached Silver!"],
+    ["a reward and no level move", { result: stayed, earnedReward: true }, null, true, "Stamp added"],
+    ["a replayed reward", { result: stayed, earnedReward: true, alreadyCounted: true }, null, false, "Stamp added"],
+    ["a plain scan", { result: stayed }, null, false, "Stamp added"],
+    ["a plain scan on an older backend", { result: {} }, null, false, "Stamp added"],
+  ])("draws %s", (_label, over, levelUp, celebrating, heading) => {
+    expect(levelUpSuccess({ ...base, ...over })).toEqual({ levelUp, celebrating, heading });
   });
 });

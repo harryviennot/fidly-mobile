@@ -3,10 +3,10 @@
  * and how big their card is. Pure, so the flows only mount the pieces.
  *
  * Every input is optional and null-safe: an older backend sends none of the
- * level fields and each helper then answers "nothing to show".
+ * level fields and the screens then render as without levels.
  */
 
-import type { Customer, LevelBrief, ProgramLevel, StampResponse } from "../types/api";
+import type { Customer, LevelBrief, ProgramLevel, StampResponse } from "@/types/api";
 
 /** i18next's `t`, narrowed to what these helpers need. */
 export type Translate = (key: string, vars?: Record<string, string>) => string;
@@ -45,6 +45,35 @@ export function levelUpTitle(
   return name
     ? translate("levels.reached", { name, level: levelUp.name })
     : translate("levels.reachedNoName", { level: levelUp.name });
+}
+
+/** What the success screen shows for a scan: the level reached, the confetti, the title. */
+export interface LevelUpSuccess {
+  levelUp: LevelBrief | null;
+  /** Confetti instead of the tick; never on a replay, which was celebrated the first time. */
+  celebrating: boolean;
+  /** Reaching a level outranks the flow's own title. */
+  heading: string;
+}
+
+export interface LevelUpSuccessInput {
+  result: Pick<StampResponse, "level_before" | "level_after">;
+  /** The flow's own milestone: a reward unlocked or a card completed. */
+  earnedReward: boolean;
+  alreadyCounted: boolean;
+  /** The flow's title when nobody moved up. */
+  title: string;
+  customerName: string | null | undefined;
+  translate: Translate;
+}
+
+export function levelUpSuccess(input: LevelUpSuccessInput): LevelUpSuccess {
+  const levelUp = levelUpOf(input.result.level_before, input.result.level_after);
+  return {
+    levelUp,
+    celebrating: (input.earnedReward || levelUp !== null) && !input.alreadyCounted,
+    heading: levelUp ? levelUpTitle(levelUp, input.customerName, input.translate) : input.title,
+  };
 }
 
 /** The words of a perk callout: a title, one line per perk when several, a hint. */

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/theme-context";
-import { perkCallout, perksForLevelUp } from "@/utils/levels";
+import { perkCallout, perksForLevelUp } from "./levels";
 import type { LevelBrief, ProgramLevel } from "@/types/api";
 import { levelsTranslate } from "./translate";
 
