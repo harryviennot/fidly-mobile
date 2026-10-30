@@ -105,7 +105,7 @@ export interface BankedReward {
   reward_id: string | null;
   /** Snapshot of the name at grant time; never re-translated. */
   name: string;
-  source: "signup_bonus" | "checkpoint" | "points_redemption" | "manual";
+  source: "signup_bonus" | "checkpoint" | "points_redemption" | "manual" | "level_gift";
   /** ISO timestamp, or null when it never expires. */
   expires_at: string | null;
 }

@@ -72,6 +72,11 @@ export function expiresSoon(reward: BankedReward, now: Date = new Date()): boole
   return label.days <= EXPIRY_WARNING_DAYS;
 }
 
+/** The `heldRewards` string that names where a held reward came from, or null for none. */
+export function heldRewardTag(reward: BankedReward): "heldRewards.gift" | null {
+  return reward.source === "level_gift" ? "heldRewards.gift" : null;
+}
+
 export interface HeldRowState {
   pressable: boolean;
   /** At the locked opacity; the row being redeemed stays full strength. */
