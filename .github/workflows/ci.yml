@@ -47,14 +47,19 @@ jobs:
       # > metro -- i.e. build tooling, never shipped app code. metro still
       # declares image-size ^1.0.2 as of 0.87.0, so bumping Expo will not help.
       # Drop both --ignore flags once image-size publishes a fixed version.
-      # node-forge (GHSA-86w9-cpqp-85rv, <=1.4.0) and braces (GHSA-vfj7-8cjw-p6xm,
-      # <=3.0.3) are ignored for the same reason: the advisories cover the newest
-      # published releases. node-forge is reached only through @expo/cli, braces
-      # only through micromatch (jest's transform and metro's file map): build
-      # tooling, never shipped app code. Drop each once a fixed version exists.
+      # braces (GHSA-vfj7-8cjw-p6xm, <=3.0.3) is ignored for the same reason: the
+      # advisory covers the newest published release, and braces is reached only
+      # through micromatch (jest's transform and metro's file map): build tooling,
+      # never shipped app code. Drop it once a fixed version exists.
+      # decode-uri-component (GHSA-qr28-fpjm-wq7f, <=0.5.0) ships in the app, through
+      # query-string 7 (expo-router, @react-navigation/core). The only fixed release,
+      # 0.5.1, is an ES module, while query-string 7 require()s ^0.2.2 and calls it as
+      # a function, so an override would break route parsing. The advisory is a
+      # slowdown on a crafted, very long percent-encoded URL. Drop the flag once
+      # expo-router and react-navigation move to a query-string on a fixed version.
       - run: >
           bun audit --audit-level=high
           --ignore GHSA-w3rx-r6r6-pgpr
           --ignore GHSA-5p2g-fcmc-qvqq
-          --ignore GHSA-86w9-cpqp-85rv
           --ignore GHSA-vfj7-8cjw-p6xm
+          --ignore GHSA-qr28-fpjm-wq7f
