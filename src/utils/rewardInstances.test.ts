@@ -4,6 +4,7 @@ import {
   expiresSoon,
   formatExpiry,
   groupBankedRewards,
+  heldRewardTag,
   heldRowState,
   sortBankedRewards,
 } from "./rewardInstances";
@@ -158,6 +159,30 @@ describe("groupBankedRewards", () => {
     ]);
     expect(groups.map((g) => g.first.name)).toEqual(["Cake", "Coffee"]);
     expect(groups.map((g) => g.count)).toEqual([2, 1]);
+  });
+});
+
+describe("heldRewardTag", () => {
+  // The backend publishes the origin on every held reward; only the one-time
+  // gift for reaching a level is called out, so the employee can tell it from
+  // the reward the customer earned on their card.
+  test("a level gift is tagged as a gift", () => {
+    expect(heldRewardTag(reward({ source: "level_gift" }))).toBe("heldRewards.gift");
+  });
+
+  test.each(["signup_bonus", "checkpoint", "points_redemption", "manual"] as const)(
+    "a %s reward carries no tag",
+    (source) => {
+      expect(heldRewardTag(reward({ source }))).toBeNull();
+    }
+  );
+
+  test("a gift and a card reward with the same name stay separate rows", () => {
+    const groups = groupBankedRewards([
+      reward({ id: "a", name: "Free grooming", source: "checkpoint" }),
+      reward({ id: "b", name: "Free grooming", source: "level_gift" }),
+    ]);
+    expect(groups.map((g) => heldRewardTag(g.first))).toEqual([null, "heldRewards.gift"]);
   });
 });
 

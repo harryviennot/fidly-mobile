@@ -92,5 +92,15 @@
     "expired": "Expired",
     "gift": "Gift",
     "redeem": "Redeem"
+  },
+  "levels": {
+    "perkTitle": "{{level}} perk: {{perk}}",
+    "perksTitle": "{{level}} perks:",
+    "perkHintOne": "Apply it at the till before charging.",
+    "perkHintMany": "Apply them at the till before charging.",
+    "reached": "{{name}} reached {{level}}!",
+    "reachedNoName": "Reached {{level}}!",
+    "tellThem": "Tell them",
+    "cardShows": "Their wallet card now shows {{level}}."
   }
 }

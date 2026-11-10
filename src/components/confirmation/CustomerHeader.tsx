@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
 import { SkeletonBox, SkeletonCircle } from "@/components/skeleton/Skeleton";
+import { LevelChip } from "@/components/levels/LevelChip";
 
 interface CustomerHeaderProps {
   name: string | null;
@@ -9,14 +10,16 @@ interface CustomerHeaderProps {
   balance: string | null;
   /** True while the customer is still loading (keypad-first: header fills in). */
   loading: boolean;
+  /** The customer's loyalty level, shown as a chip beside the balance. */
+  level?: { name: string } | null;
 }
 
 /**
- * Compact customer header for the points flow: avatar initial + name + balance.
+ * Compact customer header: avatar initial + name + balance (and level chip).
  * Renders a skeleton while the customer fetch is in flight so the keypad below
  * is usable immediately.
  */
-export function CustomerHeader({ name, balance, loading }: CustomerHeaderProps) {
+export function CustomerHeader({ name, balance, loading, level }: CustomerHeaderProps) {
   const { theme } = useTheme();
   const styles = useMemo(
     () =>
@@ -33,7 +36,8 @@ export function CustomerHeader({ name, balance, loading }: CustomerHeaderProps) 
         avatarText: { color: theme.primaryText, fontSize: 22, fontWeight: "bold" },
         info: { flex: 1, gap: 4 },
         name: { fontSize: 18, fontWeight: "700", color: theme.text },
-        balance: { fontSize: 15, fontWeight: "600", color: theme.textSecondary },
+        detailRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+        balance: { flexShrink: 1, fontSize: 15, fontWeight: "600", color: theme.textSecondary },
       }),
     [theme]
   );
@@ -59,10 +63,15 @@ export function CustomerHeader({ name, balance, loading }: CustomerHeaderProps) 
         <Text style={styles.name} numberOfLines={1}>
           {name ?? ""}
         </Text>
-        {balance != null && (
-          <Text style={styles.balance} numberOfLines={1}>
-            {balance}
-          </Text>
+        {(balance != null || level) && (
+          <View style={styles.detailRow}>
+            {level && <LevelChip name={level.name} />}
+            {balance != null && (
+              <Text style={styles.balance} numberOfLines={1}>
+                {balance}
+              </Text>
+            )}
+          </View>
         )}
       </View>
     </View>

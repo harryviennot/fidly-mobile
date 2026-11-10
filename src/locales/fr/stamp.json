@@ -92,5 +92,15 @@
     "expired": "Expirée",
     "gift": "Cadeau",
     "redeem": "Utiliser"
+  },
+  "levels": {
+    "perkTitle": "Avantage {{level}} : {{perk}}",
+    "perksTitle": "Avantages {{level}} :",
+    "perkHintOne": "Appliquez-le en caisse avant d'encaisser.",
+    "perkHintMany": "Appliquez-les en caisse avant d'encaisser.",
+    "reached": "{{name}} passe au niveau {{level}} !",
+    "reachedNoName": "Niveau {{level}} atteint !",
+    "tellThem": "Dites-le au client",
+    "cardShows": "La carte du client affiche maintenant le niveau {{level}}."
   }
 }

@@ -12,6 +12,7 @@ import {
   expiresSoon,
   formatExpiry,
   groupBankedRewards,
+  heldRewardTag,
   heldRowState,
   sortBankedRewards,
 } from "@/utils/rewardInstances";
@@ -121,6 +122,14 @@ export function HeldRewardsList({
       },
       ctaText: { fontSize: 14, fontWeight: "700", color: theme.primaryText },
       nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+      tag: {
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: theme.primaryOnSurface,
+        paddingHorizontal: 7,
+        paddingVertical: 1,
+      },
+      tagText: { fontSize: 12, fontWeight: "700", color: theme.primaryOnSurface },
       countBadge: {
         backgroundColor: theme.primary,
         borderRadius: 999,
@@ -148,6 +157,7 @@ export function HeldRewardsList({
         const expiry = formatExpiry(reward);
         const urgent = expiresSoon(reward);
         const row = heldRowState(reward.id, { redeemingId, disabled });
+        const tag = heldRewardTag(reward);
         return (
           <DimmedRow key={group.key} dimmed={row.dimmed} style={styles.row}>
             <View style={styles.icon}>
@@ -158,6 +168,11 @@ export function HeldRewardsList({
                 <Text style={styles.name} numberOfLines={2}>
                   {reward.name}
                 </Text>
+                {tag && (
+                  <View style={styles.tag}>
+                    <Text style={styles.tagText}>{t(tag)}</Text>
+                  </View>
+                )}
                 {group.count > 1 && (
                   <View style={styles.countBadge}>
                     <Text style={styles.countBadgeText}>{`\u00d7${group.count}`}</Text>

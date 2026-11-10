@@ -92,5 +92,15 @@
     "expired": "Wygasła",
     "gift": "Prezent",
     "redeem": "Odbierz"
+  },
+  "levels": {
+    "perkTitle": "Przywilej {{level}}: {{perk}}",
+    "perksTitle": "Przywileje {{level}}:",
+    "perkHintOne": "Zastosuj go przy kasie, zanim pobierzesz płatność.",
+    "perkHintMany": "Zastosuj je przy kasie, zanim pobierzesz płatność.",
+    "reached": "{{name}}: awans na poziom {{level}}!",
+    "reachedNoName": "Awans na poziom {{level}}!",
+    "tellThem": "Powiedz klientowi",
+    "cardShows": "Karta klienta pokazuje teraz poziom {{level}}."
   }
 }
