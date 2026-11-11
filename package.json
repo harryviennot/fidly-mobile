@@ -1,7 +1,7 @@
 {
   "name": "scanner-app2",
   "main": "expo-router/entry",
-  "version": "2.3.1",
+  "version": "2.3.3",
   "scripts": {
     "start": "expo start",
     "dev": "APP_VARIANT=development npx expo start",
@@ -15,7 +15,7 @@
     "android:dev": "APP_VARIANT=development npx expo run:android --device",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "bun test src"
+    "test": "bun test src plugins"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
