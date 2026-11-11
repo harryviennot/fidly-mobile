@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: getAppName(),
   slug: "stampeo-scanner",
-  version: "2.3.1",
+  version: "2.3.3",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "stampeo-scanner",
@@ -169,6 +169,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         url: "https://sentry.io/"
       }
     ],
+    // Lifts pods that still declare iOS 9-13 to the app's minimum: newer Xcode on EAS
+    // refuses deployment targets below the range it supports.
+    "./plugins/withPodsDeploymentTarget",
   ],
   experiments: {
     typedRoutes: true,
