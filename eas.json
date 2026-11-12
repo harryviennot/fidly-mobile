@@ -39,7 +39,7 @@
         "EXPO_PUBLIC_API_URL": "https://api.stampeo.app"
       },
       "ios": {
-        "image": "latest"
+        "image": "sdk-54"
       }
     }
   },
