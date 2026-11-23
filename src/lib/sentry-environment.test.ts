@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolveSentryEnvironment } from "./sentry-environment";
+import { WEB_REPLAY_PRIVACY, resolveSentryEnvironment } from "./sentry-environment";
 
 describe("resolveSentryEnvironment", () => {
   it("preserves every explicit app variant", () => {
@@ -20,5 +20,11 @@ describe("resolveSentryEnvironment", () => {
   it("falls back by bundle mode when the configured value is invalid", () => {
     expect(resolveSentryEnvironment("local", true)).toBe("development");
     expect(resolveSentryEnvironment("local", false)).toBe("production");
+  });
+});
+
+describe("web Session Replay", () => {
+  it("masks every text and input, so a customer's name and balance never reach Sentry", () => {
+    expect(WEB_REPLAY_PRIVACY).toMatchObject({ maskAllText: true, maskAllInputs: true });
   });
 });

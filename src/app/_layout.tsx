@@ -17,7 +17,7 @@ import { LocationProvider } from "@/contexts/location-context";
 import { UpdateGateProvider, useUpdateGate } from "@/contexts/update-gate-context";
 import { ForceUpdateScreen } from "@/components/ForceUpdateScreen";
 import { AUTH_TRANSITION } from "@/lib/transitions";
-import { resolveSentryEnvironment } from "@/lib/sentry-environment";
+import { WEB_REPLAY_PRIVACY, resolveSentryEnvironment } from "@/lib/sentry-environment";
 
 const sentryDsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
 const appVariant = resolveSentryEnvironment(
@@ -41,10 +41,7 @@ if (sentryDsn) {
       sendDefaultPii: false,
       integrations: [
         SentryReact.browserTracingIntegration(),
-        SentryReact.replayIntegration({
-          maskAllText: false,
-          blockAllMedia: false,
-        }),
+        SentryReact.replayIntegration(WEB_REPLAY_PRIVACY),
       ],
       replaysSessionSampleRate: appVariant === "production" ? 0.1 : 1.0,
       replaysOnErrorSampleRate: 1.0,
