@@ -24,3 +24,14 @@ export function resolveSentryEnvironment(
 
   return isDev ? "development" : "production";
 }
+
+/**
+ * Session Replay options for the web scanner. Its screens show customers'
+ * names and balances, so every text and input is masked in the browser before
+ * a replay is sent.
+ */
+export const WEB_REPLAY_PRIVACY = {
+  maskAllText: true,
+  maskAllInputs: true,
+  blockAllMedia: false,
+} as const;
